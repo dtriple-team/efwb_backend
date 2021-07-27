@@ -13,14 +13,12 @@ import Login from './components/Login.vue';
 import Menu from './components/Menu.vue';
 export default {
   name: 'App',
-
   components: {
     Login,
     Menu
   },
-
   data: () => ({
-    view: false
+    view: true
   }),
 };
 </script>

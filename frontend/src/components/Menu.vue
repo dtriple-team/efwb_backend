@@ -1,78 +1,59 @@
 <template>
   <div>
-    <v-app-bar
-      color="deep-purple accent-4"
-      dark
-      prominent
-    >
+    <v-app-bar color="primary" dark flat class="text-center">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
-
-      <v-toolbar-title>My files</v-toolbar-title>
-
       <v-spacer></v-spacer>
-
+      <v-toolbar-title class="display-1">TITLE</v-toolbar-title>
+      <v-spacer></v-spacer>
       <v-btn icon>
-        <v-icon>mdi-magnify</v-icon>
+        <v-icon>mdi-plus</v-icon>
       </v-btn>
-
-      <v-btn icon>
-        <v-icon>mdi-filter</v-icon>
-      </v-btn>
-
-      <v-btn icon>
-        <v-icon>mdi-dots-vertical</v-icon>
-      </v-btn>
+      <template v-slot:extension>
+        <v-text-field filled outlined dense append-icon="mdi-magnify"></v-text-field>
+      </template>
     </v-app-bar>
-
-    <v-navigation-drawer
-      v-model="drawer"
-      absolute
-      bottom
-      temporary
-    >
-      <v-list
-        nav
-        dense
-      >
-        <v-list-item-group
-          v-model="group"
-          active-class="deep-purple--text text--accent-4"
-        >
-          <v-list-item>
-            <v-list-item-title>Foo</v-list-item-title>
-          </v-list-item>
-
-          <v-list-item>
-            <v-list-item-title>Bar</v-list-item-title>
-          </v-list-item>
-
-          <v-list-item>
-            <v-list-item-title>Fizz</v-list-item-title>
-          </v-list-item>
-
-          <v-list-item>
-            <v-list-item-title>Buzz</v-list-item-title>
-          </v-list-item>
-        </v-list-item-group>
+    <v-navigation-drawer v-model="drawer" absolute temporary>
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-title class="text-h6">
+            Menu
+          </v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+      <v-divider></v-divider>
+      <v-list-item>
+        <v-list-item-content>
+          <v-list-item-subtitle>
+            Band
+          </v-list-item-subtitle>
+        </v-list-item-content>
+      </v-list-item>
+      <v-list dense>
+        <v-list-item v-for="item in items" :key="item.title" link :to="item.to">
+          <v-list-item-icon>
+            <v-icon>{{ item.icon }}</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
-    <v-main>
-        <router-view/>
-    </v-main>
+    <router-view/>
   </div>
 </template>
 
 <script>
   export default {
-    data: () => ({
-      drawer: false,
-      group: null,
-    }),
-
-    watch: {
-      group () {
-        this.drawer = false
-      },
+    data () {
+      return {
+        drawer: null,
+        items: [
+          { title: '조회', icon: 'mdi-watch', to:'/' },
+          { title: '정보', icon: 'mdi-forum', to:'/band' },
+        ],
+        itemm: 'mdi-watch'
+      }
     },
   }
 </script>
