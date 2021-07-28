@@ -1,19 +1,29 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import Main from '@/components/Main'
+import BandInfo from '@/components/BandInfo'
 import BandList from '@/components/BandList'
+import Login from '@/components/Login'
+
+
 Vue.use(VueRouter)
 
 const routes = [
     {
-        path: '/',
-        name: 'Main',
-        component: Main
+        path:'/login',
+        name: 'Login',
+        component: Login,
+        props: true,
     },
     {
-        path: '/band',
-        name: 'BandList',
-        component: BandList
+        path: '/bandlist',
+        name: 'BAND LIST',
+        component: BandList,
+        props: true,
+    },
+    {
+        path: '/bandinfo',
+        name: 'BAND INFO',
+        component: BandInfo
     },
 ]
 

@@ -1,14 +1,14 @@
 <template>
-  <div>
+  <div v-if="check.nav.view">
     <v-app-bar color="primary" dark flat class="text-center">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
       <v-spacer></v-spacer>
-      <v-toolbar-title class="display-1">TITLE</v-toolbar-title>
+      <v-toolbar-title class="">{{$router.history.current.name}}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn icon>
         <v-icon>mdi-plus</v-icon>
       </v-btn>
-      <template v-slot:extension>
+      <template v-slot:extension v-if="check.search.view">
         <v-text-field filled outlined dense append-icon="mdi-magnify"></v-text-field>
       </template>
     </v-app-bar>
@@ -39,21 +39,47 @@
         </v-list-item>
       </v-list>
     </v-navigation-drawer>
-    <router-view/>
   </div>
 </template>
 
 <script>
   export default {
+    name: "Menu",
+    props: {
+      view:{}
+    },
     data () {
       return {
         drawer: null,
         items: [
-          { title: '조회', icon: 'mdi-watch', to:'/' },
-          { title: '정보', icon: 'mdi-forum', to:'/band' },
+          { title: '조회', icon: 'mdi-watch', to:'/bandlist' },
+          { title: '정보', icon: 'mdi-forum', to:'/bandinfo' },
         ],
-        itemm: 'mdi-watch'
+        check: {
+          nav: {
+            list: ["Login"],
+            view: true
+          },
+          search: {
+            list: ["BAND INFO"],
+            view: true
+          }
+        },
       }
     },
+    methods: {
+    },
+    watch: {
+      $route(to) {
+        console.log(to.name)
+        if(this.check.nav.list.includes(to.name))
+          this.check.nav.view = false
+        else {
+          this.check.nav.view = true
+          if(this.check.search.list.includes(to.name)) this.check.search.view = false
+          else this.check.search.view = true
+        }
+      }
+    }
   }
 </script>
