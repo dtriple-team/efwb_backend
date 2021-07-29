@@ -1,21 +1,30 @@
 <template>
   <div>
-    Band Info
+    {{ band.bid + band.name }}
   </div>
 </template>
 
 <script>
 export default {
-  // props: ["b"],
-  data: () => ({}),
-  mounted() {},
+  props: {
+    bandInfo: {
+      type: String,
+      default: "",
+    },
+  },
+  data: () => ({
+    band: "",
+  }),
+  mounted() {
+    this.changeJson();
+  },
   created() {
     // this.check();
   },
   methods: {
-    // check() {
-    //   console.log(JSON.parse(this.b));
-    // },
+    changeJson() {
+      this.band = JSON.parse(this.bandInfo);
+    },
   },
 };
 </script>

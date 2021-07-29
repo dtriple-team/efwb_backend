@@ -104,8 +104,10 @@ export default {
   }),
   methods: {
     log(band) {
-      this.$router.push("/bandinfo/");
-      console.log(band);
+      this.$router.push({
+        name: "Band Info",
+        params: { bandInfo: JSON.stringify(band) },
+      });
     },
   },
 };
