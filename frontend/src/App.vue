@@ -1,45 +1,30 @@
 <template>
   <v-app>
     <v-main>
-      <Menu/>
-       <router-view v-on:vue-change="viewChange(false)" ></router-view>
+      <Menu />
+      <router-view></router-view>
     </v-main>
   </v-app>
 </template>
 
 <script>
 //import HelloWorld from './components/HelloWorld';
-import Menu from './components/Menu.vue';
+import Menu from "./components/Menu.vue";
 export default {
-  name: 'App',
+  name: "App",
   components: {
-    Menu
+    Menu,
   },
   data: () => ({
-    view: true,
     viewData: {
-      value: true
-    }
-  }),
-  mounted() {
-    this.viewChange(true)
-  },
-  created() {
-
-  },
-  methods: {
-    viewChange(view){
-      this.view = view
-      if(view) this.$router.push('/login')
-      else this.$router.push('/bandlist')
+      value: true,
     },
-    setView(view){
-      this.view = view
-    }
+  }),
+  mounted() {},
+  created() {},
+  methods: {},
+  watch: {
+    $route() {},
   },
-    watch: {
-      $route() {
-      }
-    }  
 };
 </script>
