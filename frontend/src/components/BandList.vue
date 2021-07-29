@@ -104,6 +104,7 @@ export default {
   }),
   methods: {
     log(band) {
+      this.$router.push("/bandinfo/");
       console.log(band);
     },
   },

@@ -1,6 +1,6 @@
 <template>
   <div>
-    Band Info
+    AccountList.vue
   </div>
 </template>
 
