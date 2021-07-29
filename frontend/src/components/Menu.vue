@@ -1,5 +1,5 @@
 <template>
-  <div v-if="check.nav.view">
+  <div v-if="nav.view">
     <v-app-bar color="primary" dark flat class="text-center">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer">
         <v-icon>
@@ -11,7 +11,7 @@
         title
       }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn icon>
+      <v-btn icon @click="back()">
         <v-icon>mdi-plus-thick</v-icon>
       </v-btn>
       <!-- <template v-slot:extension v-if="check.search.view">
@@ -34,8 +34,10 @@
           </v-list-item-avatar>
 
           <v-list-item-content>
-            <v-list-item-title>하재경</v-list-item-title>
-            <v-list-item-subtitle>관리자</v-list-item-subtitle>
+            <v-list-item-title>{{ account.name }}</v-list-item-title>
+            <v-list-item-subtitle>{{
+              account.permission
+            }}</v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>
       </template>
@@ -82,11 +84,13 @@ export default {
         { title: "밴드 조회", icon: "mdi-watch-variant", to: "/bandlist" },
         { title: "계정 조회", icon: "mdi-account-circle", to: "/accountlist" },
       ],
-      check: {
-        nav: {
-          list: ["Login"],
-          view: true,
-        },
+      nav: {
+        list: ["Login"],
+        view: true,
+      },
+      account: {
+        name: "하재경",
+        permission: "관리자",
       },
       searchValue: null,
       title: null,
@@ -95,12 +99,15 @@ export default {
   methods: {
     init() {
       this.title = this.$router.history.current.name;
-      if (this.check.nav.list.includes(this.title)) this.check.nav.view = false;
-      else this.check.nav.view = true;
+      if (this.nav.list.includes(this.title)) this.nav.view = false;
+      else this.nav.view = true;
     },
     logout() {
       this.drawer = !this.drawer;
       this.$router.push("/login");
+    },
+    back() {
+      this.$router.go(-1);
     },
   },
   created() {

@@ -4,6 +4,7 @@ import BandInfo from "@/components/BandInfo";
 import BandList from "@/components/BandList";
 import Login from "@/components/Login";
 import AccountList from "@/components/AccountList";
+import AccountInfo from "@/components/AccountInfo";
 Vue.use(VueRouter);
 
 const routes = [
@@ -15,13 +16,13 @@ const routes = [
   },
   {
     path: "/bandlist",
-    name: "BAND LIST",
+    name: "Band List",
     component: BandList,
     props: true,
   },
   {
     path: "/bandinfo",
-    name: "BAND INFO",
+    name: "Band Info",
     component: BandInfo,
     props: true,
   },
@@ -29,6 +30,12 @@ const routes = [
     path: "/accountlist",
     name: "Account List",
     component: AccountList,
+    props: true,
+  },
+  {
+    path: "/accountinfo",
+    name: "Account Info",
+    component: AccountInfo,
     props: true,
   },
 ];
