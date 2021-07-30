@@ -1,10 +1,10 @@
 <template>
   <v-parallax dark src="../assets/login_background.png">
-    <v-container>
+    <v-container fluid>
       <v-row>
         <v-col class="mt-16">
           <h1 class="text-center display-3 font-weight-bold">WELLO</h1>
-          <v-container class="mt-16">
+          <v-container class="mt-16" fluid>
             <form class="mt-16">
               <v-text-field
                 v-model="name"

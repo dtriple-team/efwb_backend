@@ -7,12 +7,16 @@
         </v-icon>
       </v-app-bar-nav-icon>
       <v-spacer></v-spacer>
-      <v-toolbar-title class="font-weight-bold text-uppercase">{{
-        title
-      }}</v-toolbar-title>
+      <v-toolbar-title
+        v-if="appbar()"
+        class=" display-1 font-weight-bold text-uppercase"
+        >{{ title }}</v-toolbar-title
+      >
       <v-spacer></v-spacer>
       <v-btn icon @click="back()">
-        <v-icon>mdi-plus-thick</v-icon>
+        <v-icon v-if="appbar()">mdi-plus-thick</v-icon>
+        <v-icon v-else>mdi-undo-variant</v-icon>
+        <!-- <v-icon>mdi-plus-thick</v-icon> -->
       </v-btn>
       <!-- <template v-slot:extension v-if="check.search.view">
         <v-text-field
@@ -29,8 +33,8 @@
     <v-navigation-drawer v-model="drawer" absolute temporary>
       <template v-slot:prepend>
         <v-list-item two-line link>
-          <v-list-item-avatar>
-            <img src="https://randomuser.me/api/portraits/women/81.jpg" />
+          <v-list-item-avatar color="indigo">
+            <span class="white--text text-h5">{{ account.name }}</span>
           </v-list-item-avatar>
 
           <v-list-item-content>
@@ -88,6 +92,7 @@ export default {
         list: ["Login"],
         view: true,
       },
+      appbaricon: ["Band Info", "Account Info"],
       account: {
         name: "하재경",
         permission: "관리자",
@@ -101,6 +106,10 @@ export default {
       this.title = this.$router.history.current.name;
       if (this.nav.list.includes(this.title)) this.nav.view = false;
       else this.nav.view = true;
+    },
+    appbar() {
+      if (this.appbaricon.includes(this.title)) return false;
+      else return true;
     },
     logout() {
       this.drawer = !this.drawer;

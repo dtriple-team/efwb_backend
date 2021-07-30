@@ -18,34 +18,39 @@
       <template v-slot:default="props">
         <v-list>
           <template v-for="(band, index) in props.items">
-            <v-list-item :key="index">
+            <v-list-item action :key="index" @click="listClick(bands[index])">
               <v-list-item-icon class="list-item">
                 <v-icon :color="'green'">mdi-circle-medium</v-icon>
               </v-list-item-icon>
 
-              <v-list-item-content class="list-item left-margin">
-                <v-list-item-title v-text="band.bid"></v-list-item-title>
+              <v-list-item-content class="list-item">
+                <v-list-item-title
+                  class="text-style"
+                  v-text="band.bid"
+                ></v-list-item-title>
               </v-list-item-content>
 
               <v-list-item-content class="list-item">
-                <v-list-item-title v-text="band.name"></v-list-item-title>
+                <v-list-item-title
+                  class="text-style"
+                  v-text="band.name"
+                ></v-list-item-title>
               </v-list-item-content>
               <v-list-item-icon class="list-item">
                 <v-icon :color="band.active ? 'deep-purple accent-4' : 'grey'">
                   mdi-watch-variant
                 </v-icon>
-              </v-list-item-icon>
-              <v-list-item-icon class="list-item">
-                <v-icon :color="band.active ? 'deep-purple accent-4' : 'grey'">
-                  mdi-battery-high
-                </v-icon>
-              </v-list-item-icon>
-              <v-list-item-icon class="list-item">
+
                 <v-icon :color="band.active ? 'deep-purple accent-4' : 'grey'">
                   mdi-signal-cellular-3
                 </v-icon>
+                <v-icon :color="band.active ? 'deep-purple accent-4' : 'grey'">
+                  mdi-battery-high
+                </v-icon>
+                <div>{{ band.battery }}%</div>
               </v-list-item-icon>
-              <v-list-item-icon class="list-item">
+
+              <!-- <v-list-item-icon class="list-item">
                 <v-btn
                   depressed
                   block
@@ -53,7 +58,7 @@
                   @click="log(bands[index])"
                   >조회</v-btn
                 >
-              </v-list-item-icon>
+              </v-list-item-icon> -->
             </v-list-item>
             <v-divider :key="band.bid"></v-divider>
           </template>
@@ -103,7 +108,7 @@ export default {
     search: "",
   }),
   methods: {
-    log(band) {
+    listClick(band) {
       this.$router.push({
         name: "Band Info",
         params: { bandInfo: JSON.stringify(band) },
@@ -116,7 +121,7 @@ export default {
 .list-item {
   align-self: center; // [jk]
 }
-.list-item.left-margin {
-  margin-left: -5px;
+.text-style {
+  font-size: 1.2rem;
 }
 </style>
