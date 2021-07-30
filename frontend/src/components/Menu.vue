@@ -9,7 +9,7 @@
       <v-spacer></v-spacer>
       <v-toolbar-title
         v-if="appbar()"
-        class=" display-1 font-weight-bold text-uppercase"
+        class=" headline font-weight-bold text-uppercase"
         >{{ title }}</v-toolbar-title
       >
       <v-spacer></v-spacer>
@@ -33,7 +33,7 @@
     <v-navigation-drawer v-model="drawer" absolute temporary>
       <template v-slot:prepend>
         <v-list-item two-line link>
-          <v-list-item-avatar color="indigo">
+          <v-list-item-avatar class="secondary">
             <span class="white--text text-h5">{{ account.name }}</span>
           </v-list-item-avatar>
 
@@ -113,7 +113,7 @@ export default {
     },
     logout() {
       this.drawer = !this.drawer;
-      this.$router.push("/login");
+      this.$router.push("/");
     },
     back() {
       this.$router.go(-1);

@@ -18,12 +18,12 @@
       <template v-slot:default="props">
         <v-list>
           <template v-for="(account, index) in props.items">
-            <v-list-item :key="index">
+            <v-list-item :key="index" @click="listClick(accounts[index])">
               <!-- <v-list-item-icon class="list-item">
                 <v-icon :color="'green'">mdi-circle-medium</v-icon>
               </v-list-item-icon> -->
 
-              <v-list-item-content class="list-item left-margin">
+              <v-list-item-content class="list-item">
                 <v-list-item-title v-text="account.uid"></v-list-item-title>
               </v-list-item-content>
 
@@ -41,7 +41,7 @@
                 ></v-list-item-title>
               </v-list-item-content>
 
-              <v-list-item-icon class="list-item">
+              <!-- <v-list-item-icon class="list-item">
                 <v-btn
                   depressed
                   block
@@ -49,7 +49,7 @@
                   @click="log(accounts[index])"
                   >조회</v-btn
                 >
-              </v-list-item-icon>
+              </v-list-item-icon> -->
             </v-list-item>
             <v-divider :key="account.uid"></v-divider>
           </template>
@@ -88,9 +88,12 @@ export default {
     search: "",
   }),
   methods: {
-    log(band) {
-      this.$router.push("/accountinfo/");
-      console.log(band);
+    listClick(account) {
+      console.log(account);
+      this.$router.push({
+        name: "Account Info",
+        params: { account: JSON.stringify(account) },
+      });
     },
   },
 };

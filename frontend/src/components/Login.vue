@@ -1,5 +1,5 @@
 <template>
-  <v-parallax dark src="../assets/login_background.png">
+  <v-parallax src="../assets/login_background.png">
     <v-container fluid>
       <v-row>
         <v-col class="mt-16">
