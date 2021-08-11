@@ -34,14 +34,12 @@
       <template v-slot:prepend>
         <v-list-item two-line link>
           <v-list-item-avatar class="secondary">
-            <span class="white--text text-h5">{{ account.name }}</span>
+            <span class="white--text text-h5">{{ $session.user.name }}</span>
           </v-list-item-avatar>
 
           <v-list-item-content>
-            <v-list-item-title>{{ account.name }}</v-list-item-title>
-            <v-list-item-subtitle>{{
-              account.permission
-            }}</v-list-item-subtitle>
+            <v-list-item-title>{{ $session.user.name }}</v-list-item-title>
+            <v-list-item-subtitle>{{ $session.groupstr }}</v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>
       </template>
@@ -93,10 +91,6 @@ export default {
         view: true,
       },
       appbaricon: ["Band Info", "Account Info"],
-      account: {
-        name: "하재경",
-        permission: "관리자",
-      },
       searchValue: null,
       title: null,
     };

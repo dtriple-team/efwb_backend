@@ -12,7 +12,7 @@
     </v-card>
     <v-card flat>
       <v-card-text class="display-1 text-center font-weight-bold">
-        {{ band.name }}
+        {{ band.bandinfo.name }}
       </v-card-text>
     </v-card>
     <v-container fluid>
@@ -52,7 +52,9 @@
             <v-list-item-content>
               <div class="mx-auto text-center">
                 <v-avatar color="thirdly" size="55" class="mb-2">
-                  <span class="text-h5 font-weight-bold">80</span>
+                  <span class="text-h5 font-weight-bold">{{
+                    banddata.bandstate[1].value
+                  }}</span>
                 </v-avatar>
                 <v-list-item-title class="title-style"
                   >수신감도</v-list-item-title
@@ -160,7 +162,11 @@ export default {
     },
   },
   data: () => ({
-    band: "",
+    band: {
+      bandinfo: {
+        name: "",
+      },
+    },
     banddata: {
       vital: [
         {
@@ -233,8 +239,10 @@ export default {
       ],
     },
   }),
-  mounted() {
+  async mounted() {
     this.changeJson();
+    //await this.getBandUser();
+    this.$session.$on("data", this.onDataHandler.bind(this));
   },
   created() {
     // this.check();
@@ -242,6 +250,42 @@ export default {
   methods: {
     changeJson() {
       this.band = JSON.parse(this.bandInfo);
+      this.userdata.bandinfo = this.band.bandinfo.bid;
+      this.userdata.personalinfo[0].value = this.band.bandinfo.name;
+      var date = new Date(this.band.bandinfo.birth);
+      this.userdata.personalinfo[1].value = date.toLocaleDateString();
+    },
+    onDataHandler(data) {
+      if (data.shortAddress === this.band.bandinfo.id) {
+        this.banddata.bandstate[1].value = data.rssi;
+      }
+    },
+    async getBandUser() {
+      try {
+        var res = await this.$http.get(
+          "bands/userinfo/" + this.band.bandinfo.id
+        );
+        var user = res.data.data;
+        console.log(user);
+        for (var i = 0; i < user.length; i++) {
+          res = await this.$http.get("user_table/groupinfo/" + user[i].id);
+          var group = res.data.data;
+          console.log(group);
+          var groupstr = "";
+          for (var j = 0; j < group.length; j++) {
+            groupstr = groupstr + " " + group[j].groupname;
+          }
+          this.userdata.managerinfo.push({
+            value: user[i].name,
+            position: groupstr,
+          });
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    },
+    getUser(data) {
+      console.log(data);
     },
     changeIcon(data, check) {
       if (check) {

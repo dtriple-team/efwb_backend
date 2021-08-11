@@ -65,7 +65,7 @@ export default {
     accounts: [
       {
         active: true,
-        uid: 1000,
+        uid: 10000,
         name: "주강대",
         permission: "admin",
         organization: "디트리플",
@@ -73,7 +73,7 @@ export default {
       {
         active: true,
         uid: 2000,
-        name: "하재경",
+        name: "하재",
         permission: "staff",
         organization: "디트리플",
       },

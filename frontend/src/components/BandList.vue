@@ -1,6 +1,11 @@
 <template>
   <div>
-    <v-data-iterator :items="bands" :search="search" hide-default-footer>
+    <v-data-iterator
+      :items="bands"
+      :search="search"
+      :no-data-text="nodata"
+      hide-default-footer
+    >
       <template v-slot:header>
         <v-toolbar dark color="primary" flat>
           <v-text-field
@@ -20,7 +25,7 @@
           <template v-for="(band, index) in props.items">
             <v-list-item action :key="index" @click="listClick(bands[index])">
               <v-list-item-icon class="list-item">
-                <v-icon small :color="band.active ? 'secondary' : 'grey'"
+                <v-icon small :color="true ? 'secondary' : 'grey'"
                   >mdi-circle</v-icon
                 >
               </v-list-item-icon>
@@ -28,14 +33,14 @@
               <v-list-item-content class="list-item ml-n5">
                 <v-list-item-title
                   class="text-style"
-                  v-text="band.bid"
+                  v-text="band.bandinfo.bid"
                 ></v-list-item-title>
               </v-list-item-content>
 
               <v-list-item-content class="list-item">
                 <v-list-item-title
                   class="text-style"
-                  v-text="band.name"
+                  v-text="band.bandinfo.name"
                 ></v-list-item-title>
               </v-list-item-content>
 
@@ -44,33 +49,33 @@
                   mdi-watch-variant
                 </v-icon>
 
-                <v-icon v-if="band.rssi > -30" color="black">
+                <v-icon v-if="band.bandvalue.rssi > -30" color="black">
                   mdi-signal-cellular-3
                 </v-icon>
-                <v-icon v-else-if="band.rssi > -50" color="black">
+                <v-icon v-else-if="band.bandvalue.rssi > -50" color="black">
                   mdi-signal-cellular-2
                 </v-icon>
-                <v-icon v-else-if="band.rssi > -75" color="black">
+                <v-icon v-else-if="band.bandvalue.rssi > -75" color="black">
                   mdi-signal-cellular-1
                 </v-icon>
                 <v-icon v-else color="black">
                   mdi-signal-cellular-outline
                 </v-icon>
 
-                <v-icon v-if="band.battery > 80" color="black">
+                <v-icon v-if="band.bandvalue.battery > 80" color="black">
                   mdi-battery-high
                 </v-icon>
-                <v-icon v-else-if="band.battery > 40" color="black">
+                <v-icon v-else-if="band.bandvalue.battery > 40" color="black">
                   mdi-battery-medium
                 </v-icon>
-                <v-icon v-else-if="band.battery > 15" color="black">
+                <v-icon v-else-if="band.bandvalue.battery > 15" color="black">
                   mdi-battery-low
                 </v-icon>
                 <v-icon v-else color="black">
                   mdi-battery-outline
                 </v-icon>
 
-                <div class="align-style">{{ band.battery }}%</div>
+                <div class="align-style">{{ band.bandvalue.battery }}%</div>
               </v-list-item-icon>
 
               <!-- <v-list-item-icon class="list-item">
@@ -83,7 +88,7 @@
                 >
               </v-list-item-icon> -->
             </v-list-item>
-            <v-divider :key="band.bid"></v-divider>
+            <v-divider :key="band.bandinfo.alias"></v-divider>
           </template>
         </v-list>
       </template>
@@ -93,45 +98,70 @@
 
 <script>
 export default {
+  // props: {
+  //   userInfo: {
+  //     type: String,
+  //     default: "",
+  //   },
+  // },
+  created() {
+    //this.getBandList();
+    this.$session.$on("data", this.onDataHandler.bind(this));
+  },
+  mounted() {
+    // this.changeJson();
+  },
   data: () => ({
     bands: [
       {
-        active: true,
-        bid: "0x00",
-        name: "Jason",
-        scd: true,
-        battery: 9,
-        rssi: -10,
-      },
-      {
-        active: true,
-        bid: "0x01",
-        name: "Mike",
-        scd: true,
-        battery: 100,
-        rssi: -30,
-      },
-      {
-        active: true,
-        bid: "0x02",
-        name: "Cindy",
-        scd: true,
-        battery: 50,
-        rssi: -50,
-      },
-      {
-        active: false,
-        bid: "0x03",
-        name: "Ali",
-        scd: true,
-        battery: 70,
-        rssi: -78,
+        bandinfo: {
+          bid: 1,
+          name: "하재경",
+          alias: "하재경하재경",
+          birth: "1997-09-01",
+        },
+        bandvalue: {
+          battery: 89,
+          rssi: -45,
+        },
       },
     ],
     search: "",
+    nodata: "",
   }),
   methods: {
+    // changeJson() {
+    //   this.user = JSON.parse(this.userInfo);
+    // },
+    getBandList() {
+      this.$http
+        .get("bands/list")
+        .then((res) => {
+          // console.log(res.data.data);
+          var bands = res.data.data;
+          for (var i = 0; i < bands.length; i++) {
+            console.log(bands[i]);
+            this.bands.push({
+              bandinfo: bands[i],
+              bandvalue: {
+                rssi: -80,
+              },
+            });
+          }
+        })
+        .catch((ex) => {
+          console.log(ex);
+        });
+    },
+    onDataHandler(data) {
+      for (var i = 0; i < this.bands.length; i++) {
+        if (data.shortAddress === this.bands[i].bandinfo.bid) {
+          this.bands[i].bandvalue.rssi = data.rssi;
+        }
+      }
+    },
     listClick(band) {
+      console.log(band);
       this.$router.push({
         name: "Band Info",
         params: { bandInfo: JSON.stringify(band) },
