@@ -96,7 +96,7 @@ module.exports = {
   transpileDependencies: [
     'vuetify'
   ],
-  outputDir: path.resolve(dirname, '../backend/dist')
+  outputDir: path.resolve(__dirname, '../backend/dist')
 }
 ```
 
