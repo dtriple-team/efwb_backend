@@ -141,10 +141,10 @@
               </v-icon>
             </v-list-item-icon>
             <v-list-item-content>
-              {{ item.value }}
+              {{ item.name }}
             </v-list-item-content>
             <v-list-item-action>
-              <v-list-item-title>{{ item.position }}</v-list-item-title>
+              <v-list-item-title>{{ item.permission }}</v-list-item-title>
             </v-list-item-action>
           </v-list-item>
         </div>
@@ -229,12 +229,12 @@ export default {
       ],
       managerinfo: [
         {
-          value: "하재경",
-          position: "staff",
+          name: "하재경",
+          permission: "staff",
         },
         {
-          value: "김갑슨",
-          position: "manager",
+          name: "김갑슨",
+          permission: "manager",
         },
       ],
     },
