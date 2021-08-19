@@ -1,0 +1,17 @@
+Flask==1.1.1
+Flask-Login==0.4.1
+Flask-Migrate==2.5.2
+Flask-Restless==0.17.0
+Flask-RESTful==0.3.7
+Flask-Script==2.0.6
+Flask-SQLAlchemy==2.4.0
+Flask-Cors==3.0.8
+SQLAlchemy==1.3.6
+python-dateutil==2.8.0
+requests==2.20.0
+pycryptodome==3.10.1
+flask-socketio==5.1.1
+mysqlclient==2.0.2
+gevent==21.1.2
+gevent-websocket==0.10.1
+paho-mqtt==1.5.0

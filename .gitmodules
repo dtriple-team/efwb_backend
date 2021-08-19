@@ -1,0 +1,3 @@
+[submodule "efwb-frontend"]
+	path = efwb-frontend
+	url = https://github.com/jjaekkaemi/efwb-frontend.git
