@@ -130,18 +130,90 @@ class DBManager:
         from backend.db.table_band import Bands
         bands = Bands()
         bands.bid = 1
-        bands.alias = "P0123456"
+        bands.alias = "P1"
         bands.name = "하재경"
-        bands.gender = 0
+        bands.gender = 1
         bands.birth = "1997-09-01"
         
         DBManager.db.session.add(bands)
 
         bands = Bands()
         bands.bid = 2
-        bands.alias = "P0123457"
-        bands.name = "하재"
+        bands.alias = "P2"
+        bands.name = "주강대"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 3
+        bands.alias = "P3"
+        bands.name = "박홍범"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 4
+        bands.alias = "P4"
+        bands.name = "홍준호"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 5
+        bands.alias = "P5"
+        bands.name = "강예린"
         bands.gender = 1
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 6
+        bands.alias = "P6"
+        bands.name = "조우석"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 7
+        bands.alias = "P7"
+        bands.name = "신현식"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 8
+        bands.alias = "P8"
+        bands.name = "서주원"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 9
+        bands.alias = "P9"
+        bands.name = "라춘식"
+        bands.gender = 0
+        bands.birth = "1997-09-01"
+        
+        DBManager.db.session.add(bands)
+
+        bands = Bands()
+        bands.bid = 10
+        bands.alias = "P10"
+        bands.name = "라이언"
+        bands.gender = 0
         bands.birth = "1997-09-01"
         
         DBManager.db.session.add(bands)
