@@ -43,6 +43,7 @@ mqtt = Mqtt(app)
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 socketio = SocketIO(app, cors_allowed_origins="*", engineio_logger=False)
 
+mqtt.subscribe('/efwb/sync')
 from backend.api.api_create import *
 from backend.api.api_band import *
 

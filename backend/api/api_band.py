@@ -17,7 +17,7 @@ from sqlalchemy import func
 from datetime import date
 data = 0
 
-mqtt.subscribe('/efwb/sync')
+
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
@@ -27,6 +27,7 @@ def handle_connect(client, userdata, flags, rc):
 def handle_mqtt_message(client, userdata, message):
   mqtt_data = json.loads(message.payload.decode())
   try:
+    print(mqtt_data)
     bandData = mqtt_data['bandData']
     data = SensorData()
     data.FK_bid = mqtt_data['shortAddress']
