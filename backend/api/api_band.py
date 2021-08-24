@@ -17,6 +17,8 @@ from sqlalchemy import func
 from datetime import date
 data = 0
 
+mqtt.subscribe('/efwb/sync')
+
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
@@ -24,40 +26,49 @@ def handle_connect(client, userdata, flags, rc):
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   mqtt_data = json.loads(message.payload.decode())
-  global data
-  data+=1
+  try:
+    bandData = mqtt_data['bandData']
+    data = SensorData()
+    data.FK_bid = mqtt_data['shortAddress']
 
-  mqtt.publish('/efwb/result', data)
-  print(mqtt_data)
-  # bandData = mqtt_data['bandData']
-  # data = SensorData()
-  # data.FK_bid = mqtt_data['shortAddress']
-  # data.hr = 50
-  # data.spo2 = 50
-  # data.spo2state = mqtt_data['walk_steps']
-  # data.scdstate = mqtt_data['scdState']
-  # data.activity = mqtt_data['activity']
-  # data.walksteps = mqtt_data['walk_steps'] 
-  # data.runsteps = mqtt_data['run_steps']  
-  # data.motion = True
-  # data.battery = 40
-  # data.rssi = mqtt_data['rssi']     
-  # DBManager.db.session.add(data)
-  # DBManager.db.session.commit()
+    data.start_byte = bandData['start_byte']
+    data.sample_count = bandData['sample_count']
+    data.fall_detect = bandData['fall_detect']
+    data.battery_level = bandData['battery_level']
+    data.hrConfidence = bandData['hrConfidence']
+    data.spo2Confidence = bandData['spo2Confidence']
+    data.hr = bandData['hr']
+    data.spo2 = bandData['spo2']
 
-  socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+    data.motionFlag = bandData['motionFlag'] 
+    data.scdState = bandData['scdState']
+    data.activity = bandData['activity']
+    data.walk_steps = bandData['walk_steps']
+    data.run_steps = bandData['run_steps']  
+    
+    data.x = bandData['x']
+    data.y = bandData['y']
+    data.z = bandData['z']
+    data.t = bandData['t'] 
+    data.h = bandData['h']  
+
+    data.rssi = mqtt_data['rssi']   
+  
+    DBManager.db.session.add(data)
+    DBManager.db.session.commit()
+  except :
+    pass  
 
 @socketio.on('connect', namespace='/receiver')
 def connect():
    
   print("***socket connected***")
   emit('message', "socket connected")
-  mqtt.subscribe('/efwb/sync')
+
 
 @socketio.on('disconnect', namespace='/receiver')
 def disconnect():
     print('Disconnected')
-    mqtt.unsubscribe('/efwb/sync')
 
 
 @app.route('/api/efwb/v1/group_table/add', methods=['POST'])

@@ -48,7 +48,7 @@ class DBManager:
         DBManager.insert_dummy_users_groups()
         DBManager.insert_dummy_bands()
         DBManager.insert_dummy_users_bands()
-        DBManager.insert_dummy_sensor_data()
+        #DBManager.insert_dummy_sensor_data()
         #DBManager.insert_dummy_event_data()
     def password_encoder(password):
         pass1 = hashlib.sha1(password).digest()
