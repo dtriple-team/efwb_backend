@@ -15,10 +15,12 @@ from functools import wraps
 from backend.db.table_band import *
 from sqlalchemy import func
 from datetime import date
-data = 0
+historyBandData = {
+  "spo2": 0
+}
 
 
-
+mqtt.subscribe('/efwb/sync')
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
@@ -27,7 +29,8 @@ def handle_connect(client, userdata, flags, rc):
 def handle_mqtt_message(client, userdata, message):
   mqtt_data = json.loads(message.payload.decode())
   try:
-    print(mqtt_data)
+
+    global historyBandData
     bandData = mqtt_data['bandData']
     data = SensorData()
     data.FK_bid = mqtt_data['shortAddress']
@@ -39,7 +42,17 @@ def handle_mqtt_message(client, userdata, message):
     data.hrConfidence = bandData['hrConfidence']
     data.spo2Confidence = bandData['spo2Confidence']
     data.hr = bandData['hr']
-    data.spo2 = bandData['spo2']
+    if bandData['spo2']<=1000 and bandData['spo2']>=400:
+        data.spo2 = bandData['spo2']
+        historyBandData = bandData
+        mqtt_data['bandData']['spo2'] = bandData['spo2']
+    else :
+        if historyBandData['spo2'] == 0:
+            data.spo2 = 0
+            mqtt_data['bandData']['spo2'] = 0
+        else :
+            data.spo2 = historyBandData['spo2']
+            mqtt_data['bandData']['spo2'] = historyBandData['spo2']
 
     data.motionFlag = bandData['motionFlag'] 
     data.scdState = bandData['scdState']
@@ -51,13 +64,27 @@ def handle_mqtt_message(client, userdata, message):
     data.y = bandData['y']
     data.z = bandData['z']
     data.t = bandData['t'] 
+    # if bandData['h']>=0:
+    #     data.h = bandData['h']
+    #     historyBandData = bandData
+    #     mqtt_data['bandData']['h'] = bandData['h']
+    # else :
+    #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
+    #         data.spo2 = 0
+    #         mqtt_data['bandData']['spo2'] = 0
+    #     else :
+    #         data.spo2 = historyBandData['spo2']/10
+    #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
+
     data.h = bandData['h']  
 
     data.rssi = mqtt_data['rssi']   
-  
+   
     DBManager.db.session.add(data)
     DBManager.db.session.commit()
-  except :
+    socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+  except Exception as e:
+    print(e)
     pass  
 
 @socketio.on('connect', namespace='/receiver')

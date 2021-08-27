@@ -3,7 +3,7 @@ print ("module [backend_model.table_band.py] loaded")
 
 from backend.db.database import DBManager
 import datetime
-
+from pytz import timezone
 db = DBManager.db
 class group_table(db.Model):
     __tablename__ = 'group_table'
@@ -77,7 +77,7 @@ class Bands(db.Model):
 
     id = db.Column('id', db.Integer, primary_key=True)
     bid = db.Column('bid', db.Integer, comment='밴드 아이디')
-    created = db.Column('created', db.DateTime, default=datetime.datetime.now, comment='생성시간')
+    created = db.Column('created', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='생성시간')
     alias = db.Column('alias', db.String(48), comment='밴드 별명')
     name = db.Column('name', db.String(48), comment='착용자 이름')
     gender = db.Column('gender', db.Integer, comment='착용자 성별')
@@ -132,7 +132,7 @@ class SensorData(db.Model):
     #spo2state = db.Column('spo2state', db.Integer, comment='산소포화도 측정 상태')
     # spo2signal = db.Column('spo2signal', db.Boolean, comment='산소포화도 시그널 퀄리티')
     # spo2lowpi = db.Column('spo2lowpi', db.Boolean, comment='산소포화도 low pi')
-    motionFlag = db.Column('motionFlag', db.Boolean, comment='움직임 여부')
+    motionFlag = db.Column('motionFlag', db.Integer, comment='움직임 여부')
     scdState = db.Column('scdState', db.Integer, comment='착용 상태')
     activity = db.Column('activity', db.Integer, comment='활동상태')
     walk_steps = db.Column('walk_steps', db.Integer, comment='걷기')
