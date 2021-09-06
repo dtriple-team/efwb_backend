@@ -13,12 +13,9 @@ from functools import wraps
 #client = mqtt.Client()
 # from api.api_common import *
 from backend.db.table_band import *
-from sqlalchemy import func
+from sqlalchemy import func, case
 from datetime import date
-historyBandData = {
-  "spo2": 0
-}
-
+historyBandData = {}
 
 mqtt.subscribe('/efwb/sync')
 @mqtt.on_connect()
@@ -28,8 +25,7 @@ def handle_connect(client, userdata, flags, rc):
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   mqtt_data = json.loads(message.payload.decode())
-  try:
-
+  try : 
     global historyBandData
     bandData = mqtt_data['bandData']
     data = SensorData()
@@ -44,48 +40,62 @@ def handle_mqtt_message(client, userdata, message):
     data.hr = bandData['hr']
     if bandData['spo2']<=1000 and bandData['spo2']>=400:
         data.spo2 = bandData['spo2']
-        historyBandData = bandData
+        historyBandData[mqtt_data['extAddress']['low']] = bandData['spo2']
         mqtt_data['bandData']['spo2'] = bandData['spo2']
     else :
-        if historyBandData['spo2'] == 0:
+      if mqtt_data['extAddress']['low'] in historyBandData :
+        if  historyBandData[mqtt_data['extAddress']['low']]<=1000 and historyBandData[mqtt_data['extAddress']['low']]>=400:
+            data.spo2 = historyBandData[mqtt_data['extAddress']['low']]
+            mqtt_data['bandData']['spo2'] = historyBandData[mqtt_data['extAddress']['low']]
+        else :
             data.spo2 = 0
             mqtt_data['bandData']['spo2'] = 0
-        else :
-            data.spo2 = historyBandData['spo2']
-            mqtt_data['bandData']['spo2'] = historyBandData['spo2']
-
+            historyBandData[mqtt_data['extAddress']['low']] = 0
+      else :
+        data.spo2 = 0
+        mqtt_data['bandData']['spo2'] = 0
+        historyBandData[mqtt_data['extAddress']['low']] = 0
+    
     data.motionFlag = bandData['motionFlag'] 
     data.scdState = bandData['scdState']
     data.activity = bandData['activity']
     data.walk_steps = bandData['walk_steps']
     data.run_steps = bandData['run_steps']  
-    
+      
     data.x = bandData['x']
     data.y = bandData['y']
     data.z = bandData['z']
     data.t = bandData['t'] 
-    # if bandData['h']>=0:
-    #     data.h = bandData['h']
-    #     historyBandData = bandData
-    #     mqtt_data['bandData']['h'] = bandData['h']
-    # else :
-    #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
-    #         data.spo2 = 0
-    #         mqtt_data['bandData']['spo2'] = 0
-    #     else :
-    #         data.spo2 = historyBandData['spo2']/10
-    #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
+      # if bandData['h']>=0:
+      #     data.h = bandData['h']
+      #     historyBandData = bandData
+      #     mqtt_data['bandData']['h'] = bandData['h']
+      # else :
+      #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
+      #         data.spo2 = 0
+      #         mqtt_data['bandData']['spo2'] = 0
+      #     else :
+      #         data.spo2 = historyBandData['spo2']/10
+      #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
 
     data.h = bandData['h']  
 
     data.rssi = mqtt_data['rssi']   
-   
+    
     DBManager.db.session.add(data)
     DBManager.db.session.commit()
+    if bandData['fall_detect'] == 1 :
+      dev = Bands.query.filter(Bands.bid == mqtt_data['shortAddress']).first()
+      if dev is not None: 
+        event = {
+          "type" : 0,
+          "value" : 1,
+          "message" : hex(dev.serialize()['bid']) + " " + dev.serialize()['name']
+        }
+        socketio.emit('efwbasync', event, namespace='/receiver')
     socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-  except Exception as e:
+  except Exception as e :
     print(e)
-    pass  
 
 @socketio.on('connect', namespace='/receiver')
 def connect():
@@ -108,8 +118,6 @@ def group_post_api():
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
-
-
 
     group = group_table()
     group.gid = data['gid']
@@ -739,7 +747,7 @@ def getAttribute(str, sensor):
   elif str == 'spo2':
     return sensor.spo2
 
-@app.route('/api/efwb/v1/sensordata/day', methods=['POST'])
+@app.route('/api/efwb/v1/sensordata/vital', methods=['POST'])
 def sensordata_day_get_api():
 
 
@@ -753,18 +761,16 @@ def sensordata_day_get_api():
   json_data = []
   day = ['월', '화', '수', '목', '금', '토', '일']
   for i in data['days'] :
-    sensordata_list = []  
-    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%Y-%m-%d %h:00').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
-    #valuedata = db.session.query(SensorData.hr.label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+    sensordata_list = {"label": [], "data": [] }  
+    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%H').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
+    #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     if not valuedata :
       continue
     
     for b in valuedata :
-      resultJSON = {
-        "x": b.x,
-        "y": float(b.y)
-      }
-      sensordata_list.append(resultJSON)
+      sensordata_list['label'].append(b.x)
+      sensordata_list['data'].append(float(b.y))
+
     dev = db.session.query(func.min(getAttribute(data['dataname'], SensorData)).label('min'), func.max(getAttribute(data['dataname'], SensorData)).label('max'), func.avg(getAttribute(data['dataname'], SensorData)).label('avg')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     for b in dev: 
       resultJSON = {
@@ -783,6 +789,81 @@ def sensordata_day_get_api():
   }
 
   return make_response(jsonify(result), 200)  
+
+@app.route('/api/efwb/v1/sensordata/activity/day', methods=['POST'])
+def sensordata_activity_day_get_api():
+  data = json.loads(request.data)
+  params = ['bid', 'days']
+
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)  
+
+  json_data = [] 
+  valuedata = db.session.query(func.concat(func.month(SensorData.datetime), '월 ', 
+  func.dayofmonth(SensorData.datetime),'일 ', case([(func.dayofweek(SensorData.datetime) == 1, '일'),
+  (func.dayofweek(SensorData.datetime) == 2, '월'),
+  (func.dayofweek(SensorData.datetime) == 3, '화'),
+  (func.dayofweek(SensorData.datetime) == 4, '수'),
+  (func.dayofweek(SensorData.datetime) == 5, '목'),
+  (func.dayofweek(SensorData.datetime) == 6, '금')],
+  else_= '토')).label('day'),
+  func.concat(func.year(SensorData.datetime),'-',
+  func.month(SensorData.datetime), '-', 
+  func.dayofmonth(SensorData.datetime)).label('d'), 
+  func.sum(SensorData.walk_steps).label('walk_steps'), 
+  func.sum(SensorData.run_steps).label('run_steps')).\
+    filter(SensorData.FK_bid == data['bid']).\
+    filter(func.date(SensorData.datetime).between(data['days'][0], data['days'][1])).\
+      group_by(func.date(SensorData.datetime)).all()
+
+  for i in valuedata: 
+    json_data.append({
+      "day": i.day, 
+      "d": i.d,
+    "walk_steps": float(i.walk_steps), 
+    "run_steps": float(i.run_steps)})
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+  return make_response(jsonify(result), 200)
+
+@app.route('/api/efwb/v1/sensordata/activity/week', methods=['POST'])
+def sensordata_activity_week_get_api():
+  data = json.loads(request.data)
+
+  params = ['bid', 'date']
+  
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)  
+
+  json_data = []
+
+  valuedata = db.session.query(func.date_format(SensorData.datetime,'%H').label('date'),
+  func.sum(SensorData.walk_steps).label('walk_steps'), 
+  func.sum(SensorData.run_steps).label('run_steps')).\
+      filter(SensorData.FK_bid == data['bid']).\
+        filter(func.date(SensorData.datetime) == data['date']).\
+          group_by(func.hour(SensorData.datetime)).all()
+    #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+  json_data = {
+    "date": [],
+    "walk_steps": [],
+    "run_steps": []
+  }  
+  for b in valuedata :
+    json_data['date'].append(b.date)
+    json_data['walk_steps'].append(int(b.walk_steps))
+    json_data['run_steps'].append(int(b.run_steps))
+
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+
+  return make_response(jsonify(result), 200)
 
 def addDBList(db, list1, list2, check):
   for i in range(len(list2)):
