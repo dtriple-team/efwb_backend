@@ -761,15 +761,9 @@ def sensordata_day_get_api():
   json_data = []
   day = ['월', '화', '수', '목', '금', '토', '일']
   for i in data['days'] :
-<<<<<<< HEAD
-    sensordata_list = []  
-    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%Y-%m-%d %H:00').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
-    #valuedata = db.session.query(SensorData.hr.label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
-=======
     sensordata_list = {"label": [], "data": [] }  
     valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%H').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
     #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
->>>>>>> 6c9ed98f0a8745d5b18fb164f2e799929995da63
     if not valuedata :
       continue
     
