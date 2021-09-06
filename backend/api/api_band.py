@@ -754,7 +754,7 @@ def sensordata_day_get_api():
   day = ['월', '화', '수', '목', '금', '토', '일']
   for i in data['days'] :
     sensordata_list = []  
-    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%Y-%m-%d %h:00').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
+    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%Y-%m-%d %H:00').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
     #valuedata = db.session.query(SensorData.hr.label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     if not valuedata :
       continue
