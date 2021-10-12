@@ -4,19 +4,19 @@ from flask_cors import CORS
 from flask_sqlalchemy import get_debug_queries
 import os
 import platform
-import paho.mqtt.client as mqtt
+#import paho.mqtt.client as mqtt
 from flask import Flask, render_template, make_response
 from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
 
-app = Flask(__name__)
+# app = Flask(__name__)
 
-# app = Flask(__name__
-#             , template_folder=os.getcwd()+'/frontend/dist'
-#             , static_folder=os.getcwd()+'/frontend/dist/static'
-#             , static_url_path='/static')
+app = Flask(__name__
+            , template_folder=os.getcwd()+'/efwb-frontend/dist'
+            , static_folder=os.getcwd()+'/efwb-frontend/dist/static'
+            , static_url_path='/static')
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
@@ -56,3 +56,6 @@ def page_index():
     resp = make_response(render_template("index.html"))
     return resp
 
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template("index.html"), 404
