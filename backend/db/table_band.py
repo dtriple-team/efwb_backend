@@ -5,8 +5,8 @@ from backend.db.database import DBManager
 import datetime
 from pytz import timezone
 db = DBManager.db
-class group_table(db.Model):
-    __tablename__ = 'group_table'
+class Groups(db.Model):
+    __tablename__ = 'groups'
 
     id = db.Column('id', db.Integer, primary_key=True)
     gid = db.Column('gid', db.Integer, comment='그룹아이디')
@@ -26,8 +26,8 @@ class group_table(db.Model):
         }
         return resultJSON  
 
-class user_table(db.Model):
-    __tablename__ = 'user_table'
+class Users(db.Model):
+    __tablename__ = 'users'
 
     id = db.Column('id', db.Integer, primary_key=True)
     created = db.Column('created', db.DateTime, default=datetime.datetime.now, comment='생성시간')
@@ -55,13 +55,13 @@ class user_table(db.Model):
         return resultJSON
 
 class UsersGroups(db.Model):
-    __tablename__ = 'users_groups'
+    __tablename__ = 'usersgroups'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    FK_uid = db.Column('uid', db.Integer, db.ForeignKey(user_table.id))
-    user = db.relationship('user_table')
-    FK_gid = db.Column('gid', db.Integer, db.ForeignKey(group_table.id))    
-    usergroup = db.relationship('group_table', backref='users_groups', cascade="delete")
+    FK_uid = db.Column('uid', db.Integer, db.ForeignKey(Users.id))
+    user = db.relationship('Users')
+    FK_gid = db.Column('gid', db.Integer, db.ForeignKey(Groups.id))    
+    group = db.relationship('Groups', backref='usersgroups', cascade="delete")
 
     def serialize(self):
         resultJSON = {
@@ -82,7 +82,9 @@ class Bands(db.Model):
     name = db.Column('name', db.String(48), comment='착용자 이름')
     gender = db.Column('gender', db.Integer, comment='착용자 성별')
     birth = db.Column('birth', db.DateTime, comment='착용자 생년월일')
-
+    disconnect_time = db.Column('disconnect_time', db.DateTime, comment='마지막 연결 종료 시간')
+    connect_time = db.Column('connect_time', db.DateTime, comment='마지막 연결 시간')
+    
     def serialize(self):
         resultJSON = {
             # property (a)
@@ -92,28 +94,66 @@ class Bands(db.Model):
             "alias": self.alias,  
             "name": self.name, 
             "gender": self.gender,
-            "birth": self.birth
+            "birth": self.birth,
+            "disconnect_time": self.disconnect_time,
+            "connect_time": self.connect_time
         }
         return resultJSON 
-class UsersBands(db.Model):
-    __tablename__ = 'users_bands'
+
+class Gateways(db.Model):
+    __tablename__ = 'gateways'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id)) 
-    band = db.relationship('Bands', cascade="all, delete")
-    FK_uid = db.Column('FK_uid', db.Integer, db.ForeignKey(user_table.id)) 
-    user = db.relationship('user_table', cascade="all, delete")
+    pid = db.Column('pid', db.Integer, comment='게이트웨이 팬 아이디')
+    created = db.Column('created', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='생성시간')
+    ip = db.Column('ip', db.String(20), comment='아이피 주소')
+    disconnect_time = db.Column('disconnect_time', db.DateTime, comment='마지막 연결 종료 시간')
+    connect_time = db.Column('connect_time', db.DateTime, comment='마지막 연결 시간')
+    
+    def serialize(self):
+        resultJSON = {
+            # property (a)
+            "id": self.id, 
+            "pid": self.pid, 
+            "created": self.created,
+            "ip":self.ip,
+            "disconnect_time": self.disconnect_time,
+            "connect_time": self.connect_time
+        }
+        return resultJSON 
+class UsersGateways(db.Model):
+    __tablename__ = 'usersgateways'
 
+    id = db.Column('id', db.Integer, primary_key=True)
+    FK_uid = db.Column('FK_uid', db.Integer, db.ForeignKey(Users.id)) 
+    user = db.relationship('Users', cascade="all, delete")
+    FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(Gateways.id)) 
+    gateway = db.relationship('Gateways', cascade="all, delete")
     def serialize(self):
         resultJSON = {
             # property (a)
             "id": self.id, 
             "uid": self.FK_uid,
-            "bid": self.FK_bid
+            "pid": self.FK_pid
         }
         return resultJSON 
 
+class GatewaysBands(db.Model):
+    __tablename__ = 'gatewaysbands'
 
+    id = db.Column('id', db.Integer, primary_key=True)
+    FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(Gateways.id)) 
+    gateway = db.relationship('Gateways', cascade="all, delete")
+    FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id)) 
+    band = db.relationship('Bands', cascade="all, delete")
+    def serialize(self):
+        resultJSON = {
+            # property (a)
+            "id": self.id, 
+            "uid": self.FK_bid,
+            "pid": self.FK_pid
+        }
+        return resultJSON 
 class SensorData(db.Model):
     __tablename__ = 'sensordata'
 

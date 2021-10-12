@@ -11,12 +11,12 @@ from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
 
-# app = Flask(__name__)
+app = Flask(__name__)
 
-app = Flask(__name__
-            , template_folder=os.getcwd()+'/frontend/dist'
-            , static_folder=os.getcwd()+'/frontend/dist/static'
-            , static_url_path='/static')
+# app = Flask(__name__
+#             , template_folder=os.getcwd()+'/frontend/dist'
+#             , static_folder=os.getcwd()+'/frontend/dist/static'
+#             , static_url_path='/static')
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
@@ -36,7 +36,10 @@ else:
 # from backend_model import *
 from backend.db.database import DBManager
 DBManager.init(app)
-
+# login
+from flask_login import LoginManager
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 # api
 mqtt = Mqtt(app)
@@ -52,3 +55,4 @@ from backend.api.api_band import *
 def page_index():
     resp = make_response(render_template("index.html"))
     return resp
+
