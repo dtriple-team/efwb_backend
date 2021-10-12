@@ -865,6 +865,33 @@ def sensordata_activity_week_get_api():
 
   return make_response(jsonify(result), 200)
 
+@app.route('/api/efwb/v1/sensordata/date', methods=["POST"])
+def sensordata_date_post_api():
+  data = json.loads(request.data)
+
+  params = ['bid']
+  
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)  
+
+  json_data = []
+
+  valuedata = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('date')).\
+      filter(SensorData.FK_bid == data['bid']).\
+      group_by(func.date(SensorData.datetime)).all()
+    #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+  json_data = []
+  for b in valuedata :
+    json_data.append(b.date)
+
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+
+  return make_response(jsonify(result), 200)
+
 def addDBList(db, list1, list2, check):
   for i in range(len(list2)):
     if check :
