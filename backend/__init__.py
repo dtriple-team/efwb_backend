@@ -56,6 +56,3 @@ def page_index():
     resp = make_response(render_template("index.html"))
     return resp
 
-@app.errorhandler(404)
-def page_not_found(error):
-    return render_template("index.html"), 404

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 print("module [backend.api_band] loaded")
 
-from threading import Lock
-from backend import app, socketio, mqtt
+
+import hashlib
+
+from sqlalchemy.sql.elements import Null
+from backend import app, socketio, mqtt, login_manager
 from flask import make_response, jsonify, request, json, send_from_directory
 from flask_socketio import send, emit
 from flask_restless import ProcessingException
@@ -15,101 +18,241 @@ from functools import wraps
 from backend.db.table_band import *
 from sqlalchemy import func, case
 from datetime import date
-historyBandData = {}
+spo2BandData = {}
+stateBandData = {}
 
 mqtt.subscribe('/efwb/sync')
+mqtt.subscribe('/efwb/connectcheck')
+
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-  mqtt_data = json.loads(message.payload.decode())
-  try : 
-    global historyBandData
-    bandData = mqtt_data['bandData']
-    data = SensorData()
-    data.FK_bid = mqtt_data['shortAddress']
-
-    data.start_byte = bandData['start_byte']
-    data.sample_count = bandData['sample_count']
-    data.fall_detect = bandData['fall_detect']
-    data.battery_level = bandData['battery_level']
-    data.hrConfidence = bandData['hrConfidence']
-    data.spo2Confidence = bandData['spo2Confidence']
-    data.hr = bandData['hr']
-    if bandData['spo2']<=1000 and bandData['spo2']>=400:
-        data.spo2 = bandData['spo2']
-        historyBandData[mqtt_data['extAddress']['low']] = bandData['spo2']
-        mqtt_data['bandData']['spo2'] = bandData['spo2']
-    else :
-      if mqtt_data['extAddress']['low'] in historyBandData :
-        if  historyBandData[mqtt_data['extAddress']['low']]<=1000 and historyBandData[mqtt_data['extAddress']['low']]>=400:
-            data.spo2 = historyBandData[mqtt_data['extAddress']['low']]
-            mqtt_data['bandData']['spo2'] = historyBandData[mqtt_data['extAddress']['low']]
-        else :
-            data.spo2 = 0
-            mqtt_data['bandData']['spo2'] = 0
-            historyBandData[mqtt_data['extAddress']['low']] = 0
-      else :
-        data.spo2 = 0
-        mqtt_data['bandData']['spo2'] = 0
-        historyBandData[mqtt_data['extAddress']['low']] = 0
-    
-    data.motionFlag = bandData['motionFlag'] 
-    data.scdState = bandData['scdState']
-    data.activity = bandData['activity']
-    data.walk_steps = bandData['walk_steps']
-    data.run_steps = bandData['run_steps']  
+  if message.topic == '/efwb/sync':
+    mqtt_data = json.loads(message.payload.decode())
+    try : 
+      global stateBandData, spo2BandData
       
-    data.x = bandData['x']
-    data.y = bandData['y']
-    data.z = bandData['z']
-    data.t = bandData['t'] 
-      # if bandData['h']>=0:
-      #     data.h = bandData['h']
-      #     historyBandData = bandData
-      #     mqtt_data['bandData']['h'] = bandData['h']
-      # else :
-      #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
-      #         data.spo2 = 0
-      #         mqtt_data['bandData']['spo2'] = 0
-      #     else :
-      #         data.spo2 = historyBandData['spo2']/10
-      #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
+      
+      if mqtt_data['extAddress']['low'] not in spo2BandData :
+        spo2BandData[mqtt_data['extAddress']['low']] = 0
+        stateBandData[mqtt_data['extAddress']['low']] = False
+      bandData = mqtt_data['bandData']
+      data = SensorData()
+      data.FK_bid = mqtt_data['shortAddress']
 
-    data.h = bandData['h']  
+      data.start_byte = bandData['start_byte']
+      data.sample_count = bandData['sample_count']
+      data.fall_detect = bandData['fall_detect']
+      data.battery_level = bandData['battery_level']
+      data.hrConfidence = bandData['hrConfidence']
+      data.spo2Confidence = bandData['spo2Confidence']
+      data.hr = bandData['hr']
+      if bandData['spo2']<=1000 and bandData['spo2']>=400:
+          data.spo2 = bandData['spo2']
+          spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
+          mqtt_data['bandData']['spo2'] = bandData['spo2']
+      else :
+        if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
+          data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
+          mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
+        else :
+          data.spo2 = 0
+          mqtt_data['bandData']['spo2'] = 0
+          spo2BandData[mqtt_data['extAddress']['low']] = 0
+      
+      data.motionFlag = bandData['motionFlag'] 
+      data.scdState = bandData['scdState']
+      data.activity = bandData['activity']
+      data.walk_steps = bandData['walk_steps']
+      data.run_steps = bandData['run_steps']  
+        
+      data.x = bandData['x']
+      data.y = bandData['y']
+      data.z = bandData['z']
+      data.t = bandData['t'] 
+        # if bandData['h']>=0:
+        #     data.h = bandData['h']
+        #     historyBandData = bandData
+        #     mqtt_data['bandData']['h'] = bandData['h']
+        # else :
+        #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
+        #         data.spo2 = 0
+        #         mqtt_data['bandData']['spo2'] = 0
+        #     else :
+        #         data.spo2 = historyBandData['spo2']/10
+        #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
 
-    data.rssi = mqtt_data['rssi']   
-    
-    DBManager.db.session.add(data)
-    DBManager.db.session.commit()
-    if bandData['fall_detect'] == 1 :
-      dev = Bands.query.filter(Bands.bid == mqtt_data['shortAddress']).first()
-      if dev is not None: 
-        event = {
-          "type" : 0,
-          "value" : 1,
-          "message" : hex(dev.serialize()['bid']) + " " + dev.serialize()['name']
-        }
-        socketio.emit('efwbasync', event, namespace='/receiver')
-    socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-  except Exception as e :
-    print(e)
+      data.h = bandData['h']  
 
+      data.rssi = mqtt_data['rssi']   
+      
+      db.session.add(data)
+      db.session.commit()
+      if mqtt_data['active'] == 'true':
+        if stateBandData[mqtt_data['extAddress']['low']] == False :
+          stateBandData[mqtt_data['extAddress']['low']] = True
+          dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
+          if dev is not None: 
+            Bands.query.filter_by(id = dev.id).update({
+              "connect_time": datetime.datetime.now(timezone('Asia/Seoul'))
+            })
+            db.session.commit()
+      
+      else :
+        if stateBandData[mqtt_data['extAddress']['low']] == True :
+          stateBandData[mqtt_data['extAddress']['low']] = False
+          dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
+          if dev is not None: 
+            Bands.query.filter_by(id = dev.id).update({
+              "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
+            })
+            db.session.commit()
+      
+      if bandData['fall_detect'] == 1 :
+        dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
+        if dev is not None: 
+          event = {
+            "type" : 0,
+            "value" : 1,
+            "message" : hex(dev.serialize()['bid']) + " " + dev.serialize()['name']
+          }
+          socketio.emit('efwbasync', event, namespace='/receiver')
+      socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+    except Exception as e :
+      print("****** error ********")
+      print(e)
+  elif message.topic == '/efwb/connectcheck':
+    connect_check = json.loads(message.payload.decode())
+    gatewaydata = Gateways.query.filter_by(pid=connect_check['panCoord']['panId']).first()
+    print(gatewaydata.alias)
 @socketio.on('connect', namespace='/receiver')
 def connect():
-   
-  print("***socket connected***")
+  print("***socket connect***")
   emit('message', "socket connected")
 
 
 @socketio.on('disconnect', namespace='/receiver')
 def disconnect():
-    print('Disconnected')
+    print("***socket disconnect***")
 
+@socketio.on('message', namespace='/receiver')
+def handle_message(data):
+    print('received message: ' + data)
 
-@app.route('/api/efwb/v1/group_table/add', methods=['POST'])
+@login_manager.user_loader
+def load_user(id):
+    user = DBManager.db.session.query(Users).get(id)
+    return user
+@app.route('/api/efwb/v1/login', methods=['POST'])
+def login_api():
+    print("login api")
+    data = json.loads(request.data)
+    result = ''
+
+    if data['username'] is not None and data['password'] is not None:
+        loginuser = db.session.query(Users).filter(Users.username == data["username"]).first()
+
+        if loginuser is None:
+            result = {'status': False, 'reason': 1}  # ID 없음
+        else:
+            if loginuser.password != password_encoder_512(data["password"]):
+                result = {'status': False, 'reason': 2} # PW 틀림
+
+            else:  # Login 성공
+                loginuser.last_login_time = datetime.datetime.now()
+                loginuser.token = generate_token(data['username'])
+                db.session.query(Users).filter(Users.username == data["username"])\
+                    .update(dict(last_login_time=loginuser.last_login_time, token=loginuser.token))
+
+                new_access_history = AccessHistory()
+                new_access_history.type = 0  # Login
+                server_name = request.environ.get('SERVER_NAME')
+                user_agent = request.environ.get('HTTP_USER_AGENT')
+                new_access_history.server_name = server_name
+                new_access_history.os_ver, new_access_history.browser_ver = get_os_browser_from_useragent(user_agent)
+                new_access_history.ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+                new_access_history.token = loginuser.token
+                new_access_history.user_id = loginuser.username
+                new_access_history.FK_user_id = loginuser.id
+                db.session.add(new_access_history)
+              
+                db.session.commit()
+                
+                result = {'status': True, 'reason': 0, 'user': loginuser.serialize()}
+
+    return make_response(jsonify(result), 200)
+
+@app.route("/api/efwb/v1/logout", methods=["POST"])
+def logout_api():
+    print("logout api")
+    parser = reqparse.RequestParser()
+    parser.add_argument("token", type=str, location="headers")
+    token = parser.parse_args()["token"]
+    if token is None:
+        print("token is none")
+    else :
+      loginuser = AccessHistory.query.filter_by(token=token).first()
+    
+      if loginuser is None:
+          print("user is none")
+      else :
+
+        AccessHistory.query.filter_by(token=token).update(dict(token=None))
+        new_access_history = AccessHistory()
+        new_access_history.type = 1  # Login
+        server_name = request.environ.get('SERVER_NAME')
+        user_agent = request.environ.get('HTTP_USER_AGENT')
+        new_access_history.server_name = server_name
+        new_access_history.os_ver, new_access_history.browser_ver = get_os_browser_from_useragent(user_agent)
+        new_access_history.ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+        new_access_history.user_id = loginuser.user_id
+        new_access_history.FK_user_id = loginuser.FK_user_id
+        db.session.add(new_access_history)
+                    
+        db.session.commit()
+
+    
+    
+    return make_response({}, 200)
+
+def generate_token(userID):
+    m = hashlib.sha1()
+
+    m.update(userID.encode('utf-8'))
+    m.update(datetime.datetime.now().isoformat().encode('utf-8'))
+
+    return m.hexdigest()
+
+def check_token(search_params=None, **kw):
+    parser = reqparse.RequestParser()
+    parser.add_argument("token", type=str, location="headers")
+    token = parser.parse_args()["token"]
+
+    if token is None:
+        raise ProcessingException(description="Not Authorized", code=410)
+
+    user = Users.query.filter_by(token=token).first()
+    if user is None:
+        raise ProcessingException(description="Not Authorized", code=411)
+
+    return user
+
+def token_required(fn):
+    @wraps(fn)
+    def decorated(*args, **kwargs):
+        parser = reqparse.RequestParser()
+        parser.add_argument("token", type=str, location="headers")
+        token = parser.parse_args()["token"]
+        if token is None:
+            raise ProcessingException(description="Not authorized", code=401)
+        return fn(*args, **kwargs)
+    return decorated
+
+@app.route('/api/efwb/v1/groups/add', methods=['POST'])
+@token_required
 def group_post_api():
     data = json.loads(request.data)
 
@@ -119,7 +262,7 @@ def group_post_api():
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
 
-    group = group_table()
+    group = Groups()
     group.gid = data['gid']
     group.groupname = data['groupname']
     group.permission = data['permission']
@@ -134,9 +277,10 @@ def group_post_api():
 
     return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/group_table/list', methods=['GET'])
+@app.route('/api/efwb/v1/groups/list', methods=['GET'])
+@token_required
 def group_list_get_api():
-  groups = group_table.query.all()
+  groups = Groups.query.all()
   group_list = []
   for gr in groups:
     group_list.append(gr.serialize())
@@ -146,14 +290,15 @@ def group_list_get_api():
   }
 
   return make_response(jsonify(result), 200)
-@app.route('/api/efwb/v1/group_table/detail', methods=['POST'])
+@app.route('/api/efwb/v1/groups/detail', methods=['POST'])
+@token_required
 def group_get_api():
   data = json.loads(request.data)
   params = ['gid']
   for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
-  dev = group_table.query.filter(group_table.id == data['gid']).first()
+  dev = Groups.query.filter(Groups.id == data['gid']).first()
   if dev is None:
     return make_response(jsonify('Group is not found.'), 404)
   result = {
@@ -162,7 +307,8 @@ def group_get_api():
   }
   return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/group_table/update', methods=['PATCH'])
+@app.route('/api/efwb/v1/groups/update', methods=['PATCH'])
+@token_required
 def group_update_api():
     data = json.loads(request.data)
 
@@ -172,12 +318,12 @@ def group_update_api():
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
     
-    dev = group_table.query.filter(group_table.gid == data['checkid']).first()
+    dev = Groups.query.filter(Groups.gid == data['checkid']).first()
     
     if dev is None:
       return make_response(jsonify('User is not found.'), 404)
 
-    group_table.query.filter(group_table.gid == data['checkid']).update(
+    Groups.query.filter(Groups.gid == data['checkid']).update(
       {'gid': data['gid'], 'groupname': data['groupname'], 
       'permission': data['permission']}
     )
@@ -189,7 +335,8 @@ def group_update_api():
 
     return make_response(jsonify(result), 200)  
 
-@app.route('/api/efwb/v1/group_table/delete', methods=['DELETE'])
+@app.route('/api/efwb/v1/groups/delete', methods=['DELETE'])
+@token_required
 def group_delete_api():
     data = json.loads(request.data)
 
@@ -199,7 +346,7 @@ def group_delete_api():
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
     
-    group = group_table.query.filter(group_table.gid == data['gid']).first()
+    group = Groups.query.filter(Groups.gid == data['gid']).first()
     if group is None:
       return make_response(jsonify('group is not found.'), 404)
 
@@ -219,7 +366,8 @@ def group_delete_api():
     return make_response(jsonify(result), 200)     
 
 
-@app.route('/api/efwb/v1/user_table/add', methods=['POST'])
+@app.route('/api/efwb/v1/users/add', methods=['POST'])
+@token_required
 def user_post_api():
     data = json.loads(request.data)
 
@@ -229,7 +377,7 @@ def user_post_api():
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
 
-    user = user_table()
+    user = Users()
     user.uid = data['uid']
     user.username = data['username']
     user.password = DBManager.password_encoder_512(data['password'])
@@ -242,9 +390,10 @@ def user_post_api():
     }
 
     return make_response(jsonify(result), 200)
-@app.route('/api/efwb/v1/user_table/list', methods=['GET'])
+@app.route('/api/efwb/v1/users/list', methods=['GET'])
+@token_required
 def user_list_get_api():
-  users = user_table.query.all()
+  users = Users.query.all()
   user_list = []
   for ur in users:
     user_list.append(ur.serialize())
@@ -255,7 +404,8 @@ def user_list_get_api():
 
   return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/user_table/detail', methods=['POST'])
+@app.route('/api/efwb/v1/users/detail', methods=['POST'])
+@token_required
 def user_detail_get_api():
 
     data = json.loads(request.data)
@@ -264,7 +414,7 @@ def user_detail_get_api():
     for param in params:
           if param not in data:
               return make_response(jsonify('Parameters are not enough.'), 400)
-    dev = user_table.query.filter(user_table.id == data['uid']).first()
+    dev = Users.query.filter(Users.id == data['uid']).first()
     if dev is None:
       return make_response(jsonify('User is not found.'), 404)
     result = {
@@ -274,7 +424,8 @@ def user_detail_get_api():
 
     return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/user_table/update', methods=['PATCH'])
+@app.route('/api/efwb/v1/users/update', methods=['PATCH'])
+@token_required
 def user_update_api():
     data = json.loads(request.data)
 
@@ -283,11 +434,11 @@ def user_update_api():
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
-    dev = user_table.query.filter(user_table.uid == data['checkid']).first()
+    dev = Users.query.filter(Users.uid == data['checkid']).first()
     if dev is None:
       return make_response(jsonify('User is not found.'), 404)
 
-    user_table.query.filter(user_table.uid == data['checkid']).update(
+    Users.query.filter(Users.uid == data['checkid']).update(
       {'uid': data['uid'], 'username': data['username'], 'password': DBManager.password_encoder_512(data['password']),
       'name': data['name']}
     )
@@ -297,7 +448,8 @@ def user_update_api():
     }
 
     return make_response(jsonify(result), 200)  
-@app.route('/api/efwb/v1/user_table/delete', methods=['DELETE'])
+@app.route('/api/efwb/v1/users/delete', methods=['DELETE'])
+@token_required
 def user_delete_api():
     data = json.loads(request.data)
 
@@ -307,7 +459,7 @@ def user_delete_api():
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
     
-    user = user_table.query.filter(user_table.uid == data['uid']).first()
+    user = Users.query.filter(Users.uid == data['uid']).first()
     if user is None:
       return make_response(jsonify('User is not found.'), 404)
 
@@ -318,9 +470,10 @@ def user_delete_api():
     }
 
     return make_response(jsonify(result), 200) 
-@app.route('/api/efwb/v1/user_table/<username>', methods=['GET'])
+@app.route('/api/efwb/v1/users/<username>', methods=['GET'])
+@token_required
 def username_check_api(username):
-  dev = user_table.query.filter(user_table.username==username).first()
+  dev = Users.query.filter(Users.username==username).first()
 
   if dev is None:
     return make_response(jsonify('User is not Found.'), 404)
@@ -329,9 +482,10 @@ def username_check_api(username):
     "data":dev.serialize()
   }
   return make_response(jsonify(result), 200)
-@app.route('/api/efwb/v1/user_table/groupinfo/<id>', methods=['GET'])
-def user_groupdinfo_api(id):
-  dev = db.session.query(group_table).filter(UsersGroups.FK_gid == group_table.id).filter(UsersGroups.FK_uid==id).all()
+@app.route('/api/efwb/v1/users/groupinfo/<id>', methods=['GET'])
+@token_required
+def user_groupinfo_api(id):
+  dev = db.session.query(Groups).filter(UsersGroups.FK_gid == Groups.id).filter(UsersGroups.FK_uid==id).all()
   grouplist = []
   if dev is None:
     return make_response(jsonify('User is not Found.'), 404)
@@ -345,9 +499,29 @@ def user_groupdinfo_api(id):
   }
   return make_response(jsonify(result), 200)  
 
-@app.route('/api/efwb/v1/user_table/bandinfo/<id>', methods=['GET'])
-def user_bandinfo_api(id):
-  dev = db.session.query(Bands).filter(UsersBands.FK_bid == Bands.id).filter(UsersBands.FK_uid==id).all()
+@app.route('/api/efwb/v1/users/gatewayinfo/<id>', methods=['GET'])
+@token_required
+def user_gatewayinfo_api(id):
+  dev = db.session.query(Gateways).filter(UsersGateways.FK_pid == Gateways.id).filter(UsersGateways.FK_uid==id).all()
+  gatewaylist = []
+  if dev is None:
+    return make_response(jsonify('User is not Found.'), 404)
+  print(dev)
+  for b in dev :
+    gatewaylist.append(b.serialize())
+  print(gatewaylist)
+  result = {
+    "result":"OK",
+    "data":gatewaylist
+  }
+  return make_response(jsonify(result), 200)  
+
+@app.route('/api/efwb/v1/gateways/bandinfo/<id>', methods=['GET'])
+@token_required
+def gateway_bandinfo_api(id):
+  dev = db.session.query(Bands).\
+    filter(GatewaysBands.FK_bid == Bands.id).\
+      filter(GatewaysBands.FK_pid==id).all()
   bandlist = []
   if dev is None:
     return make_response(jsonify('User is not Found.'), 404)
@@ -359,9 +533,27 @@ def user_bandinfo_api(id):
     "result":"OK",
     "data":bandlist
   }
+  return make_response(jsonify(result), 200)
+
+@app.route('/api/efwb/v1/users/bandinfo/<id>', methods=['GET'])
+@token_required
+def users_bandinfo_api(id):
+  dev = db.session.query(Bands).\
+    filter(Bands.id == UsersBands.FK_bid).\
+      filter(UsersBands.FK_uid == id).all()
+  bandlist = []
+  if dev is None:
+    return make_response(jsonify('User is not Found.'), 404)
+  for b in dev :
+    bandlist.append(b.serialize())
+  result = {
+    "result":"OK",
+    "data":bandlist
+  }
   return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/bands/add', methods=['POST'])
+@token_required
 def band_post_api():
     data = json.loads(request.data)
 
@@ -387,6 +579,7 @@ def band_post_api():
 
     return make_response(jsonify(result), 200)
 @app.route('/api/efwb/v1/bands/list', methods=['GET'])
+@token_required
 def band_list_get_api():
   bands = Bands.query.all()
   band_list = []
@@ -400,6 +593,7 @@ def band_list_get_api():
   return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/bands/detail', methods=['POST'])
+@token_required
 def band_detail_get_api():
     data = json.loads(request.data)
 
@@ -418,25 +612,29 @@ def band_detail_get_api():
     return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/bands/update', methods=['PATCH'])
+@token_required
 def band_update_api():
     data = json.loads(request.data)
 
-    params = ['checkid','bid','alias', 'name', 'gender', 'birth']
+    params = ['id','bid','alias', 'name', 'gender', 'birth', 'disconnect_time', 'connect_time']
 
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
-    band = Bands.query.filter(Bands.bid == data['checkid']).first()
+    band = Bands.query.filter(Bands.bid == data['id']).first()
     if band is None:
       return make_response(jsonify('User is not found.'), 404)
 
-    Bands.query.filter(Bands.bid == data['checkid']).update(
+    Bands.query.filter(Bands.id == data['id']).update(
       {
             "bid": data['bid'],
             "alias": data['alias'],
             "name": data['name'],
             "gender": data['gender'],
-            "birth": data['birth']
+            "birth": data['birth'],
+            "disconnect_time": data['disconnect_time'],
+            "connect_time":data['connect_time']
+
         }
     )
     db.session.commit()    
@@ -447,6 +645,7 @@ def band_update_api():
     return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/bands/delete', methods=['DELETE'])
+@token_required
 def band_delete_api():
     data = json.loads(request.data)
 
@@ -467,9 +666,29 @@ def band_delete_api():
     }
 
     return make_response(jsonify(result), 200)  
+@app.route('/api/efwb/v1/bands/gatewayinfo/<id>', methods=['GET'])
+@token_required
+def band_gatewayinfo_api(id):
+  dev = db.session.query(Gateways).\
+    filter(Gateways.id == GatewaysBands.FK_pid).\
+    filter(GatewaysBands.FK_bid==id).all()
+  gatewaylist = []
+  if dev is None:
+    return make_response(jsonify('User is not Found.'), 404)
+  for u in dev :
+    gatewaylist.append(u.serialize())
+  result = {
+    "result":"OK",
+    "data":gatewaylist
+  }
+  return make_response(jsonify(result), 200)
 @app.route('/api/efwb/v1/bands/userinfo/<id>', methods=['GET'])
+@token_required
 def band_userinfo_api(id):
-  dev = db.session.query(user_table).filter(UsersBands.FK_uid == user_table.id).filter(UsersBands.FK_bid==id).all()
+  dev = db.session.query(Users).\
+    filter(Users.id == UsersGateways.FK_uid).\
+      filter(UsersGateways.FK_pid==GatewaysBands.FK_pid).\
+      filter(GatewaysBands.FK_bid==id).all()
   userlist = []
   if dev is None:
     return make_response(jsonify('User is not Found.'), 404)
@@ -479,8 +698,10 @@ def band_userinfo_api(id):
     "result":"OK",
     "data":userlist
   }
-  return make_response(jsonify(result), 200)      
-@app.route('/api/efwb/v1/users_groups/add', methods=['POST'])
+  return make_response(jsonify(result), 200)     
+
+@app.route('/api/efwb/v1/usersgroups/add', methods=['POST'])
+@token_required
 def users_groups_post_api():
     data = json.loads(request.data)
 
@@ -507,7 +728,8 @@ def users_groups_post_api():
 
     return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/users_groups/detail', methods=['POST'])
+@app.route('/api/efwb/v1/usersgroups/detail', methods=['POST'])
+@token_required
 def users_groups_detail_get_api():
     data = json.loads(request.data)
     users_groups_list = []
@@ -537,7 +759,8 @@ def users_groups_detail_get_api():
 
     return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/users_groups/list', methods=['GET'])
+@app.route('/api/efwb/v1/usersgroups/list', methods=['GET'])
+@token_required
 def users_groups_list_get_api():
   users_groups = UsersGroups.query.all()
   users_groups_list = []
@@ -579,7 +802,8 @@ def users_groups_list_get_api():
 
 #     return make_response(jsonify(result), 200)  
 
-@app.route('/api/efwb/v1/users_groups/delete', methods=['DELETE'])
+@app.route('/api/efwb/v1/usersgroups/delete', methods=['DELETE'])
+@token_required
 def users_groups_delete_api():
     data = json.loads(request.data)
 
@@ -605,6 +829,7 @@ def users_groups_delete_api():
     return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/users_bands/add', methods=['POST'])
+@token_required
 def users_bands_post_api():
     data = json.loads(request.data)
 
@@ -630,45 +855,47 @@ def users_bands_post_api():
 
     return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/users_bands/detail', methods=['POST'])
+@app.route('/api/efwb/v1/usersgateways/detail', methods=['POST'])
+@token_required
 def users_bands_detail_get_api():
     data = json.loads(request.data)
-    users_bands_list = []
-    params = ['bid', 'uid']
+    users_gateways_list = []
+    params = ['pid', 'uid']
     
     if params[0] in data :
-      dev = UsersBands.query.filter(UsersBands.FK_bid == data['bid']).all()
+      dev = UsersGateways.query.filter(UsersGateways.FK_pid == data['pid']).all()
       if dev is None:
-        return make_response(jsonify('UsersGroups is not found.'), 404)
+        return make_response(jsonify('UsersGateways is not found.'), 404)
       for ub in dev :
-        users_bands_list.append(ub.serialize())
+        users_gateways_list.append(ub.serialize())
 
     elif params[1] in data :
-      dev = UsersBands.query.filter(UsersBands.FK_uid == data['uid']).all()
+      dev = UsersGateways.query.filter(UsersGateways.FK_uid == data['uid']).all()
       if dev is None:
-        return make_response(jsonify('UsersGroups is not found.'), 404)
+        return make_response(jsonify('UsersGateways is not found.'), 404)
       for ub in dev :
-        users_bands_list.append(ub.serialize())
+        users_gateways_list.append(ub.serialize())
 
     else :
       return make_response(jsonify('Parameters are not enough.'), 400)
     
     result = {
       "result": "OK",
-      "users_bands": users_bands_list
+      "users_gateways": users_gateways_list
     }
 
     return make_response(jsonify(result), 200)
 
-@app.route('/api/efwb/v1/users_bands/list', methods=['GET'])
+@app.route('/api/efwb/v1/usersgateways/list', methods=['GET'])
+@token_required
 def users_bands_list_get_api():
-  users_bands = UsersBands.query.all()
-  users_bands_list = []
-  for ub in users_bands:
-    users_bands_list.append(ub.serialize())
+  users_gateways = UsersGateways.query.all()
+  users_gateways_list = []
+  for ub in users_gateways:
+    users_gateways_list.append(ub.serialize())
   result = {
     "result": "OK",
-    "users": users_bands_list
+    "users": users_gateways_list
   }
 
   return make_response(jsonify(result), 200)
@@ -702,24 +929,25 @@ def users_bands_list_get_api():
 
 #     return make_response(jsonify(result), 200)  
 
-@app.route('/api/efwb/v1/users_bands/delete', methods=['DELETE'])
+@app.route('/api/efwb/v1/usersgateways/delete', methods=['DELETE'])
+@token_required
 def users_bands_delete_api():
     data = json.loads(request.data)
 
-    params = ['uids', 'bids']
+    params = ['uids', 'pids']
     flag = False
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
     for uid in data['uids']:
-      for bid in data['bids']:
-        band = UsersBands.query.filter(UsersBands.FK_uid == uid).filter(UsersBands.FK_bid == bid)
-        if band.all() :
+      for pid in data['pids']:
+        usersgateways = UsersGateways.query.filter(UsersGateways.FK_uid == uid).filter(UsersGateways.FK_pid == pid)
+        if usersgateways.all() :
           flag = True
-          band.delete()
+          usersgateways.delete()
 
     if flag == False :
-      return make_response(jsonify('UsersBands is not found.'), 404)       
+      return make_response(jsonify('UsersGateways is not found.'), 404)       
     db.session.commit()    
     result = {
       "result": "OK",
@@ -728,6 +956,7 @@ def users_bands_delete_api():
     return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/sensordata/list', methods=['GET'])
+@token_required
 def sensordata_list_get_api():
   sensordata = SensorData.query.all()
   sensordata_list = []
@@ -748,6 +977,7 @@ def getAttribute(str, sensor):
     return sensor.spo2
 
 @app.route('/api/efwb/v1/sensordata/vital', methods=['POST'])
+@token_required
 def sensordata_day_get_api():
 
 
@@ -791,6 +1021,7 @@ def sensordata_day_get_api():
   return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/sensordata/activity/day', methods=['POST'])
+@token_required
 def sensordata_activity_day_get_api():
   data = json.loads(request.data)
   params = ['bid', 'days']
@@ -830,6 +1061,7 @@ def sensordata_activity_day_get_api():
   return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/sensordata/activity/week', methods=['POST'])
+@token_required
 def sensordata_activity_week_get_api():
   data = json.loads(request.data)
 
@@ -866,6 +1098,7 @@ def sensordata_activity_week_get_api():
   return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/sensordata/date', methods=["POST"])
+@token_required
 def sensordata_date_post_api():
   data = json.loads(request.data)
 
@@ -892,6 +1125,48 @@ def sensordata_date_post_api():
 
   return make_response(jsonify(result), 200)
 
+@app.route('/api/efwb/v1/gatewaylog/add', methods=["POST"])
+@token_required
+def gatewaylog_post_api():
+  data = json.loads(request.data)
+  params = ['pid', 'type']
+
+  for param in params :
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)
+  gatewaylog = GatewayLog()
+  gatewaylog.FK_pid = data['pid']
+  gatewaylog.type = data['type']
+
+  db.session.add(gatewaylog)
+  db.session.commit()
+  result = {
+      "result": "OK"
+    }
+
+  return make_response(jsonify(result), 200)
+
+@app.route('/api/efwb/v1/bandlog/add', methods=["POST"])
+@token_required
+def bandlog_post_api():
+  data = json.loads(request.data)
+  params = ['bid', 'type']
+
+  for param in params :
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)
+  bandlog = BandLog()
+  bandlog.FK_bid = data['bid']
+  bandlog.type = data['type']
+
+  db.session.add(bandlog)
+  db.session.commit()
+  result = {
+      "result": "OK"
+    }
+
+  return make_response(jsonify(result), 200)  
+
 def addDBList(db, list1, list2, check):
   for i in range(len(list2)):
     if check :
@@ -906,6 +1181,75 @@ def addDBList(db, list1, list2, check):
       db.session.add(users_groups)
     
   return db
+@app.route('/api/efwb/v1/access_history/login', methods=['POST'])
+def access_history_login_post_api():
+
+  result = ''
+  print('access_history_login_post_api')
+  server_name = request.environ.get('SERVER_NAME')
+  user_agent = request.environ.get('HTTP_USER_AGENT')
+  os_ver, browser_ver = get_os_browser_from_useragent(user_agent)
+  ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+  accesshistory = AccessHistory.query.filter_by(ip_addr = ip_addr).\
+    filter_by(server_name = server_name).\
+      filter_by(os_ver = os_ver).\
+        filter_by(browser_ver = browser_ver).\
+          filter(AccessHistory.token != None).first()
+  if accesshistory is None:
+    print("accesshistory in none")
+  else: 
+    print("accesshistory exits")
+    login = Login()
+    login.FK_ah_id = accesshistory.id
+    
+    db.session.add(login)
+    db.session.commit()
+    result = {'status': True, 'reason': 0, 'user': accesshistory.user.serialize()}
+  return make_response(jsonify(result), 200)
+
+@app.route('/api/efwb/v1/access_history/reload', methods=['POST'])
+def access_history_reload_post_api():
+  print('access_history_reload_post_api')
+  data = json.loads(request.data)
+  parser = reqparse.RequestParser()
+  parser.add_argument("token", type=str, location="headers")
+  token = parser.parse_args()["token"]
+  result = ''
+  print(data)
+  print(token)
+  if data['token'] is None:
+    print("token is none")
+    return make_response(jsonify(result), 200)  
+  accesshistory = AccessHistory.query.filter_by(token=data['token']).first()
+  if accesshistory is None:
+    print("accesshistory in none")
+    return make_response(jsonify(result), 200)  
+  else: 
+    print("accesshistory exits")
+    result = {'status': True, 'reason': 0, 'user': accesshistory.user.serialize()}
+  return make_response(jsonify(result), 200)  
+
+@app.route('/api/efwb/v1/access_history/unload', methods=['POST'])
+def access_history_unload_post_api():
+  print('access_history_unload_post_api')
+  parser = reqparse.RequestParser()
+  parser.add_argument("token", type=str, location="headers")
+  token = parser.parse_args()["token"]
+  result=''
+  if token is None:
+    print("token is none")
+    return make_response(jsonify(result), 200)  
+  accesshistory = AccessHistory.query.filter_by(token=token).first()
+  if accesshistory is None:
+    print("accesshistory in none")
+    return make_response(jsonify({}), 200)
+  else: 
+    print("accesshistory exits")
+    login = Login.query.filter_by(FK_user_id=accesshistory.id).order_by(Login.datetime.desc()).first
+    if login is not None:
+      db.session.delete(login)
+      db.session.commit()  
+  return make_response(jsonify({}), 200)
 def addDBUserBandList(db, list1, list2, check):
   for i in range(len(list2)):
     if check :
@@ -919,3 +1263,45 @@ def addDBUserBandList(db, list1, list2, check):
       users_bands.FK_bid = list2[i]
       db.session.add(users_bands)
   return db
+def password_encoder_512(password):
+    h = hashlib.sha512()
+    h.update(password.encode('utf-8'))
+    return h.hexdigest()
+def get_os_browser_from_useragent(userAgent):
+    os_ver = "Unknown"
+    browser_ver = "Unknown"
+    print(userAgent)
+    if userAgent.find("Linux") != -1:
+        os_ver = "Linux"
+    elif userAgent.find("Mac") != -1:
+        os_ver = "MacOS"
+    elif userAgent.find("X11") != -1:
+        os_ver = "UNIX"
+    elif userAgent.find("Win") != -1:
+        os_ver = "Windows"
+  
+    if userAgent.find("MSIE 6") != -1:
+        browser_ver = "Internet Explorer 6"
+    elif userAgent.find("MSIE 7") != -1:
+        browser_ver = "Internet Explorer 7"
+    elif userAgent.find("MSIE 8") != -1:
+        browser_ver = "Internet Explorer 8"
+    elif userAgent.find("MSIE 9") != -1:
+        browser_ver = "Internet Explorer 9"
+    elif userAgent.find("MSIE 10") != -1:
+        browser_ver = "Internet Explorer 10"
+    elif userAgent.find("Trident") != -1 or userAgent.find("trident") != -1:
+        browser_ver = "Internet Explorer 11"
+    elif userAgent.find("Firefox") != -1:
+        browser_ver = "Firefox"
+    elif userAgent.find("Opera") != -1:
+        browser_ver = "Opera"
+    elif userAgent.find("Edge") != -1 or userAgent.find("edge") != -1 or userAgent.find("Edg") != -1:
+        browser_ver = "Microsoft Edge"
+
+    elif userAgent.find("Chrome") != -1:
+        browser_ver = "Chrome"
+    elif userAgent.find("Safari") != -1 or userAgent.find("safari") != -1:
+        browser_ver = "Safari"
+
+    return os_ver, browser_ver
