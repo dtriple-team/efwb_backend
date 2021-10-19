@@ -22,7 +22,6 @@ spo2BandData = {}
 stateBandData = {}
 
 mqtt.subscribe('/efwb/sync')
-mqtt.subscribe('/efwb/connectcheck')
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
@@ -34,8 +33,7 @@ def handle_mqtt_message(client, userdata, message):
     mqtt_data = json.loads(message.payload.decode())
     try : 
       global stateBandData, spo2BandData
-      
-      
+      dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
       if mqtt_data['extAddress']['low'] not in spo2BandData :
         spo2BandData[mqtt_data['extAddress']['low']] = 0
         stateBandData[mqtt_data['extAddress']['low']] = False
@@ -91,43 +89,35 @@ def handle_mqtt_message(client, userdata, message):
       
       db.session.add(data)
       db.session.commit()
-      if mqtt_data['active'] == 'true':
-        if stateBandData[mqtt_data['extAddress']['low']] == False :
-          stateBandData[mqtt_data['extAddress']['low']] = True
-          dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
-          if dev is not None: 
+      if dev is not None:
+        if mqtt_data['active'] == 'true':
+          if stateBandData[mqtt_data['extAddress']['low']] == False :
+            stateBandData[mqtt_data['extAddress']['low']] = True
+          
             Bands.query.filter_by(id = dev.id).update({
               "connect_time": datetime.datetime.now(timezone('Asia/Seoul'))
             })
             db.session.commit()
-      
-      else :
-        if stateBandData[mqtt_data['extAddress']['low']] == True :
-          stateBandData[mqtt_data['extAddress']['low']] = False
-          dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
-          if dev is not None: 
+        
+        else :
+          if stateBandData[mqtt_data['extAddress']['low']] == True :
+            stateBandData[mqtt_data['extAddress']['low']] = False
             Bands.query.filter_by(id = dev.id).update({
               "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
             })
             db.session.commit()
-      
-      if bandData['fall_detect'] == 1 :
-        dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
-        if dev is not None: 
+        if bandData['fall_detect'] == 1 :
           event = {
             "type" : 0,
             "value" : 1,
-            "message" : hex(dev.serialize()['bid']) + " " + dev.serialize()['name']
+            "message" : hex(dev.bid) + " " + dev.name
           }
           socketio.emit('efwbasync', event, namespace='/receiver')
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
     except Exception as e :
       print("****** error ********")
       print(e)
-  elif message.topic == '/efwb/connectcheck':
-    connect_check = json.loads(message.payload.decode())
-    gatewaydata = Gateways.query.filter_by(pid=connect_check['panCoord']['panId']).first()
-    print(gatewaydata.alias)
+
 @socketio.on('connect', namespace='/receiver')
 def connect():
   print("***socket connect***")
@@ -169,9 +159,7 @@ def login_api():
 
                 new_access_history = AccessHistory()
                 new_access_history.type = 0  # Login
-                server_name = request.environ.get('SERVER_NAME')
                 user_agent = request.environ.get('HTTP_USER_AGENT')
-                new_access_history.server_name = server_name
                 new_access_history.os_ver, new_access_history.browser_ver = get_os_browser_from_useragent(user_agent)
                 new_access_history.ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
                 new_access_history.token = loginuser.token
@@ -202,10 +190,8 @@ def logout_api():
 
         AccessHistory.query.filter_by(token=token).update(dict(token=None))
         new_access_history = AccessHistory()
-        new_access_history.type = 1  # Login
-        server_name = request.environ.get('SERVER_NAME')
+        new_access_history.type = 1  # Logout
         user_agent = request.environ.get('HTTP_USER_AGENT')
-        new_access_history.server_name = server_name
         new_access_history.os_ver, new_access_history.browser_ver = get_os_browser_from_useragent(user_agent)
         new_access_history.ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
         new_access_history.user_id = loginuser.user_id
@@ -712,16 +698,16 @@ def users_groups_post_api():
             return make_response(jsonify('Parameters are not enough.'), 400)
 
     if len(data['uids'])>len(data['gids']):
-      commit_db = addDBList(db, data['gids'], data['uids'], True)
+      users_groups = addDBList(UsersGroups(), data['gids'], data['uids'], True, True)
 
     elif len(data['uids'])<len(data['gids']):
       print('gid 등록')
-      commit_db = addDBList(db, data['uids'], data['gids'], False)
+      users_groups = addDBList(UsersGroups(), data['uids'], data['gids'], False, True)
         
     else:
-      commit_db = addDBList(db, data['gids'], data['uids'], True)
-
-    commit_db.session.commit()
+      users_groups = addDBList(UsersGroups(), data['gids'], data['uids'], True, True)
+    db.session.add(users_groups)
+    db.session.commit()
     result = {
       "result": "OK"
     }
@@ -840,19 +826,20 @@ def users_bands_post_api():
             return make_response(jsonify('Parameters are not enough.'), 400)
 
     if len(data['uids'])>len(data['bids']):
-      commit_db = addDBUserBandList(db, data['bids'], data['uids'], True)
+      users_table = addDBList(UsersBands, data['bids'], data['uids'], True, False)
 
     elif len(data['uids'])<len(data['bids']):
-      commit_db = addDBUserBandList(db, data['uids'], data['bids'], False)
+      users_table = addDBList(UsersBands, data['uids'], data['bids'], False, False)
         
     else:
-      commit_db = addDBUserBandList(db, data['bids'], data['uids'], True)
+      users_table = addDBList(UsersBands, data['bids'], data['uids'], True, False)
 
-    commit_db.session.commit()
+    db.session.add(users_table)
+    db.session.commit()
     result = {
       "result": "OK"
     }
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
     return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/usersgateways/detail', methods=['POST'])
@@ -1167,89 +1154,88 @@ def bandlog_post_api():
 
   return make_response(jsonify(result), 200)  
 
-def addDBList(db, list1, list2, check):
+def addDBList(table, list1, list2, lengthCheck, tableCheck):
+  users_table = table
   for i in range(len(list2)):
-    if check :
-      users_groups = UsersGroups()
-      users_groups.FK_uid = list2[i]
-      users_groups.FK_gid = list1[0]
-      db.session.add(users_groups)
+    if lengthCheck :
+      users_table.FK_uid = list2[i]
+      if tableCheck:
+        users_table.FK_gid = list1[0]
+      else:
+        users_table.FK_bid = list1[0]
+      
     else :
-      users_groups = UsersGroups()
-      users_groups.FK_uid = list1[0]
-      users_groups.FK_gid = list2[i]
-      db.session.add(users_groups)
+      users_table = table
+      users_table.FK_uid = list1[0]
+      if tableCheck:
+        users_table.FK_gid = list2[i]
+      else:
+        users_table.FK_bid = list1[0]
     
-  return db
-@app.route('/api/efwb/v1/access_history/login', methods=['POST'])
-def access_history_login_post_api():
+  return users_table
+# @app.route('/api/efwb/v1/access_history/login', methods=['POST'])
+# def access_history_login_post_api():
 
-  result = ''
-  print('access_history_login_post_api')
-  server_name = request.environ.get('SERVER_NAME')
-  user_agent = request.environ.get('HTTP_USER_AGENT')
-  os_ver, browser_ver = get_os_browser_from_useragent(user_agent)
-  ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
-  accesshistory = AccessHistory.query.filter_by(ip_addr = ip_addr).\
-    filter_by(server_name = server_name).\
-      filter_by(os_ver = os_ver).\
-        filter_by(browser_ver = browser_ver).\
-          filter(AccessHistory.token != None).first()
-  if accesshistory is None:
-    print("accesshistory in none")
-  else: 
-    print("accesshistory exits")
-    login = Login()
-    login.FK_ah_id = accesshistory.id
+#   result = ''
+#   print('access_history_login_post_api')
+#   user_agent = request.environ.get('HTTP_USER_AGENT')
+#   os_ver, browser_ver = get_os_browser_from_useragent(user_agent)
+#   ip_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+#   accesshistory = AccessHistory.query.filter_by(ip_addr = ip_addr).\
+#     filter_by(os_ver = os_ver).\
+#       filter_by(browser_ver = browser_ver).\
+#         filter(AccessHistory.token != None).first()
+#   if accesshistory is None:
+#     print("accesshistory in none")
+#   else: 
+#     print("accesshistory exits")
+#     login = Login()
+#     login.FK_ah_id = accesshistory.id
     
-    db.session.add(login)
-    db.session.commit()
-    result = {'status': True, 'reason': 0, 'user': accesshistory.user.serialize()}
-  return make_response(jsonify(result), 200)
+#     db.session.add(login)
+#     db.session.commit()
+#     result = {'status': True, 'reason': 0, 'user': accesshistory.user.serialize()}
+#   return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/access_history/reload', methods=['POST'])
 def access_history_reload_post_api():
   print('access_history_reload_post_api')
   data = json.loads(request.data)
-  parser = reqparse.RequestParser()
-  parser.add_argument("token", type=str, location="headers")
-  token = parser.parse_args()["token"]
   result = ''
-  print(data)
-  print(token)
   if data['token'] is None:
     print("token is none")
-    return make_response(jsonify(result), 200)  
-  accesshistory = AccessHistory.query.filter_by(token=data['token']).first()
-  if accesshistory is None:
-    print("accesshistory in none")
-    return make_response(jsonify(result), 200)  
-  else: 
-    print("accesshistory exits")
-    result = {'status': True, 'reason': 0, 'user': accesshistory.user.serialize()}
+    result = {'status': False, 'reason': 1}  # token 없음
+  else :
+    accesshistory = AccessHistory.query.filter_by(token=data['token']).first()
+    if accesshistory is None:
+      print("accesshistory in none")
+      result = {'status': False, 'reason': 2}  # accesshistory 없음
+    else: 
+      print("accesshistory exits")
+      result = {'status': True, 'reason': 0, 'user': accesshistory.user.serialize()}
   return make_response(jsonify(result), 200)  
 
-@app.route('/api/efwb/v1/access_history/unload', methods=['POST'])
-def access_history_unload_post_api():
-  print('access_history_unload_post_api')
-  parser = reqparse.RequestParser()
-  parser.add_argument("token", type=str, location="headers")
-  token = parser.parse_args()["token"]
-  result=''
-  if token is None:
-    print("token is none")
-    return make_response(jsonify(result), 200)  
-  accesshistory = AccessHistory.query.filter_by(token=token).first()
-  if accesshistory is None:
-    print("accesshistory in none")
-    return make_response(jsonify({}), 200)
-  else: 
-    print("accesshistory exits")
-    login = Login.query.filter_by(FK_user_id=accesshistory.id).order_by(Login.datetime.desc()).first
-    if login is not None:
-      db.session.delete(login)
-      db.session.commit()  
-  return make_response(jsonify({}), 200)
+# @app.route('/api/efwb/v1/access_history/unload', methods=['POST'])
+# def access_history_unload_post_api():
+#   print('access_history_unload_post_api')
+#   parser = reqparse.RequestParser()
+#   parser.add_argument("token", type=str, location="headers")
+#   token = parser.parse_args()["token"]
+#   result=''
+#   if token is None:
+#     print("token is none")
+#     return make_response(jsonify(result), 200)  
+#   accesshistory = AccessHistory.query.filter_by(token=token).first()
+#   if accesshistory is None:
+#     print("accesshistory in none")
+#     return make_response(jsonify({}), 200)
+#   else: 
+#     print("accesshistory exits")
+#     login = Login.query.filter_by(FK_user_id=accesshistory.id).order_by(Login.datetime.desc()).first
+#     if login is not None:
+#       db.session.delete(login)
+#       db.session.commit()  
+#   return make_response(jsonify({}), 200)
 def addDBUserBandList(db, list1, list2, check):
   for i in range(len(list2)):
     if check :
@@ -1270,7 +1256,7 @@ def password_encoder_512(password):
 def get_os_browser_from_useragent(userAgent):
     os_ver = "Unknown"
     browser_ver = "Unknown"
-    print(userAgent)
+    
     if userAgent.find("Linux") != -1:
         os_ver = "Linux"
     elif userAgent.find("Mac") != -1:

@@ -63,7 +63,6 @@ class AccessHistory(db.Model):
     user_id = db.Column('user_id', db.String(48), comment='사용자ID')
     type = db.Column('type', db.Boolean, comment='0:로그인, 1:로그아웃')
     ip_addr = db.Column('ip_addr', db.String(20), comment='사용자 접속IP')
-    server_name = db.Column('server_name', db.String(20), comment='사용자 접속 이름')
     os_ver = db.Column('os_ver', db.String(48), comment='사용자 접속 OS버전')
     browser_ver = db.Column('browser_ver', db.String(48), comment='사용자 접속 브라우저버전')
     token = db.Column('token', db.String(128), comment='사용자 토큰정보')

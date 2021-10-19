@@ -461,12 +461,17 @@ class DBManager:
 
         for b in range(20):
             users_bands = UsersBands()
+            users_bands.FK_bid = b+1
             if b>9 :
                 users_bands.FK_uid = 2
+                DBManager.db.session.add(users_bands)
+                users_bands.FK_uid = 1
+                DBManager.db.session.add(users_bands)
             else :
                 users_bands.FK_uid = 1
-            users_bands.FK_bid = b+1
-            DBManager.db.session.add(users_bands)
+                DBManager.db.session.add(users_bands)
+            
+            
                 
         DBManager.db.session.commit()
     def insert_dummy_sensor_data():
