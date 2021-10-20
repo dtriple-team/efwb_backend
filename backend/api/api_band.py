@@ -995,7 +995,7 @@ def sensordata_day_get_api():
         "normal": float(b.avg),
       }
     dayValue = date(int(i[0:4]), int(i[5:7]), int(i[8:10])).weekday()
-    dateValue = i[6:7]+"월 "+i[8:10]+"일 "+day[dayValue]
+    dateValue = i[5:7]+"월 "+i[8:10]+"일 "+day[dayValue]
     json_data.append({"date": dateValue, "total": resultJSON,  "value": sensordata_list})
 
    
