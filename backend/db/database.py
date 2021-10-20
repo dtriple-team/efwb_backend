@@ -88,7 +88,7 @@ class DBManager:
         user.uid = 1000
         user.username = "admin"
         user.password = DBManager.password_encoder_512("1234")
-        user.name = "디트리플"
+        user.name = "dtriple"
         DBManager.db.session.add(user)
 
 
@@ -96,7 +96,7 @@ class DBManager:
         user.uid = 2000
         user.username = "dtriple"
         user.password = DBManager.password_encoder_512("1234")
-        user.name = "데모"
+        user.name = "demo"
         DBManager.db.session.add(user)
         DBManager.db.session.commit()
     def insert_dummy_groups():
@@ -158,7 +158,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 1
         bands.alias = "P1"
-        bands.name = "하재경"
+        bands.name = "h"
         bands.gender = 1
         bands.birth = "1997-09-01"
         
@@ -167,7 +167,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 2
         bands.alias = "P2"
-        bands.name = "주강대"
+        bands.name = "j"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -176,7 +176,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 3
         bands.alias = "P3"
-        bands.name = "박홍범"
+        bands.name = "p"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -185,7 +185,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 4
         bands.alias = "P4"
-        bands.name = "홍준호"
+        bands.name = "h"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -194,7 +194,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 5
         bands.alias = "P5"
-        bands.name = "강예린"
+        bands.name = "k"
         bands.gender = 1
         bands.birth = "1997-09-01"
         
@@ -203,7 +203,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 6
         bands.alias = "P6"
-        bands.name = "조우석"
+        bands.name = "j"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -212,7 +212,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 7
         bands.alias = "P7"
-        bands.name = "신현식"
+        bands.name = "s"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -221,7 +221,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 8
         bands.alias = "P8"
-        bands.name = "서주원"
+        bands.name = "s"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -230,7 +230,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 9
         bands.alias = "P9"
-        bands.name = "라춘식"
+        bands.name = "r"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -239,7 +239,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 10
         bands.alias = "P10"
-        bands.name = "라이언"
+        bands.name = "r"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -249,7 +249,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 11
         bands.alias = "D1"
-        bands.name = "하재경"
+        bands.name = "h"
         bands.gender = 1
         bands.birth = "1997-09-01"
         
@@ -258,7 +258,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 12
         bands.alias = "D2"
-        bands.name = "주강대"
+        bands.name = "j"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -267,7 +267,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 13
         bands.alias = "D3"
-        bands.name = "박홍범"
+        bands.name = "p"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -276,7 +276,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 14
         bands.alias = "D4"
-        bands.name = "홍준호"
+        bands.name = "h"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -285,7 +285,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 15
         bands.alias = "D5"
-        bands.name = "강예린"
+        bands.name = "k"
         bands.gender = 1
         bands.birth = "1997-09-01"
         
@@ -294,7 +294,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 16
         bands.alias = "D6"
-        bands.name = "조우석"
+        bands.name = "j"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -303,7 +303,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 17
         bands.alias = "D7"
-        bands.name = "신현식"
+        bands.name = "s"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -312,7 +312,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 18
         bands.alias = "D8"
-        bands.name = "서주원"
+        bands.name = "s"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -321,7 +321,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 19
         bands.alias = "D9"
-        bands.name = "라춘식"
+        bands.name = "r"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -330,7 +330,7 @@ class DBManager:
         bands = Bands()
         bands.bid = 20
         bands.alias = "D10"
-        bands.name = "라이언"
+        bands.name = "r"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
