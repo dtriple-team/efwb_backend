@@ -5,11 +5,13 @@ from flask_sqlalchemy import get_debug_queries
 import os
 import platform
 #import paho.mqtt.client as mqtt
+import threading
 from flask import Flask, render_template, make_response
 from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
+
 
 # app = Flask(__name__)
 
@@ -49,8 +51,15 @@ socketio = SocketIO(app, cors_allowed_origins="*", engineio_logger=False)
 
 from backend.api.api_create import *
 from backend.api.api_band import *
+import time
+def hello():
+    print("hello")
+    #gatewayCheck()
+    th2 = threading.Thread(target=gatewayCheck)
+    th2.start()
+    th2.join()
 
-
+hello()
 @app.route("/", methods=["GET"])
 def page_index():
     resp = make_response(render_template("index.html"))

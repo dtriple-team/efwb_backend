@@ -3,8 +3,12 @@ print("module [backend.api_band] loaded")
 
 
 import hashlib
-
+import requests
+import platform
+import subprocess
 from sqlalchemy.sql.elements import Null
+from ping3 import ping
+import threading
 from backend import app, socketio, mqtt, login_manager
 from flask import make_response, jsonify, request, json, send_from_directory
 from flask_socketio import send, emit
@@ -18,105 +22,235 @@ from functools import wraps
 from backend.db.table_band import *
 from sqlalchemy import func, case
 from datetime import date
+import os
 spo2BandData = {}
 stateBandData = {}
+start = False
 
 mqtt.subscribe('/efwb/sync')
+
+def pingTest(hostName):
+  resp = ping(hostName)
+
+  if resp == False:
+    return False
+  else:
+    return True
+
+
+def serverTest(hostName):
+  try:
+    url = "http://"+hostName+":1310/servertest"
+
+    payload={}
+    headers = {}
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+    result=response.text
+    return result
+  except Exception as e:
+    print(e) 
+    return None
+def gatewayCheck():
+  global start
+  if start==True :
+    print("gatewayCheck start")
+    try:
+      gateways = Gateways.query.all()
+      for g in gateways:
+        print(g.id)
+        gateway = g
+        gatewayLog = GatewayLog()
+        gatewayLog.FK_pid = gateway.id
+        if pingTest(gateway.ip) :
+          print(g.id, "ping Test pass")
+          if serverTest(gateway.ip) is not None :
+            print(gateway.id, "server Test pass")
+            if gateway.connect_state != 1:
+              
+              gatewayLog.type = 1
+              db.session.add(gatewayLog)
+             
+              Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=1))
+              db.session.commit()
+              
+          else :
+            print(gateway.id, "server Test no pass")
+            if gateway.connect_state != 0:
+              gatewayLog.type = 0
+
+              db.session.add(gatewayLog)
+              Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
+              
+              
+              dev = db.session.query(GatewaysBands).\
+                filter(GatewaysBands.FK_pid == gateway.id).all()
+              if dev :
+                for b in dev:
+                  Bands.query.filter_by(id = b.id).update({
+                    "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
+                  })
+                  bandlog = BandLog()
+                  bandlog.FK_bid = b.id
+                  bandlog.type = 0
+                  db.session.add(bandlog)
+      
+                db.session.commit()
+            else :
+              dev = GatewayLog.query.filter_by(FK_pid=gateway.id).first()
+        
+              if dev is None:
+                gatewayLog.type = 0
+                db.session.add(gatewayLog)
+                Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
+                
+                dev = db.session.query(GatewaysBands).\
+                filter(GatewaysBands.FK_pid == gateway.id).all()
+                if dev :
+                  for b in dev:
+                    Bands.query.filter_by(id = b.id).update({
+                      "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
+                    })
+                    bandlog = BandLog()
+                    bandlog.FK_bid = b.id
+                    bandlog.type = 0
+                    db.session.add(bandlog)
+                  
+                db.session.commit()
+      else :
+        print(g.id, "ping Test no pass")
+        
+        if gateway.connect_state != 0:
+          
+          gatewayLog.type = 0
+          db.session.add(gatewayLog)
+          Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
+        else :
+          dev = GatewayLog.query.filter_by(FK_pid=gateway.id).first()
+    
+          if dev is None:
+            gatewayLog.type = 0
+            db.session.add(gatewayLog)
+            Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
+            db.session.commit()
+      print("Close Gateway Check ")
+    except Exception as e:
+      print(e)
+  else:
+    start = True
+  threading.Timer(300, gatewayCheck).start()
+
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
 
+def handle_sync_data(mqtt_data, extAddress, dev):
+  global stateBandData, spo2BandData
+  try :
+    mqtt_data['extAddress']['high'] = extAddress
+    if mqtt_data['extAddress']['low'] not in spo2BandData :
+      spo2BandData[mqtt_data['extAddress']['low']] = 0
+      stateBandData[mqtt_data['extAddress']['low']] = False
+    bandData = mqtt_data['bandData']
+    data = SensorData()
+    data.FK_bid = dev.id
+
+    data.start_byte = bandData['start_byte']
+    data.sample_count = bandData['sample_count']
+    data.fall_detect = bandData['fall_detect']
+    data.battery_level = bandData['battery_level']
+    data.hrConfidence = bandData['hrConfidence']
+    data.spo2Confidence = bandData['spo2Confidence']
+    data.hr = bandData['hr']
+    if bandData['spo2']<=1000 and bandData['spo2']>=400:
+      data.spo2 = bandData['spo2']
+      spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
+    else :
+      if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
+        data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
+        mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
+      else :
+        data.spo2 = 0
+        mqtt_data['bandData']['spo2'] = 0
+        spo2BandData[mqtt_data['extAddress']['low']] = 0
+            
+    data.motionFlag = bandData['motionFlag'] 
+    data.scdState = bandData['scdState']
+    data.activity = bandData['activity']
+    data.walk_steps = bandData['walk_steps']
+    data.run_steps = bandData['run_steps']  
+              
+    data.x = bandData['x']
+    data.y = bandData['y']
+    data.z = bandData['z']
+    data.t = bandData['t'] 
+              # if bandData['h']>=0:
+              #     data.h = bandData['h']
+              #     historyBandData = bandData
+              #     mqtt_data['bandData']['h'] = bandData['h']
+              # else :
+              #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
+              #         data.spo2 = 0
+              #         mqtt_data['bandData']['spo2'] = 0
+              #     else :
+              #         data.spo2 = historyBandData['spo2']/10
+              #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
+
+    data.h = bandData['h']  
+
+    data.rssi = mqtt_data['rssi']   
+            
+    db.session.add(data)
+    db.session.commit()
+
+
+    if mqtt_data['active'] == 'true':
+      Bands.query.filter_by(id = dev.id).update({
+        "connect_time": datetime.datetime.now(timezone('Asia/Seoul'))
+      })
+      bandlog = BandLog()
+      bandlog.FK_bid = dev.id
+      bandlog.type = 1
+      db.session.add(bandlog)
+      db.session.commit()
+     
+              
+    else :
+      Bands.query.filter_by(id = dev.id).update({
+        "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
+      })
+      bandlog = BandLog()
+      bandlog.FK_bid = dev.id
+      bandlog.type = 0
+      db.session.add(bandlog)
+      db.session.commit()
+    if bandData['fall_detect'] == 1 :
+      event = {
+        "type" : 0,
+        "value" : 1,
+        "message" : extAddress
+      }
+      socketio.emit('efwbasync', event, namespace='/receiver')
+    socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+  except Exception as e :
+    print("****** error ********")
+    print(e)
+
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
+
   if message.topic == '/efwb/sync':
     mqtt_data = json.loads(message.payload.decode())
-    try : 
-      global stateBandData, spo2BandData
-      dev = Bands.query.filter(Bands.id == mqtt_data['shortAddress']).first()
-      if mqtt_data['extAddress']['low'] not in spo2BandData :
-        spo2BandData[mqtt_data['extAddress']['low']] = 0
-        stateBandData[mqtt_data['extAddress']['low']] = False
-      bandData = mqtt_data['bandData']
-      data = SensorData()
-      data.FK_bid = mqtt_data['shortAddress']
+    
+    # global stateBandData, spo2BandData
+    extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low']))).upper()
+    dev = Bands.query.filter(Bands.bid == extAddress).first()
 
-      data.start_byte = bandData['start_byte']
-      data.sample_count = bandData['sample_count']
-      data.fall_detect = bandData['fall_detect']
-      data.battery_level = bandData['battery_level']
-      data.hrConfidence = bandData['hrConfidence']
-      data.spo2Confidence = bandData['spo2Confidence']
-      data.hr = bandData['hr']
-      if bandData['spo2']<=1000 and bandData['spo2']>=400:
-          data.spo2 = bandData['spo2']
-          spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
-          mqtt_data['bandData']['spo2'] = bandData['spo2']
-      else :
-        if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
-          data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
-          mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
-        else :
-          data.spo2 = 0
-          mqtt_data['bandData']['spo2'] = 0
-          spo2BandData[mqtt_data['extAddress']['low']] = 0
-      
-      data.motionFlag = bandData['motionFlag'] 
-      data.scdState = bandData['scdState']
-      data.activity = bandData['activity']
-      data.walk_steps = bandData['walk_steps']
-      data.run_steps = bandData['run_steps']  
-        
-      data.x = bandData['x']
-      data.y = bandData['y']
-      data.z = bandData['z']
-      data.t = bandData['t'] 
-        # if bandData['h']>=0:
-        #     data.h = bandData['h']
-        #     historyBandData = bandData
-        #     mqtt_data['bandData']['h'] = bandData['h']
-        # else :
-        #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
-        #         data.spo2 = 0
-        #         mqtt_data['bandData']['spo2'] = 0
-        #     else :
-        #         data.spo2 = historyBandData['spo2']/10
-        #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
-
-      data.h = bandData['h']  
-
-      data.rssi = mqtt_data['rssi']   
-      
-      db.session.add(data)
-      db.session.commit()
-      if dev is not None:
-        if mqtt_data['active'] == 'true':
-          if stateBandData[mqtt_data['extAddress']['low']] == False :
-            stateBandData[mqtt_data['extAddress']['low']] = True
-          
-            Bands.query.filter_by(id = dev.id).update({
-              "connect_time": datetime.datetime.now(timezone('Asia/Seoul'))
-            })
-            db.session.commit()
-        
-        else :
-          if stateBandData[mqtt_data['extAddress']['low']] == True :
-            stateBandData[mqtt_data['extAddress']['low']] = False
-            Bands.query.filter_by(id = dev.id).update({
-              "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
-            })
-            db.session.commit()
-        if bandData['fall_detect'] == 1 :
-          event = {
-            "type" : 0,
-            "value" : 1,
-            "message" : hex(dev.bid) + " " + dev.name
-          }
-          socketio.emit('efwbasync', event, namespace='/receiver')
-      socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-    except Exception as e :
-      print("****** error ********")
-      print(e)
+    if dev is not None:
+      mqtt_t = threading.Thread(target=handle_sync_data, args=(mqtt_data, extAddress, dev))
+      mqtt_t.start()
+      mqtt_t.join()
 
 @socketio.on('connect', namespace='/receiver')
 def connect():
@@ -1085,7 +1219,6 @@ def sensordata_activity_week_get_api():
   return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/sensordata/date', methods=["POST"])
-@token_required
 def sensordata_date_post_api():
   data = json.loads(request.data)
 
@@ -1236,12 +1369,29 @@ def access_history_reload_post_api():
 #       db.session.delete(login)
 #       db.session.commit()  
 #   return make_response(jsonify({}), 200)
+
+@app.route('/api/efwb/v1/maps/<pid>', methods=['GET'])
+def get_maps_api(pid):
+  dev = Gateways.query.filter_by(id=pid).first()
+  result = {}
+  if dev is None :
+    return make_response(result, 200)
+  url = "https://maps.googleapis.com/maps/api/elevation/json?locations="+str(dev.lat)+","+str(dev.lng)+"&key=AIzaSyCzNNbWs9lVCSVExf1fWhs_l7Qv3GVus2c"
+
+  payload={}
+  headers = {}
+
+  response = requests.request("GET", url, headers=headers, data=payload)
+  result=response.text
+  return make_response(result, 200)
+
+
 def addDBUserBandList(db, list1, list2, check):
   for i in range(len(list2)):
     if check :
       users_bands = UsersBands()
       users_bands.FK_uid = list2[i]
-      users_bands.FK_bid = list1[0]
+      users_bands.FK_bid =  list1[0]
       db.session.add(users_bands)
     else :
       users_bands = UsersBands()
