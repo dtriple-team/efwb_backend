@@ -4,7 +4,6 @@ from flask_cors import CORS
 from flask_sqlalchemy import get_debug_queries
 import os
 import platform
-#import paho.mqtt.client as mqtt
 import threading
 from flask import Flask, render_template, make_response
 from flask_restless import APIManager
@@ -34,10 +33,9 @@ else:
     app.config.from_object(ProductionConfig)
 
 
-# table
-# from backend_model import *
 from backend.db.database import DBManager
 DBManager.init(app)
+
 # login
 from flask_login import LoginManager
 login_manager = LoginManager()
@@ -50,21 +48,46 @@ socketio = SocketIO(app, cors_allowed_origins="*", engineio_logger=False)
 
 
 from backend.api.api_create import *
-from backend.api.api_band import *
-import time
-def hello():
-    print("hello")
-    #gatewayCheck()
-    th2 = threading.Thread(target=gatewayCheck)
-    th2.start()
-    th2.join()
 
-hello()
+# def gatewayCheckThread():
+
+#     th2 = threading.Thread(target=gatewayCheck)
+#     th2.start()
+#     th2.join()
+gatewayCheckThread()
+
 @app.route("/", methods=["GET"])
 def page_index():
     resp = make_response(render_template("index.html"))
     return resp
-
+@app.route("/band", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/band/detail", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/gateway", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/gateway/detail", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/user", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/user/detail", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/log", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
 @app.route("/bandlist", methods=["GET"])
 def page_bandlist():
     resp = make_response(render_template("index.html"))

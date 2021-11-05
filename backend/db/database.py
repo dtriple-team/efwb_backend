@@ -9,9 +9,7 @@ from sqlalchemy import func
 import random
 import hashlib
 from sqlalchemy import or_,and_
-import os
-import json
-import uuid
+
 
 
 from flask_sqlalchemy import SQLAlchemy
@@ -52,7 +50,7 @@ class DBManager:
         DBManager.insert_dummy_gateways_bands()
         DBManager.insert_dummy_users_bands()
         #DBManager.insert_dummy_sensor_data()
-        #DBManager.insert_dummy_event_data()
+        # DBManager.insert_dummy_event_data()
     def password_encoder(password):
         pass1 = hashlib.sha1(password).digest()
         pass2 = hashlib.sha1(pass1).hexdigest()
@@ -89,6 +87,7 @@ class DBManager:
         user.username = "admin"
         user.password = DBManager.password_encoder_512("1234")
         user.name = "dtriple"
+        user.permission = 0
         DBManager.db.session.add(user)
 
 
@@ -97,6 +96,7 @@ class DBManager:
         user.username = "dtriple"
         user.password = DBManager.password_encoder_512("1234")
         user.name = "demo"
+        user.permission = 1
         DBManager.db.session.add(user)
         DBManager.db.session.commit()
     def insert_dummy_groups():
@@ -130,7 +130,7 @@ class DBManager:
         DBManager.db.session.add(users_groups)
         users_groups = UsersGroups()
         users_groups.FK_uid = 2
-        users_groups.FK_gid = 2
+        users_groups.FK_gid = 1
 
         DBManager.db.session.add(users_groups)
         DBManager.db.session.commit()
@@ -138,7 +138,7 @@ class DBManager:
         print("insert_dummy_gateways")
         from backend.db.table_band import Gateways
         gateways = Gateways()
-        gateways.pid = 1
+        gateways.pid = "0xA020"
         gateways.alias = "dtriple"
         gateways.ip = "192.168.0.105"
         gateways.lat = 36.1195513
@@ -146,7 +146,7 @@ class DBManager:
         DBManager.db.session.add(gateways)
 
         gateways = Gateways()
-        gateways.pid = 2
+        gateways.pid = "0xA020"
         gateways.alias = "demo"
         gateways.ip = "192.168.0.69"
         gateways.lat = 36.1195513
@@ -158,7 +158,7 @@ class DBManager:
         print("insert_dummy_bands")
         from backend.db.table_band import Bands
         bands = Bands()
-        bands.bid = "0X11010F01"
+        bands.bid = "0x11012001"
         bands.alias = "d1"
         bands.name = "h"
         bands.gender = 1
@@ -167,7 +167,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid ="0X11010F02"
+        bands.bid ="0x11012002"
         bands.alias = "d2"
         bands.name = "j"
         bands.gender = 0
@@ -176,7 +176,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F03"
+        bands.bid = "0x11012003"
         bands.alias = "d3"
         bands.name = "p"
         bands.gender = 0
@@ -185,7 +185,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F04"
+        bands.bid = "0x11012004"
         bands.alias = "d4"
         bands.name = "h"
         bands.gender = 0
@@ -194,7 +194,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F05"
+        bands.bid = "0x11012005"
         bands.alias = "d5"
         bands.name = "k"
         bands.gender = 1
@@ -203,7 +203,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F06"
+        bands.bid = "0x11012006"
         bands.alias = "d6"
         bands.name = "j"
         bands.gender = 0
@@ -212,7 +212,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F07"
+        bands.bid = "0x11012007"
         bands.alias = "d7"
         bands.name = "s"
         bands.gender = 0
@@ -221,7 +221,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F08"
+        bands.bid = "0x11012008"
         bands.alias = "d8"
         bands.name = "s"
         bands.gender = 0
@@ -230,7 +230,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F09"
+        bands.bid = "0x11012009"
         bands.alias = "d9"
         bands.name = "r"
         bands.gender = 0
@@ -239,7 +239,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F10"
+        bands.bid = "0x11012010"
         bands.alias = "d10"
         bands.name = "r"
         bands.gender = 0
@@ -249,7 +249,7 @@ class DBManager:
 
         DBManager.db.session.add(bands)
         bands = Bands()
-        bands.bid = "0X11010F11"
+        bands.bid = "0x11012011"
         bands.alias = "d11"
         bands.name = "h"
         bands.gender = 1
@@ -258,7 +258,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F12"
+        bands.bid = "0x11012012"
         bands.alias = "d12"
         bands.name = "j"
         bands.gender = 0
@@ -267,7 +267,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F13"
+        bands.bid = "0x11012013"
         bands.alias = "d13"
         bands.name = "p"
         bands.gender = 0
@@ -276,7 +276,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F14"
+        bands.bid = "0x11012014"
         bands.alias = "d14"
         bands.name = "h"
         bands.gender = 0
@@ -285,7 +285,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F15"
+        bands.bid = "0x11012015"
         bands.alias = "d15"
         bands.name = "k"
         bands.gender = 1
@@ -294,7 +294,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F16"
+        bands.bid = "0x11012016"
         bands.alias = "d16"
         bands.name = "j"
         bands.gender = 0
@@ -303,7 +303,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F17"
+        bands.bid = "0x11012017"
         bands.alias = "d17"
         bands.name = "s"
         bands.gender = 0
@@ -312,7 +312,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F18"
+        bands.bid = "0x11012018"
         bands.alias = "d18"
         bands.name = "s"
         bands.gender = 0
@@ -321,7 +321,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F19"
+        bands.bid = "0x11012019"
         bands.alias = "d19"
         bands.name = "r"
         bands.gender = 0
@@ -330,7 +330,7 @@ class DBManager:
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid = "0X11010F20"
+        bands.bid = "0x11012020"
         bands.alias = "d20"
         bands.name = "r"
         bands.gender = 0
@@ -623,54 +623,54 @@ class DBManager:
         from backend.db.table_band import Events
         event = Events()
         event.FK_bid = 1
-        event.event = 0
+        event.type = 0
         event.value = -70
         DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 1
-        event.event = 1
+        event.type = 1
         event.value = 70
         DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 1
-        event.event = 2
+        event.type = 2
         event.value = 0
         DBManager.db.session.add(event)      
         event = Events()
         event.FK_bid = 1
-        event.event = 3
+        event.type = 3
         event.value = 0
         DBManager.db.session.add(event)   
         event = Events()
         event.FK_bid = 1
-        event.event = 4
+        event.type = 4
         event.value = 0
         DBManager.db.session.add(event)  
 
         from backend.db.table_band import Events
         event = Events()
         event.FK_bid = 2
-        event.event = 0
+        event.type = 0
         event.value = -30
         DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 2
-        event.event = 1
+        event.type = 1
         event.value = 50
         DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 2
-        event.event = 2
+        event.type = 2
         event.value = 0
         DBManager.db.session.add(event)      
         event = Events()
         event.FK_bid = 2
-        event.event = 3
+        event.type = 3
         event.value = 0
         DBManager.db.session.add(event)  
         event = Events()
         event.FK_bid = 2
-        event.event = 4
+        event.type = 4
         event.value = 3
         DBManager.db.session.add(event)          
         DBManager.db.session.commit()

@@ -12,7 +12,7 @@ class Groups(db.Model):
     gid = db.Column('gid', db.Integer, comment='그룹아이디')
     groupname = db.Column('groupname', db.String(24), comment='그룹이름')
     permission = db.Column('permission', db.Integer, comment='권한')
-    created = db.Column('created', db.DateTime, default=datetime.datetime.now, comment='생성시간')
+    created = db.Column('created', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='생성시간')
     
 
     def serialize(self):
@@ -30,11 +30,12 @@ class Users(db.Model):
     __tablename__ = 'users'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    created = db.Column('created', db.DateTime, default=datetime.datetime.now, comment='생성시간')
+    created = db.Column('created', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='생성시간')
     uid = db.Column('uid', db.Integer, comment='사용자 아이디(숫자값)')
     username = db.Column('username', db.String(48), comment='로그인 아이디')
     password = db.Column('password', db.String(256), comment='사용자 비밀번호')
     name = db.Column('name', db.String(48), comment='사용자 이름')
+    permission = db.Column('permission', db.Integer, comment='권한')
 
     age = db.Column('age', db.Integer, comment='사용자나이')
     gender = db.Column('gender', db.Integer, comment='성별(1:Male, 2:Female)')
@@ -52,6 +53,8 @@ class Users(db.Model):
             "username": self.username, 
             "name": self.name,
             "token": self.token,
+            "permission": self.permission,
+            "created": self.created,
             
         }
         return resultJSON
@@ -59,7 +62,7 @@ class AccessHistory(db.Model):
     __tablename__ = 'access_history'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    update_time = db.Column('update_time', db.DateTime, default=datetime.datetime.now, comment='생성시간')
+    update_time = db.Column('update_time', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='생성시간')
     user_id = db.Column('user_id', db.String(48), comment='사용자ID')
     type = db.Column('type', db.Boolean, comment='0:로그인, 1:로그아웃')
     ip_addr = db.Column('ip_addr', db.String(20), comment='사용자 접속IP')
@@ -73,7 +76,7 @@ class Login(db.Model):
     id = db.Column('id', db.Integer, primary_key=True)
     FK_ah_id = db.Column('FK_ah_id', db.Integer, db.ForeignKey(AccessHistory.id, ondelete='CASCADE'))
     ah = db.relationship('AccessHistory')
-    datetime = db.Column('update_time', db.DateTime, default=datetime.datetime.now, comment='접속시간')
+    datetime = db.Column('update_time', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='접속시간')
 class TokenHistory(db.Model):
     __tablename__ = 'token_hisotry'
     id = db.Column('id', db.Integer, primary_key=True)
@@ -109,9 +112,9 @@ class Bands(db.Model):
     name = db.Column('name', db.String(48), comment='착용자 이름')
     gender = db.Column('gender', db.Integer, comment='착용자 성별')
     birth = db.Column('birth', db.DateTime, comment='착용자 생년월일')
-    disconnect_time = db.Column('disconnect_time', db.DateTime,  default=datetime.datetime.now(timezone('Asia/Seoul')), comment='마지막 연결 종료 시간')
-    connect_time = db.Column('connect_time', db.DateTime,  default=datetime.datetime.now(timezone('Asia/Seoul')), comment='마지막 연결 시간')
-    state = db.Column('state', db.Integer, default = 0, comment='밴드 상태 0 : off, 1 : on')
+    disconnect_time = db.Column('disconnect_time', db.DateTime,  comment='마지막 연결 종료 시간')
+    connect_time = db.Column('connect_time', db.DateTime,   comment='마지막 연결 시간')
+    connect_state = db.Column('connect_state', db.Integer, default = 0, comment='밴드 상태 0 : off, 1 : on')
     
     def serialize(self):
         resultJSON = {
@@ -124,7 +127,8 @@ class Bands(db.Model):
             "gender": self.gender,
             "birth": self.birth,
             "disconnect_time": self.disconnect_time,
-            "connect_time": self.connect_time
+            "connect_time": self.connect_time,
+            "connect_state": self.connect_state
         }
         return resultJSON 
 
@@ -132,12 +136,14 @@ class Gateways(db.Model):
     __tablename__ = 'gateways'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    pid = db.Column('pid', db.Integer, comment='게이트웨이 팬 아이디')
+    pid = db.Column('pid', db.String(12), comment='게이트웨이 팬 아이디')
     alias = db.Column('alias', db.String(20), comment='게이트웨이 별칭')
-    created = db.Column('created', db.DateTime, comment="0 : disconnect 1 : ping connect 2 : server connect ")
+    created = db.Column('created', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment="생성 시간")
     ip = db.Column('ip', db.String(20), comment='아이피 주소')
     lat = db.Column('lat', db.Float, comment='위도')
     lng = db.Column('lng', db.Float, comment='경도')
+    disconnect_time = db.Column('disconnect_time', db.DateTime,  default=datetime.datetime.now(timezone('Asia/Seoul')), comment='마지막 연결 종료 시간')
+    connect_time = db.Column('connect_time', db.DateTime,   comment='마지막 연결 시간')
     connect_state = db.Column('connect_state', db.Integer,  default=0, comment='연결 상태' )
     def serialize(self):
         resultJSON = {
@@ -149,6 +155,8 @@ class Gateways(db.Model):
             "ip":self.ip,
             "lat": self.lat,
             "lng": self.lng,
+            "disconnect_time": self.disconnect_time,
+            "connect_time": self.connect_time,
             "connect_state": self.connect_state
         }
         return resultJSON 
@@ -238,7 +246,7 @@ class SensorData(db.Model):
     __tablename__ = 'sensordata'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now, comment='datetime')
+    datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='datetime')
     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id)) 
     band = db.relationship('Bands')
     start_byte = db.Column('start_byte', db.Integer)
@@ -300,7 +308,7 @@ class Activity(db.Model):
     __tablename__ = 'activity'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    datetime = db.Column('datetime', db.Integer, default=datetime.datetime.now, comment='datetime')
+    datetime = db.Column('datetime', db.Integer, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='datetime')
     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id)) 
     band = db.relationship('Bands')
 
@@ -319,9 +327,19 @@ class Events(db.Model):
     __tablename__ = 'events'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now, comment='datetime')
+    datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='datetime')
     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id)) 
     band = db.relationship('Bands')
 
-    event = db.Column('event', db.Integer, comment='이벤트번호')
+    type = db.Column('type', db.Integer, comment='이벤트번호')
     value = db.Column('value', db.Integer, comment='이벤트값')    
+    def serialize(self):
+        resultJSON = {
+            # property (a)
+            "id": self.id, 
+            "datetime": self.datetime,
+            "bid": self.FK_bid,
+            "type": self.type,
+            "value": self.value,
+        }
+        return resultJSON 

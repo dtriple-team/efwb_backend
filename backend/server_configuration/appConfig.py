@@ -3,17 +3,18 @@
 
 
 class DevelopmentConfig():
-    BIND_PORT = 8081
+    BIND_PORT = 8080
     WEB_URL = "http://127.0.0.1"
     SQLALCHEMY_DATABASE_URI = 'mysql://root:p@ssw0rd@127.0.0.1/efwb2'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 class ProductionConfig():
-    BIND_PORT = 8081
-    WEB_URL = "http://3.35.10.50/"
-    SQLALCHEMY_DATABASE_URI = 'mysql://root:p@ssw0rd@127.0.0.1/efwb2'
+    BIND_PORT = 8080
+    WEB_URL = "http://13.125.45.228/"
+    SQLALCHEMY_DATABASE_URI = 'mysql://root:Dtriple11!!@127.0.0.1/efwb'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 
 
 

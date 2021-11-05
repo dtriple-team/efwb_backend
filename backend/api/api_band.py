@@ -3,12 +3,14 @@ print("module [backend.api_band] loaded")
 
 
 import hashlib
+from re import L
 import requests
 import platform
 import subprocess
 from sqlalchemy.sql.elements import Null
 from ping3 import ping
 import threading
+from threading import Lock
 from backend import app, socketio, mqtt, login_manager
 from flask import make_response, jsonify, request, json, send_from_directory
 from flask_socketio import send, emit
@@ -24,10 +26,88 @@ from sqlalchemy import func, case
 from datetime import date
 import os
 spo2BandData = {}
-stateBandData = {}
 start = False
+gateway_thread = None
+mqtt_thread = None
+thread_lock = Lock()
 
 mqtt.subscribe('/efwb/sync')
+def bandLog(g): 
+  dev = db.session.query(Bands).\
+          filter(Bands.connect_state == 1).\
+          filter(Bands.id == GatewaysBands.FK_bid).\
+          filter(GatewaysBands.FK_pid == g.id).all()
+  if dev :
+    for b in dev:
+      Bands.query.filter_by(id = b.id).update(dict(
+        disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+        , connect_state = 0))
+      bandlog = BandLog()
+      bandlog.FK_bid = b.id
+      bandlog.type = 0
+      db.session.add(bandlog)
+      # socketio.emit()
+
+def gatewayLog(g, check):
+  gatewayLog = GatewayLog()
+  gatewayLog.FK_pid = g.id
+
+  if check:
+    gatewayLog.type = 1
+    db.session.add(gatewayLog)          
+    Gateways.query.filter_by(id=g.id).update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul'))))
+  else :
+    gatewayLog.type = 0
+    db.session.add(gatewayLog)
+    Gateways.query.filter_by(id=g.id).update(dict(connect_state=0, disconnect_time =  datetime.datetime.now(timezone('Asia/Seoul'))))    
+    bandLog(g)
+
+  db.session.commit()
+  db.session.flush()
+
+def gatewayCheck():
+  while True:
+    socketio.sleep(100)
+    print("gatewayCheck start")
+    try:
+      gateways = Gateways.query.all()
+      for g in gateways:
+        if pingTest(g.ip) :
+          print(g.id, "ping Test pass")
+          if serverTest(g.ip) is not None :
+            print(g.id, "server Test pass")
+            if g.connect_state == 0:
+              gatewayLog(g, True)
+          else :
+            print(g.id, "server Test no pass")
+            if g.connect_state == 1:
+              gatewayLog(g, False)
+            else :
+              dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
+              if dev is None:
+                gatewayLog(g, False)
+        else :
+          print(g.id, "ping Test no pass")
+          if g.connect_state == 1:
+            gatewayLog(g, False)
+          else :
+            dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
+
+            if dev is None:
+              gatewayLog(g, False)
+      print("Close Gateway Check ")
+
+    except Exception as e:
+      print(e)
+
+  # threading.Timer(300, gatewayCheck).start()
+
+def gatewayCheckThread():
+  global gateway_thread
+  with thread_lock:
+    if gateway_thread is None:
+      gateway_thread = socketio.start_background_task(gatewayCheck)
+
 
 def pingTest(hostName):
   resp = ping(hostName)
@@ -51,206 +131,170 @@ def serverTest(hostName):
   except Exception as e:
     print(e) 
     return None
-def gatewayCheck():
-  global start
-  if start==True :
-    print("gatewayCheck start")
-    try:
-      gateways = Gateways.query.all()
-      for g in gateways:
-        print(g.id)
-        gateway = g
-        gatewayLog = GatewayLog()
-        gatewayLog.FK_pid = gateway.id
-        if pingTest(gateway.ip) :
-          print(g.id, "ping Test pass")
-          if serverTest(gateway.ip) is not None :
-            print(gateway.id, "server Test pass")
-            if gateway.connect_state != 1:
-              
-              gatewayLog.type = 1
-              db.session.add(gatewayLog)
-             
-              Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=1))
-              db.session.commit()
-              
-          else :
-            print(gateway.id, "server Test no pass")
-            if gateway.connect_state != 0:
-              gatewayLog.type = 0
-
-              db.session.add(gatewayLog)
-              Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
-              
-              
-              dev = db.session.query(GatewaysBands).\
-                filter(GatewaysBands.FK_pid == gateway.id).all()
-              if dev :
-                for b in dev:
-                  Bands.query.filter_by(id = b.id).update({
-                    "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
-                  })
-                  bandlog = BandLog()
-                  bandlog.FK_bid = b.id
-                  bandlog.type = 0
-                  db.session.add(bandlog)
-      
-                db.session.commit()
-            else :
-              dev = GatewayLog.query.filter_by(FK_pid=gateway.id).first()
-        
-              if dev is None:
-                gatewayLog.type = 0
-                db.session.add(gatewayLog)
-                Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
-                
-                dev = db.session.query(GatewaysBands).\
-                filter(GatewaysBands.FK_pid == gateway.id).all()
-                if dev :
-                  for b in dev:
-                    Bands.query.filter_by(id = b.id).update({
-                      "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
-                    })
-                    bandlog = BandLog()
-                    bandlog.FK_bid = b.id
-                    bandlog.type = 0
-                    db.session.add(bandlog)
-                  
-                db.session.commit()
-      else :
-        print(g.id, "ping Test no pass")
-        
-        if gateway.connect_state != 0:
-          
-          gatewayLog.type = 0
-          db.session.add(gatewayLog)
-          Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
-        else :
-          dev = GatewayLog.query.filter_by(FK_pid=gateway.id).first()
-    
-          if dev is None:
-            gatewayLog.type = 0
-            db.session.add(gatewayLog)
-            Gateways.query.filter_by(id=gateway.id).update(dict(connect_state=0))
-            db.session.commit()
-      print("Close Gateway Check ")
-    except Exception as e:
-      print(e)
-  else:
-    start = True
-  threading.Timer(300, gatewayCheck).start()
-
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
 
-def handle_sync_data(mqtt_data, extAddress, dev):
-  global stateBandData, spo2BandData
-  try :
-    mqtt_data['extAddress']['high'] = extAddress
-    if mqtt_data['extAddress']['low'] not in spo2BandData :
-      spo2BandData[mqtt_data['extAddress']['low']] = 0
-      stateBandData[mqtt_data['extAddress']['low']] = False
-    bandData = mqtt_data['bandData']
-    data = SensorData()
-    data.FK_bid = dev.id
 
-    data.start_byte = bandData['start_byte']
-    data.sample_count = bandData['sample_count']
-    data.fall_detect = bandData['fall_detect']
-    data.battery_level = bandData['battery_level']
-    data.hrConfidence = bandData['hrConfidence']
-    data.spo2Confidence = bandData['spo2Confidence']
-    data.hr = bandData['hr']
-    if bandData['spo2']<=1000 and bandData['spo2']>=400:
-      data.spo2 = bandData['spo2']
-      spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
-    else :
-      if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
-        data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
-        mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
-      else :
-        data.spo2 = 0
-        mqtt_data['bandData']['spo2'] = 0
+def event_db_save(id, type, value) :
+  db_event = Events()
+  db_event.FK_bid = id
+  db_event.type = type
+  db_event.value = value
+  db_event.datetime = datetime.datetime.now()
+  db.session.add(db_event)
+  db.session.commit()
+  db.session.flush()  
+
+def get_event(id, type):
+  eventDev = db.session.query(Events).filter_by(FK_bid=id).filter_by(type=type).order_by(Events.id.desc()).first()
+  
+
+  if eventDev is None:
+    return None
+
+  time1 = eventDev.datetime
+  time2 = datetime.datetime.now()
+
+  return (time2-time1).seconds
+
+def event_socket_emit(dev, type, value):
+
+  event = get_event(dev.id, type)
+  if event is None:
+    event_db_save(dev.id, type, value)
+    event_scoket = {
+    "type" : type,
+    "value" : value,
+    "message" : dev.bid
+    }
+    socketio.emit('efwbasync', event_scoket, namespace='/receiver')
+  elif event > 30 :
+    event_db_save(dev.id, type, value)
+    event_scoket = {
+    "type" : type,
+    "value" : value,
+    "message" : dev.bid
+    }
+    socketio.emit('efwbasync', event_scoket, namespace='/receiver')
+def eventHandler(mqtt_data, dev):
+  if mqtt_data['bandData']['fall_detect'] == 1 :
+    
+    event_socket_emit(dev, 0, mqtt_data['bandData']['fall_detect'])
+
+  if mqtt_data['rssi'] < -80 :
+    
+    event_socket_emit(dev, 1, mqtt_data['rssi'])
+
+  if mqtt_data['bandData']['battery_level'] < 10 :
+    
+    event_socket_emit(dev, 2, mqtt_data['bandData']['battery_level'] )
+
+  if mqtt_data['bandData']['scdState'] == 0 or mqtt_data['bandData']['scdState'] == 1:
+   
+    event_socket_emit(dev, 3, mqtt_data['bandData']['scdState'])
+  if mqtt_data['active'] == 'false':
+    event_db_save(dev.id, 4, 0)
+    event_scoket = {
+      "type" : 4,
+      "value" : mqtt_data['active'],
+      "message" : dev.bid
+    }
+    socketio.emit('efwbasync', event_scoket, namespace='/receiver')
+
+def handle_sync_data(mqtt_data, extAddress):
+  global spo2BandData
+  dev = db.session.query(Bands).filter_by(bid = extAddress).first()
+
+  if dev is not None:
+    
+    try :
+      mqtt_data['extAddress']['high'] = extAddress
+      if mqtt_data['extAddress']['low'] not in spo2BandData :
         spo2BandData[mqtt_data['extAddress']['low']] = 0
-            
-    data.motionFlag = bandData['motionFlag'] 
-    data.scdState = bandData['scdState']
-    data.activity = bandData['activity']
-    data.walk_steps = bandData['walk_steps']
-    data.run_steps = bandData['run_steps']  
+      bandData = mqtt_data['bandData']
+      data = SensorData()
+      data.FK_bid = dev.id
+
+      data.start_byte = bandData['start_byte']
+      data.sample_count = bandData['sample_count']
+      data.fall_detect = bandData['fall_detect']
+      data.battery_level = bandData['battery_level']
+      data.hrConfidence = bandData['hrConfidence']
+      data.spo2Confidence = bandData['spo2Confidence']
+      data.hr = bandData['hr']
+      if bandData['spo2'] == 0 :
+          data.spo2 = 0
+          mqtt_data['bandData']['spo2'] = 0
+          spo2BandData[mqtt_data['extAddress']['low']] = 0
+      elif bandData['spo2']<=1000 and bandData['spo2']>=400:
+        data.spo2 = bandData['spo2']
+        spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
+      else :
+        if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
+          data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
+          mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
+        else :
+          data.spo2 = 0
+          mqtt_data['bandData']['spo2'] = 0
+          spo2BandData[mqtt_data['extAddress']['low']] = 0
               
-    data.x = bandData['x']
-    data.y = bandData['y']
-    data.z = bandData['z']
-    data.t = bandData['t'] 
-              # if bandData['h']>=0:
-              #     data.h = bandData['h']
-              #     historyBandData = bandData
-              #     mqtt_data['bandData']['h'] = bandData['h']
-              # else :
-              #     if historyBandData['spo2']>1000 and historyBandData['spo2']<0:
-              #         data.spo2 = 0
-              #         mqtt_data['bandData']['spo2'] = 0
-              #     else :
-              #         data.spo2 = historyBandData['spo2']/10
-              #         mqtt_data['bandData']['spo2'] = historyBandData['spo2']/10
-
-    data.h = bandData['h']  
-
-    data.rssi = mqtt_data['rssi']   
+      data.motionFlag = bandData['motionFlag'] 
+      data.scdState = bandData['scdState']
+      data.activity = bandData['activity']
+      data.walk_steps = bandData['walk_steps']
+      data.run_steps = bandData['run_steps']  
+                
+      data.x = bandData['x']
+      data.y = bandData['y']
+      data.z = bandData['z']
+      data.t = bandData['t'] 
             
-    db.session.add(data)
-    db.session.commit()
+      data.h = bandData['h']  
 
-
-    if mqtt_data['active'] == 'true':
-      Bands.query.filter_by(id = dev.id).update({
-        "connect_time": datetime.datetime.now(timezone('Asia/Seoul'))
-      })
-      bandlog = BandLog()
-      bandlog.FK_bid = dev.id
-      bandlog.type = 1
-      db.session.add(bandlog)
-      db.session.commit()
-     
+      data.rssi = mqtt_data['rssi']   
               
-    else :
-      Bands.query.filter_by(id = dev.id).update({
-        "disconnect_time": datetime.datetime.now(timezone('Asia/Seoul'))
-      })
-      bandlog = BandLog()
-      bandlog.FK_bid = dev.id
-      bandlog.type = 0
-      db.session.add(bandlog)
+      db.session.add(data)
       db.session.commit()
-    if bandData['fall_detect'] == 1 :
-      event = {
-        "type" : 0,
-        "value" : 1,
-        "message" : extAddress
-      }
-      socketio.emit('efwbasync', event, namespace='/receiver')
-    socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-  except Exception as e :
-    print("****** error ********")
-    print(e)
+      db.session.flush()
+      if mqtt_data['active'] == 'true':
+        if dev.connect_state == 0 :
+          Bands.query.filter_by(id = dev.id).update(dict(
+            connect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+          , connect_state = 1))
+          bandlog = BandLog()
+          bandlog.FK_bid = dev.id
+          bandlog.type = 1
+          db.session.add(bandlog)
+         
+      else :
+        Bands.query.filter_by(id = dev.id).update(dict(
+          disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+        , connect_state = 0))
+        bandlog = BandLog()
+        bandlog.FK_bid = dev.id
+        bandlog.type = 0
+        db.session.add(bandlog)
+      db.session.commit()
+      db.session.flush()
+      eventHandler(mqtt_data, dev)
+      socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+    except Exception as e :
+      print("****** error ********")
+      print(e)
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-
+  global mqtt_thread
   if message.topic == '/efwb/sync':
     mqtt_data = json.loads(message.payload.decode())
-    
-    # global stateBandData, spo2BandData
-    extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low']))).upper()
-    dev = Bands.query.filter(Bands.bid == extAddress).first()
 
-    if dev is not None:
-      mqtt_t = threading.Thread(target=handle_sync_data, args=(mqtt_data, extAddress, dev))
-      mqtt_t.start()
-      mqtt_t.join()
+    extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+    with thread_lock:
+      if mqtt_thread is None:
+        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+      mqtt_thread = None
 
 @socketio.on('connect', namespace='/receiver')
 def connect():
@@ -302,7 +346,7 @@ def login_api():
                 db.session.add(new_access_history)
               
                 db.session.commit()
-                
+                db.session.flush()
                 result = {'status': True, 'reason': 0, 'user': loginuser.serialize()}
 
     return make_response(jsonify(result), 200)
@@ -333,7 +377,7 @@ def logout_api():
         db.session.add(new_access_history)
                     
         db.session.commit()
-
+        db.session.flush()
     
     
     return make_response({}, 200)
@@ -390,7 +434,7 @@ def group_post_api():
 
     db.session.add(group)
     db.session.commit()
-
+    db.session.flush()
     result = {
       "result": "OK"
     }
@@ -448,7 +492,8 @@ def group_update_api():
       'permission': data['permission']}
     )
     
-    db.session.commit()    
+    db.session.commit() 
+    db.session.flush()   
     result = {
       "result": "OK",
     }
@@ -473,7 +518,7 @@ def group_delete_api():
     try:
       db.session.delete(group)
       db.session.commit()  
-
+      db.session.flush()
     except Exception as e:
       result = {
         "result": str(e),
@@ -504,7 +549,7 @@ def user_post_api():
     user.name = data['name']
     db.session.add(user)
     db.session.commit()
-
+    db.session.flush()
     result = {
       "result": "OK"
     }
@@ -562,7 +607,8 @@ def user_update_api():
       {'uid': data['uid'], 'username': data['username'], 'password': DBManager.password_encoder_512(data['password']),
       'name': data['name']}
     )
-    db.session.commit()    
+    db.session.commit()  
+    db.session.flush()  
     result = {
       "result": "OK",
     }
@@ -585,6 +631,7 @@ def user_delete_api():
 
     db.session.delete(user)
     db.session.commit()    
+    db.session.flush()
     result = {
       "result": "OK",
     }
@@ -619,6 +666,39 @@ def user_groupinfo_api(id):
   }
   return make_response(jsonify(result), 200)  
 
+
+def users_group_api(id):
+  dev = db.session.query(UsersGroups.FK_gid).filter_by(FK_uid = id).first()
+  if dev is None :
+    return None
+  return dev
+
+@app.route('/api/efwb/v1/users/samegroup/<id>', methods=['GET'])
+def users_samegroup_get_api(id):
+  gid = users_group_api(id)
+  if gid is None :
+    return make_response(jsonify('User is not Found.'), 404)
+  
+  dev = db.session.query(Users).\
+    filter(Users.id == UsersGroups.FK_uid).\
+      filter(UsersGroups.FK_gid==gid.FK_gid).all()
+  
+  if dev is None:
+    return make_response(jsonify('User is not Found.'), 404)
+  userlist = []
+  for u in dev :
+    userlist.append(u.serialize())
+
+  result = {
+    "result":"OK",
+    "data":{
+      "userlist": userlist,
+      "gid" : gid
+    }
+  }
+  return make_response(jsonify(result), 200)  
+
+
 @app.route('/api/efwb/v1/users/gatewayinfo/<id>', methods=['GET'])
 @token_required
 def user_gatewayinfo_api(id):
@@ -626,10 +706,10 @@ def user_gatewayinfo_api(id):
   gatewaylist = []
   if dev is None:
     return make_response(jsonify('User is not Found.'), 404)
-  print(dev)
+  
   for b in dev :
     gatewaylist.append(b.serialize())
-  print(gatewaylist)
+ 
   result = {
     "result":"OK",
     "data":gatewaylist
@@ -645,10 +725,10 @@ def gateway_bandinfo_api(id):
   bandlist = []
   if dev is None:
     return make_response(jsonify('User is not Found.'), 404)
-  print(dev)
+
   for b in dev :
     bandlist.append(b.serialize())
-  print(bandlist)
+ 
   result = {
     "result":"OK",
     "data":bandlist
@@ -692,7 +772,7 @@ def band_post_api():
 
     db.session.add(bands)
     db.session.commit()
-
+    db.session.flush()
     result = {
       "result": "OK"
     }
@@ -717,16 +797,16 @@ def band_list_get_api():
 def band_detail_get_api():
     data = json.loads(request.data)
 
-    params = ['bid']
+    params = ['id']
     for param in params:
           if param not in data:
               return make_response(jsonify('Parameters are not enough.'), 400)
-    dev = Bands.query.filter(Bands.bid == data['bid']).first()
+    dev = Bands.query.filter(Bands.id == data['id']).first()
     if dev is None:
       return make_response(jsonify('User is not found.'), 404)
     result = {
       "result": "OK",
-      "users": dev.serialize()
+      "data": dev.serialize()
     }
 
     return make_response(jsonify(result), 200)
@@ -758,6 +838,7 @@ def band_update_api():
         }
     )
     db.session.commit()    
+    db.session.flush()
     result = {
       "result": "OK",
     }
@@ -781,6 +862,7 @@ def band_delete_api():
 
     db.session.delete(band)
     db.session.commit()    
+    db.session.flush()
     result = {
       "result": "OK",
     }
@@ -835,13 +917,14 @@ def users_groups_post_api():
       users_groups = addDBList(UsersGroups(), data['gids'], data['uids'], True, True)
 
     elif len(data['uids'])<len(data['gids']):
-      print('gid 등록')
+     
       users_groups = addDBList(UsersGroups(), data['uids'], data['gids'], False, True)
         
     else:
       users_groups = addDBList(UsersGroups(), data['gids'], data['uids'], True, True)
     db.session.add(users_groups)
     db.session.commit()
+    db.session.flush()
     result = {
       "result": "OK"
     }
@@ -942,6 +1025,7 @@ def users_groups_delete_api():
     if flag == False :
       return make_response(jsonify('UsersGroups is not found.'), 404)       
     db.session.commit()    
+    db.session.flush()
     result = {
       "result": "OK",
     }
@@ -970,6 +1054,7 @@ def users_bands_post_api():
 
     db.session.add(users_table)
     db.session.commit()
+    db.session.flush()
     result = {
       "result": "OK"
     }
@@ -1070,6 +1155,7 @@ def users_bands_delete_api():
     if flag == False :
       return make_response(jsonify('UsersGateways is not found.'), 404)       
     db.session.commit()    
+    db.session.flush()
     result = {
       "result": "OK",
     }
@@ -1098,10 +1184,7 @@ def getAttribute(str, sensor):
     return sensor.spo2
 
 @app.route('/api/efwb/v1/sensordata/vital', methods=['POST'])
-@token_required
 def sensordata_day_get_api():
-
-
   data = json.loads(request.data)
 
   params = ['bid','dataname', 'days']
@@ -1112,15 +1195,21 @@ def sensordata_day_get_api():
   json_data = []
   day = ['월', '화', '수', '목', '금', '토', '일']
   for i in data['days'] :
-    sensordata_list = {"label": [], "data": [] }  
+    # sensordata_list = [{"label": [], "data": [] } ] 
+    sensordata_list = [] 
     valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%H').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
     #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     if not valuedata :
       continue
-    
-    for b in valuedata :
-      sensordata_list['label'].append(b.x)
-      sensordata_list['data'].append(float(b.y))
+    if data['dataname'] =='spo2' :
+      for b in valuedata :
+        if b.y>0:
+          sensordata_list.append({"x": b.x,"y": float((b.y)/10)})
+        else:
+          sensordata_list.append({"x": b.x,"y": float(b.y)})
+    else:
+      for b in valuedata :
+        sensordata_list.append({"x": b.x,"y": float(b.y)})
 
     dev = db.session.query(func.min(getAttribute(data['dataname'], SensorData)).label('min'), func.max(getAttribute(data['dataname'], SensorData)).label('max'), func.avg(getAttribute(data['dataname'], SensorData)).label('avg')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     for b in dev: 
@@ -1130,10 +1219,8 @@ def sensordata_day_get_api():
       }
     dayValue = date(int(i[0:4]), int(i[5:7]), int(i[8:10])).weekday()
     dateValue = i[5:7]+"월 "+i[8:10]+"일 "+day[dayValue]
-    json_data.append({"date": dateValue, "total": resultJSON,  "value": sensordata_list})
+    json_data.append({"date": dateValue, "total": resultJSON,  "data": sensordata_list})
 
-   
-    
   result = {
     "result": "OK",
     "data": json_data
@@ -1141,8 +1228,140 @@ def sensordata_day_get_api():
 
   return make_response(jsonify(result), 200)  
 
+@app.route('/api/efwb/v1/sensordata/activity', methods=['POST'])
+def activity_day_get_api():
+  data = json.loads(request.data)
+
+  params = ['bid', 'days']
+  
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)  
+
+  json_data = []
+  day = ['월', '화', '수', '목', '금', '토', '일']
+  for i in data['days'] :
+    # sensordata_list = [{"label": [], "data": [] } ] 
+    sensordata_list = [[],[]] 
+    valuedata = db.session.query(func.date_format(SensorData.datetime,'%H').label('date'),
+  func.max(SensorData.walk_steps).label('walk_steps'), 
+  func.max(SensorData.run_steps).label('run_steps')).\
+      filter(SensorData.FK_bid == data['bid']).\
+        filter(func.date(SensorData.datetime) == i).\
+          group_by(func.hour(SensorData.datetime)).all()
+    #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+    if not valuedata :
+      continue
+    
+    for b in valuedata :
+      sensordata_list[0].append({"x": b.date,"y": int(b.walk_steps)})
+      sensordata_list[1].append({"x": b.date,"y": int(b.run_steps)})
+    
+    dayValue = date(int(i[0:4]), int(i[5:7]), int(i[8:10])).weekday()
+    dateValue = i[5:7]+"월 "+i[8:10]+"일 "+day[dayValue]
+    json_data.append({"date": dateValue,  "data": sensordata_list})
+
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+
+  return make_response(jsonify(result), 200)  
+
+def datetimeBetween(data):
+  if len(data) == 1 :
+    return data[0]
+  else :
+    return data[len(data)-1]
+@app.route('/api/efwb/v1/sensordata/fall/sum', methods=['POST'])
+def sensordata_fall_sum_post_api():
+  data = json.loads(request.data)
+  params = ['bid', 'days' ]
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400)  
+  json_data = []
+  dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'), func.sum(SensorData.fall_detect).label('fall_detect')).\
+    filter(SensorData.FK_bid == data['bid']).\
+      filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+      group_by(func.date(SensorData.datetime)).all()
+  for i in dev:
+    json_data.append({
+      'day':i.day,
+      'fall_detect':int(i.fall_detect)
+    })
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+  return make_response(jsonify(result), 200)
+@app.route('/api/efwb/v1/events', methods=["POST"])
+def events_post_api():
+  data = json.loads(request.data)
+  params = ['bid', 'days']
+
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400) 
+  json_data = []
+  dev = []
+
+  if len(data['days']) == 0 :
+    dev = db.session.query(Events).\
+    filter(Events.FK_bid==data['bid']).\
+      all()
+  else :
+    dev = db.session.query(Events).\
+      filter(Events.FK_bid==data['bid']).\
+        filter(func.date(Events.datetime).\
+          between(data['days'][0], datetimeBetween(data['days']))).\
+            all()
+  for i in dev:
+    json_data.append(i.serialize())
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+
+  return make_response(jsonify(result), 200)
+
+@app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
+def events_fall_post_api():
+  data = json.loads(request.data)
+  params = ['bid', 'days']
+
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400) 
+  json_data = []
+  dev = []
+
+  if len(data['days']) == 0 :
+    dev = db.session.query(func.date_format(Events.datetime,'%Y-%m-%d').label('date'),
+  func.sum(Events.value).label('data')).\
+      filter(Events.FK_bid==data['bid']).\
+        filter(Events.type==0).\
+          group_by(func.date(Events.datetime)).all()
+  else :
+    dev = db.session.query(func.date_format(Events.datetime,'%Y-%m-%d').label('date'),
+  func.sum(Events.value).label('data')).\
+      filter(Events.FK_bid==data['bid']).\
+        filter(Events.type==0).\
+        filter(func.date(Events.datetime).\
+          between(data['days'][0], datetimeBetween(data['days']))).\
+             group_by(func.date(Events.datetime)).all()
+          
+  for i in dev:
+    json_data.append({"date": i.date, "data": int(i.data)})
+  result = {
+    "result": "OK",
+    "data": json_data
+  }
+
+  return make_response(jsonify(result), 200) 
+
 @app.route('/api/efwb/v1/sensordata/activity/day', methods=['POST'])
-@token_required
+
 def sensordata_activity_day_get_api():
   data = json.loads(request.data)
   params = ['bid', 'days']
@@ -1166,7 +1385,7 @@ def sensordata_activity_day_get_api():
   func.sum(SensorData.walk_steps).label('walk_steps'), 
   func.sum(SensorData.run_steps).label('run_steps')).\
     filter(SensorData.FK_bid == data['bid']).\
-    filter(func.date(SensorData.datetime).between(data['days'][0], data['days'][1])).\
+    filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
       group_by(func.date(SensorData.datetime)).all()
 
   for i in valuedata: 
@@ -1182,7 +1401,7 @@ def sensordata_activity_day_get_api():
   return make_response(jsonify(result), 200)
 
 @app.route('/api/efwb/v1/sensordata/activity/week', methods=['POST'])
-@token_required
+
 def sensordata_activity_week_get_api():
   data = json.loads(request.data)
 
@@ -1260,6 +1479,7 @@ def gatewaylog_post_api():
 
   db.session.add(gatewaylog)
   db.session.commit()
+  db.session.flush()
   result = {
       "result": "OK"
     }
@@ -1281,6 +1501,7 @@ def bandlog_post_api():
 
   db.session.add(bandlog)
   db.session.commit()
+  db.session.flush()
   result = {
       "result": "OK"
     }
@@ -1386,6 +1607,36 @@ def get_maps_api(pid):
   return make_response(result, 200)
 
 
+# @app.route('/api/efwb/v1/events/get', methods=['POST'])
+# def get_event_api():
+#   data = json.loads(request.data)
+#   params = ['bid','type']
+
+#   for param in params:
+#     if param not in data:
+#       return make_response(jsonify('Parameters are not enough.'), 400)
+#   eventDev = Events.query.filter_by(FK_bid=data['bid']).filter_by(type=data['type']).order_by(Events.datetime.desc()).first()
+#   if eventDev is None:
+#       return make_response(jsonify('event is not found.'), 404)
+#   print(eventDev.datetime)
+#   print(datetime.datetime.now())
+#   time1 = eventDev.datetime
+#   time2 = datetime.datetime.now()
+#   print((time2-time1).seconds)
+#   return make_response(jsonify(eventDev.serialize()), 200)
+
+
+# @app.route('/api/efwb/v1/events', methods=['POST'])
+# def post_event_api():
+#   eventDev = Events()
+#   eventDev.event = 0
+#   eventDev.FK_bid = 1
+#   eventDev.value = 0
+
+#   db.session.add(eventDev)
+#   db.session.commit()
+#   db.session.flush()
+#   return make_response({}, 200)
 def addDBUserBandList(db, list1, list2, check):
   for i in range(len(list2)):
     if check :
