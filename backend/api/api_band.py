@@ -23,7 +23,9 @@ from functools import wraps
 #client = mqtt.Client()
 # from api.api_common import *
 from backend.db.table_band import *
-from sqlalchemy import func, case
+from sqlalchemy import func, case, or_, Interval
+from sqlalchemy.sql.expression import text
+
 from datetime import date
 import os
 from urllib.request import urlopen
@@ -178,42 +180,52 @@ def event_db_save(id, type, value) :
   db_event.FK_bid = id
   db_event.type = type
   db_event.value = value
-
+  db_event.datetime = datetime.datetime.now()
   db.session.add(db_event)
   db.session.commit()
   db.session.flush()  
 
 def get_event(id, type):
   eventDev = db.session.query(Events).filter_by(FK_bid=id).filter_by(type=type).order_by(Events.id.desc()).first()
-  
 
   if eventDev is None:
-    return None
-
-  time1 = eventDev.datetime
-  time2 = datetime.datetime.now()
-
-  return (time2-time1).seconds
-
+    if type == 3 :
+      sensorDev = db.session.query(func.count(SensorData.id).label('count')).\
+      filter(SensorData.FK_bid==id).\
+      filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
+        filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
+      if sensorDev is not None and sensorDev.count > 5:
+        return True
+    else :
+      return True
+  else:
+    time1 = eventDev.datetime
+    time2 = datetime.datetime.now()
+    if (time2-time1).seconds > 30 :
+      if type == 3 :
+        sensorDev = db.session.query(func.count(SensorData.id).label('count')).\
+        filter(SensorData.FK_bid==id).\
+        filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
+          filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
+        if sensorDev is not None and sensorDev.count > 5:
+          return True
+      else:
+        return True
+  return False
 def event_socket_emit(dev, type, value):
 
   event = get_event(dev.id, type)
-  if event is None:
+  if event:
+    
     event_db_save(dev.id, type, value)
-    event_scoket = {
+    event_socket = {
     "type" : type,
     "value" : value,
     "bid" : dev.bid
     }
-    socketio.emit('efwbasync', event_scoket, namespace='/receiver')
-  elif event > 30 :
-    event_db_save(dev.id, type, value)
-    event_scoket = {
-    "type" : type,
-    "value" : value,
-    "bid" : dev.bid
-    }
-    socketio.emit('efwbasync', event_scoket, namespace='/receiver')
+    print(event_socket)
+    socketio.emit('efwbasync', event_socket, namespace='/receiver')
+
 def eventHandler(mqtt_data, dev):
   if mqtt_data['bandData']['fall_detect'] == 1 :
     
@@ -242,24 +254,26 @@ def getAirpressure():
   print("getAltitud start")
   dev = db.session.query(Gateways).all()
   for g in dev:
-    
-  #dev = db.session.query(Gateways.location).filter(Gateways.id == GatewaysBands.FK_pid).filter(GatewaysBands.FK_bid == bid).first()
+  
     d = datetime.datetime.now(timezone('Asia/Seoul'))
     urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-    html = urlopen("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
+    try:
+      html = urlopen("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
 
-    bsObject = BeautifulSoup(html, "html.parser") 
-    temp = bsObject.find("table", {"class": "table_develop3"})
-    trtemp = temp.find_all('tr')
-    atemp = temp.find_all('a')
+      bsObject = BeautifulSoup(html, "html.parser") 
+      temp = bsObject.find("table", {"class": "table_develop3"})
+      trtemp = temp.find_all('tr')
+      atemp = temp.find_all('a')
 
-    for a in range(len(atemp)):
-        if atemp[a].text == g.location:
-            break
-    tdtemp = trtemp[a+2].find_all('td')
-    
-    db.session.query(Gateways).filter_by(id = g.id).update((dict(airpressure=float(tdtemp[len(tdtemp)-1].text))))
-    db.session.commit()
+      for a in range(len(atemp)):
+          if atemp[a].text == g.location:
+              break
+      tdtemp = trtemp[a+2].find_all('td')
+      
+      db.session.query(Gateways).filter_by(id = g.id).update((dict(airpressure=float(tdtemp[len(tdtemp)-1].text))))
+      db.session.commit()
+    except:
+      pass
   threading.Timer(3600, getAirpressure).start()
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
 
@@ -354,7 +368,7 @@ def handle_sync_data(mqtt_data, extAddress):
             mqtt_data['bandData']['run_steps'] = sensorDev.run_steps + bandData['run_steps']
 
           else : 
-            mqtt_data['run_steps']['run_steps'] = sensorDev.run_steps
+            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
 
 
         elif sensorDev.run_steps==bandData['run_steps']:
@@ -376,7 +390,7 @@ def handle_sync_data(mqtt_data, extAddress):
       else:
         data.h = mqtt_data['bandData']['h']
       data.rssi = mqtt_data['rssi']   
-
+      data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
       db.session.commit()
       db.session.flush()
@@ -447,10 +461,7 @@ def handle_mqtt_message(client, userdata, message):
     mqtt_data = json.loads(message.payload.decode())
 
     extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-    with thread_lock:
-      if mqtt_thread is None:
-        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-      mqtt_thread = None
+    handle_sync_data(mqtt_data, extAddress)
 
   elif message.topic == '/efwb/connectcheck' :
     handle_gateway_state(json.loads(message.payload))
@@ -1427,8 +1438,8 @@ def activity_day_get_api():
     # sensordata_list = [{"label": [], "data": [] } ] 
     sensordata_list = [[],[]] 
     valuedata = db.session.query(func.date_format(SensorData.datetime,'%H').label('date'),
-  func.max(SensorData.walk_steps).label('walk_steps'), 
-  func.max(SensorData.run_steps).label('run_steps')).\
+  (func.max(SensorData.walk_steps)-func.min(SensorData.walk_steps)).label('walk_steps'), 
+  (func.max(SensorData.run_steps)-func.min(SensorData.run_steps)).label('run_steps')).\
       filter(SensorData.FK_bid == data['bid']).\
         filter(func.date(SensorData.datetime) == i).\
           group_by(func.hour(SensorData.datetime)).all()
@@ -1799,6 +1810,15 @@ def access_history_reload_post_api():
 #       db.session.commit()  
 #   return make_response(jsonify({}), 200)
 
+@app.route('/example', methods=['GET'])
+def get_example():
+  dev = db.session.query(func.count(SensorData.id).label('count')).\
+    filter(SensorData.FK_bid==10).\
+    filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
+      filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
+  print(dev.count)
+  result = {}
+  return make_response(jsonify(result), 200)
 @app.route('/api/efwb/v1/maps/<pid>', methods=['GET'])
 def get_maps_api(pid):
   dev = Gateways.query.filter_by(id=pid).first()
