@@ -223,7 +223,7 @@ def event_socket_emit(dev, type, value):
     "value" : value,
     "bid" : dev.bid
     }
-    print(event_socket)
+  
     socketio.emit('efwbasync', event_socket, namespace='/receiver')
 
 def eventHandler(mqtt_data, dev):
