@@ -49,76 +49,18 @@ socketio = SocketIO(app, cors_allowed_origins="*", engineio_logger=False)
 
 from backend.api.api_create import *
 
-# def gatewayCheckThread():
+def gatewayCheckThread():
 
-#     th2 = threading.Thread(target=gatewayCheck)
-#     th2.start()
-#     th2.join()
+    gatewayth = threading.Thread(target=gatewayCheck)
+    airpressureth = threading.Thread(target=getAirpressure)
+    gatewayth.start()
+    airpressureth.start()
+    gatewayth.join() 
+    airpressureth.join()
+     
 gatewayCheckThread()
 
 @app.route("/", methods=["GET"])
 def page_index():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/band", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/band/detail", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/gateway", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/gateway/detail", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/user", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/user/detail", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/log", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-@app.route("/bandlist", methods=["GET"])
-def page_bandlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-
-@app.route("/bandinfo", methods=["GET"])
-def page_bandinfo():
-    resp = make_response(render_template("index.html"))
-    return resp
-
-@app.route("/userlist", methods=["GET"])
-def page_userlist():
-    resp = make_response(render_template("index.html"))
-    return resp
-
-@app.route("/userinfo", methods=["GET"])
-def page_userinfo():
-    resp = make_response(render_template("index.html"))
-    return resp
-
-@app.route("/historylist/hr", methods=["GET"])
-def page_historylist_hr():
-    resp = make_response(render_template("index.html"))
-    return resp
-
-@app.route("/historylist/spo2", methods=["GET"])
-def page_historylist_spo2():
-    resp = make_response(render_template("index.html"))
-    return resp
-
-@app.route("/historylist/activity", methods=["GET"])
-def page_historylist_activity():
     resp = make_response(render_template("index.html"))
     return resp

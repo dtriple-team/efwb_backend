@@ -134,17 +134,18 @@ class Bands(db.Model):
 
 class Gateways(db.Model):
     __tablename__ = 'gateways'
-
     id = db.Column('id', db.Integer, primary_key=True)
     pid = db.Column('pid', db.String(12), comment='게이트웨이 팬 아이디')
     alias = db.Column('alias', db.String(20), comment='게이트웨이 별칭')
     created = db.Column('created', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment="생성 시간")
     ip = db.Column('ip', db.String(20), comment='아이피 주소')
-    lat = db.Column('lat', db.Float, comment='위도')
-    lng = db.Column('lng', db.Float, comment='경도')
+    location = db.Column('location', db.String(12), comment='위치')
+    airpressure = db.Column('airpressure', db.Float, comment="고도")
     disconnect_time = db.Column('disconnect_time', db.DateTime,  default=datetime.datetime.now(timezone('Asia/Seoul')), comment='마지막 연결 종료 시간')
-    connect_time = db.Column('connect_time', db.DateTime,   comment='마지막 연결 시간')
+    connect_time = db.Column('connect_time', db.DateTime,   default=datetime.datetime.now(timezone('Asia/Seoul')), comment='마지막 연결 시간')
+    connect_check_time = db.Column('connect_check_time', db.DateTime,   default=datetime.datetime.now(timezone('Asia/Seoul')), comment='연결 체크 시간')
     connect_state = db.Column('connect_state', db.Integer,  default=0, comment='연결 상태' )
+    
     def serialize(self):
         resultJSON = {
             # property (a)
@@ -153,8 +154,8 @@ class Gateways(db.Model):
             "alias": self.alias,
             "created": self.created,
             "ip":self.ip,
-            "lat": self.lat,
-            "lng": self.lng,
+            "location": self.location,
+            "airpressure": self.airpressure,
             "disconnect_time": self.disconnect_time,
             "connect_time": self.connect_time,
             "connect_state": self.connect_state
@@ -265,7 +266,8 @@ class SensorData(db.Model):
     activity = db.Column('activity', db.Integer, comment='활동상태')
     walk_steps = db.Column('walk_steps', db.Integer, comment='걷기')
     run_steps = db.Column('run_steps', db.Integer, comment='달리기')
-    
+    temp_walk_steps = db.Column('temp_walk_steps', db.Integer, default=0, comment='임시걷기')
+    temp_run_steps = db.Column('temp_run_steps', db.Integer, default=0, comment='임시달리기')
     x = db.Column('x', db.Integer, comment='x')
     y = db.Column('y', db.Integer, comment='y')
     z = db.Column('z', db.Integer, comment='z')
@@ -293,7 +295,8 @@ class SensorData(db.Model):
             "activity":self.activity,
             "walk_steps":self.walk_steps,
             "run_steps":self.run_steps,
-
+            "temp_walk_steps":self.walk_steps,
+            "temp_run_steps":self.run_steps,
             "x":self.x,
             "y":self.y,
             "z":self.z,

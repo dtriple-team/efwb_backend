@@ -141,16 +141,14 @@ class DBManager:
         gateways.pid = "0xA020"
         gateways.alias = "dtriple"
         gateways.ip = "192.168.0.105"
-        gateways.lat = 36.1195513
-        gateways.lng = 128.3444692
+        gateways.location = "구미"
         DBManager.db.session.add(gateways)
 
         gateways = Gateways()
-        gateways.pid = "0xA020"
+        gateways.pid = "0xA022"
         gateways.alias = "demo"
-        gateways.ip = "192.168.0.69"
-        gateways.lat = 36.1195513
-        gateways.lng = 128.3444692
+        gateways.ip = "192.168.0.105"
+        gateways.location = "대구"
         DBManager.db.session.add(gateways)
         DBManager.db.session.commit()
 
