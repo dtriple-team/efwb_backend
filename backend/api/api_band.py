@@ -59,6 +59,7 @@ def bandLog(g):
       db.session.add(bandlog)
       db.session.commit()
       db.session.flush()
+      db.session.close()
       # socketio.emit()
 
 def gatewayLog(g, check):
@@ -72,12 +73,14 @@ def gatewayLog(g, check):
     Gateways.query.filter_by(id=g.id).update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul'))))
     db.session.commit()
     db.session.flush()
+    db.session.close()
   else :
     gatewayLog.type = 0
     db.session.add(gatewayLog)
     Gateways.query.filter_by(id=g.id).update(dict(connect_state=0, disconnect_time =  datetime.datetime.now(timezone('Asia/Seoul'))))    
     db.session.commit()
     db.session.flush()
+    db.session.close()
     bandLog(g)
 
   
@@ -123,6 +126,8 @@ def gatewayCheck():
   print("gatewayCheck start")
   try:
     gateways = db.session.query(Gateways).all()
+    db.session.flush()
+    db.session.close()
     for g in gateways:
       time1 = g.connect_check_time
       time2 = datetime.datetime.now()
@@ -131,6 +136,8 @@ def gatewayCheck():
             gatewayLog(g, False)
         else:
           dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
+          db.session.flush()
+          db.session.close()
           if dev is None:
             gatewayLog(g, False)
         
@@ -461,7 +468,10 @@ def handle_mqtt_message(client, userdata, message):
     mqtt_data = json.loads(message.payload.decode())
 
     extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-    handle_sync_data(mqtt_data, extAddress)
+    with thread_lock:
+      if mqtt_thread is None:
+        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+      mqtt_thread = None
 
   elif message.topic == '/efwb/connectcheck' :
     handle_gateway_state(json.loads(message.payload))
