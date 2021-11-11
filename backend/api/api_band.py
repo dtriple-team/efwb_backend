@@ -304,7 +304,8 @@ def handle_sync_data(mqtt_data, extAddress):
       filter(SensorData.FK_bid == dev.id).\
       filter(func.date(SensorData.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).\
         order_by(SensorData.walk_steps.desc()).first()
-    
+    db.session.flush()
+    db.session.close()
     try :
       mqtt_data['extAddress']['high'] = extAddress
       if mqtt_data['extAddress']['low'] not in spo2BandData :
