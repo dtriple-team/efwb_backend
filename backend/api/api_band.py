@@ -293,11 +293,12 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
 def handle_sync_data(mqtt_data, extAddress):
   global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
-  gatewayDev = db.session.query(Gateways.airpressure).\
-  filter(Gateways.id == GatewaysBands.FK_pid).\
-    filter(GatewaysBands.FK_bid == dev.id).first()
+  
   if dev is not None:
-    
+    print("handle start")
+    gatewayDev = db.session.query(Gateways.airpressure).\
+      filter(Gateways.id == GatewaysBands.FK_pid).\
+        filter(GatewaysBands.FK_bid == dev.id).first()
     sensorDev = db.session.query(SensorData).\
       filter(SensorData.FK_bid == dev.id).\
       filter(func.date(SensorData.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).\
@@ -428,6 +429,7 @@ def handle_sync_data(mqtt_data, extAddress):
       
       eventHandler(mqtt_data, dev)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+      print("close handle")
     except Exception as e :
       print("****** error ********")
       print(e)
@@ -469,7 +471,6 @@ def handle_mqtt_message(client, userdata, message):
 
     extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
     mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-
   elif message.topic == '/efwb/connectcheck' :
     handle_gateway_state(json.loads(message.payload))
     
