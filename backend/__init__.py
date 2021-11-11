@@ -58,7 +58,7 @@ def gatewayCheckThread():
     gatewayth.join() 
     airpressureth.join()
      
-gatewayCheckThread()
+#gatewayCheckThread()
 
 @app.route("/", methods=["GET"])
 def page_index():
