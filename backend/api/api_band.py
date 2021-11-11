@@ -293,11 +293,11 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
 def handle_sync_data(mqtt_data, extAddress):
   global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
-  gatewayDev = db.session.query(Gateways.airpressure).\
-  filter(Gateways.id == GatewaysBands.FK_pid).\
-    filter(GatewaysBands.FK_bid == dev.id).first()
+  
   if dev is not None:
-    
+    gatewayDev = db.session.query(Gateways.airpressure).\
+      filter(Gateways.id == GatewaysBands.FK_pid).\
+        filter(GatewaysBands.FK_bid == dev.id).first()
     sensorDev = db.session.query(SensorData).\
       filter(SensorData.FK_bid == dev.id).\
       filter(func.date(SensorData.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).\
@@ -442,10 +442,12 @@ def handle_gateway_state(panid):
         filter_by(id=dev.id).\
           update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
           connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
+      db.session.commit()
+      db.session.flush()
     else :
       db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-    db.session.commit()
-    db.session.flush()
+      db.session.commit()
+      db.session.flush()
 
 def handle_gateway_bandnum(panid):
   dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
