@@ -444,10 +444,12 @@ def handle_gateway_state(panid):
         filter_by(id=dev.id).\
           update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
           connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
+      db.session.commit()
+      db.session.flush()
     else :
       db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-    db.session.commit()
-    db.session.flush()
+      db.session.commit()
+      db.session.flush()
 
 def handle_gateway_bandnum(panid):
   dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
