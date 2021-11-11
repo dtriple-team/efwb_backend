@@ -43,24 +43,27 @@ mqtt.subscribe('/efwb/sync')
 mqtt.subscribe('/efwb/connectcheck')
 mqtt.subscribe('/efwb/bandnum')
 def bandLog(g):
-  print("bandLog Start") 
-  dev = db.session.query(Bands).\
-          filter(Bands.connect_state == 1).\
-          filter(Bands.id == GatewaysBands.FK_bid).\
-          filter(GatewaysBands.FK_pid == g.id).all()
-  if dev :
-    for b in dev:
-      Bands.query.filter_by(id = b.id).update(dict(
-        disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
-        , connect_state = 0))
-      bandlog = BandLog()
-      bandlog.FK_bid = b.id
-      bandlog.type = 0
-      db.session.add(bandlog)
-      db.session.commit()
-      db.session.flush()
-      db.session.close()
-      # socketio.emit()
+  try:
+    print("bandLog Start") 
+    dev = db.session.query(Bands).\
+            filter(Bands.connect_state == 1).\
+            filter(Bands.id == GatewaysBands.FK_bid).\
+            filter(GatewaysBands.FK_pid == g.id).all()
+    if dev :
+      for b in dev:
+        Bands.query.filter_by(id = b.id).update(dict(
+          disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+          , connect_state = 0))
+        bandlog = BandLog()
+        bandlog.FK_bid = b.id
+        bandlog.type = 0
+        db.session.add(bandlog)
+        db.session.commit()
+        db.session.flush()
+        db.session.close()
+        # socketio.emit()
+  except:
+    pass
 
 def gatewayLog(g, check):
   print("gatewayLog Start")
@@ -434,20 +437,23 @@ def handle_sync_data(mqtt_data, extAddress):
 
 
 def handle_gateway_state(panid):
-  dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
-  if dev is not None:
-    if dev.connect_state == 0:
-      gatewayLog(dev, True)
-      db.session.query(Gateways).\
-        filter_by(id=dev.id).\
-          update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
-          connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-      db.session.commit()
-      db.session.flush()
-    else :
-      db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-      db.session.commit()
-      db.session.flush()
+  try:
+    dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
+    if dev is not None:
+      if dev.connect_state == 0:
+        gatewayLog(dev, True)
+        db.session.query(Gateways).\
+          filter_by(id=dev.id).\
+            update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
+            connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
+        db.session.commit()
+        db.session.flush()
+      else :
+        db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
+        db.session.commit()
+        db.session.flush()
+  except:
+    pass
 
 def handle_gateway_bandnum(panid):
   dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
