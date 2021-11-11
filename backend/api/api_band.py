@@ -39,9 +39,8 @@ gateway_thread = None
 mqtt_thread = None
 thread_lock = Lock()
 
-mqtt.subscribe('/efwb/sync')
-mqtt.subscribe('/efwb/connectcheck')
-mqtt.subscribe('/efwb/bandnum')
+mqtt.subscribe('/efwb/post/sync')
+mqtt.subscribe('/efwb/post/connectcheck')
 def bandLog(g):
   try:
     print("bandLog Start") 
@@ -204,7 +203,7 @@ def get_event(id, type):
       filter(SensorData.FK_bid==id).\
       filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
         filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
-      if sensorDev is not None and sensorDev.count > 5:
+      if sensorDev is not None and sensorDev.count > 10:
         return True
     else :
       return True
@@ -217,7 +216,7 @@ def get_event(id, type):
         filter(SensorData.FK_bid==id).\
         filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
           filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
-        if sensorDev is not None and sensorDev.count > 5:
+        if sensorDev is not None and sensorDev.count > 10:
           return True
       else:
         return True
@@ -454,32 +453,41 @@ def handle_gateway_state(panid):
         db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
         db.session.commit()
         db.session.flush()
+    socketio.emit('bandnum', panid, namespace='/receiver')
   except:
     pass
 
 def handle_gateway_bandnum(panid):
-  dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
-  if dev is not None:
-    if dev.connect_state == 0:
-      gatewayLog(dev, True)
-      db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-    else :
-      db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-    db.session.commit()
-    db.session.flush()
-  socketio.emit('bandnum', panid, namespace='/receiver')
-
+  try:
+    dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
+    if dev is not None:
+      if dev.connect_state == 0:
+        gatewayLog(dev, True)
+        db.session.query(Gateways).\
+          filter_by(id=dev.id).\
+            update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
+            connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
+        db.session.commit()
+        db.session.flush()
+      else :
+        db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
+        db.session.commit()
+        db.session.flush()
+    socketio.emit('bandnum', panid, namespace='/receiver')
+  except:
+    pass
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
-  if message.topic == '/efwb/sync':
+  if message.topic == '/efwb/post/sync':
 
     mqtt_data = json.loads(message.payload.decode())
 
     extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
     mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-  elif message.topic == '/efwb/connectcheck' :
+
+  elif message.topic == '/efwb/post/connectcheck' :
     handle_gateway_state(json.loads(message.payload))
     
   elif message.topic == '/efwb/bandnum' :
@@ -607,7 +615,7 @@ def token_required(fn):
 
 @app.route('/api/efwb/v1/gateway/bandnum', methods=["GET"]) 
 def  gateway_bandnum_get_api():
-  mqtt.publish('efwb/bandnum', 'bandnum')
+  mqtt.publish('efwb/get/connectcheck', 'bandnum')
   return make_response(jsonify('ok'), 200)
 @app.route('/api/efwb/v1/groups/add', methods=['POST'])
 @token_required
