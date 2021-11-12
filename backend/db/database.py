@@ -80,8 +80,13 @@ class DBManager:
 
     def insert_dummy_users():
         print("insert_dummy_users")
-        from backend.db.table_band import Users
+        from backend.db.table_band import Users, Server
 
+        server = Server()
+        server.start = 0
+
+        DBManager.db.session.add(server)
+        
         user = Users()
         user.uid = 1000
         user.username = "admin"
