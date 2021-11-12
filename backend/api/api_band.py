@@ -429,7 +429,7 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.commit()
         db.session.flush()
         
-      
+      print(mqtt_data['rssi'])
       eventHandler(mqtt_data, dev)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
       print("close handle")
@@ -439,6 +439,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
 
 def handle_gateway_state(panid):
+  print("handle_gateway_state", panid)
   try:
     dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
     if dev is not None:
