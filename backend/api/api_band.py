@@ -97,6 +97,13 @@ def gatewayLog(g, check):
     db.session.flush()
     db.session.close()
     bandLog(g)
+    gateway={
+      "panid": g.pid,
+      "bandnum": 0,
+      "connectstate": False
+    }
+    socketio.emit('gateway_connect', gateway,  namespace='/receiver')
+
 
   
 
@@ -355,10 +362,7 @@ def handle_sync_data(mqtt_data, extAddress):
       data.motionFlag = bandData['motionFlag'] 
       data.scdState = bandData['scdState']
       data.activity = bandData['activity']
-      # print("\n=============================================")
-      # print(bandData['walk_steps'],bandData['run_steps'] )
-      # print(sensorDev)
-      # print("=============================================\n")
+
       temp_walk_steps = bandData['walk_steps']
       if sensorDev is not None :
       
@@ -379,8 +383,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
       data.walk_steps = mqtt_data['bandData']['walk_steps']
       data.temp_walk_steps = temp_walk_steps
-      # if sensorDev is not None:
-      #   print(" sensorDev.walk_steps(db에 저장한값) = ",sensorDev.walk_steps," data.walk_steps(db에 저장할값) = ",sensorDev.walk_steps," bandData['walk_steps'](temp값) = ", bandData['walk_steps'], " mqtt_data['bandData']['walk_steps'](증가하는 화면에 보여주는 값) = ",mqtt_data['bandData']['walk_steps'])   
+ 
       temp_walk_steps = bandData['run_steps']
       if sensorDev is not None :
         if sensorDev.run_steps>bandData['run_steps']  :
@@ -460,13 +463,11 @@ def handle_gateway_state(panid):
           filter_by(id=dev.id).\
             update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
             connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-        db.session.commit()
-        db.session.flush()
       else :
         db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-        db.session.commit()
-        db.session.flush()
-    socketio.emit('bandnum', panid, namespace='/receiver')
+      db.session.commit()
+      db.session.flush()
+    socketio.emit('gateway_connect', panid, namespace='/receiver')
   except:
     pass
 
@@ -480,13 +481,11 @@ def handle_gateway_bandnum(panid):
           filter_by(id=dev.id).\
             update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
             connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-        db.session.commit()
-        db.session.flush()
       else :
         db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-        db.session.commit()
-        db.session.flush()
-    socketio.emit('bandnum', panid, namespace='/receiver')
+      db.session.commit()
+      db.session.flush()
+    socketio.emit('gateway_connect', panid, namespace='/receiver')
   except:
     pass
 
@@ -1565,10 +1564,12 @@ def events_post_api():
 
   if len(data['days']) == 0 :
     dev = db.session.query(Events).\
+      distinct(Events.datetime).\
     filter(Events.FK_bid==data['bid']).\
       all()
   else :
     dev = db.session.query(Events).\
+      distinct(Events.datetime).\
       filter(Events.FK_bid==data['bid']).\
         filter(func.date(Events.datetime).\
           between(data['days'][0], datetimeBetween(data['days']))).\
