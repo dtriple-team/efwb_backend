@@ -44,7 +44,7 @@ login_manager.init_app(app)
 # api
 mqtt = Mqtt(app)
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
-socketio = SocketIO(app, cors_allowed_origins="*", engineio_logger=False, logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 from backend.api.api_create import *

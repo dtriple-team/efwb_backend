@@ -306,7 +306,7 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   return round(alt,2)
 
 def handle_sync_data(mqtt_data, extAddress):
-  print("handler")
+
   global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
@@ -443,10 +443,10 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.commit()
         db.session.flush()
         
-      print(mqtt_data['rssi'])
+
       eventHandler(mqtt_data, dev)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-      print("close handle")
+    
     except Exception as e :
       print("****** error ********")
       print(e)
@@ -508,7 +508,6 @@ def handle_mqtt_message(client, userdata, message):
     
   elif message.topic == '/efwb/bandnum' :
      handle_gateway_bandnum(json.loads(message.payload))
-
 
 @socketio.on('connect', namespace='/receiver')
 def connect():
@@ -1599,12 +1598,14 @@ def events_fall_post_api():
   if len(data['days']) == 0 :
     dev = db.session.query(func.date_format(Events.datetime,'%Y-%m-%d').label('date'),
   func.sum(Events.value).label('data')).\
+    distinct(Events.datetime).\
       filter(Events.FK_bid==data['bid']).\
         filter(Events.type==0).\
           group_by(func.date(Events.datetime)).all()
   else :
     dev = db.session.query(func.date_format(Events.datetime,'%Y-%m-%d').label('date'),
   func.sum(Events.value).label('data')).\
+    distinct(Events.datetime).\
       filter(Events.FK_bid==data['bid']).\
         filter(Events.type==0).\
         filter(func.date(Events.datetime).\
