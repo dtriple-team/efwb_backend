@@ -33,14 +33,26 @@ from bs4 import BeautifulSoup
 
 
 spo2BandData = {}
-gatewayData = {}
-start = False
+
 gateway_thread = None
 mqtt_thread = None
 thread_lock = Lock()
+start = False
 
-mqtt.subscribe('/efwb/post/sync')
-mqtt.subscribe('/efwb/post/connectcheck')
+# dev = db.session.query(Server).first()
+
+# if dev.start == 0:
+#   print("mqtt start")
+#   mqtt.subscribe('/efwb/post/sync')
+#   mqtt.subscribe('/efwb/post/connectcheck')
+#   db.session.query(Server).filter_by(id = dev.id).update(dict(start = 1))
+#   db.session.commit()
+#   db.session.flush()
+#   db.session.close()
+
+
+
+
 def bandLog(g):
   try:
     print("bandLog Start") 
@@ -293,6 +305,7 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   return round(alt,2)
 
 def handle_sync_data(mqtt_data, extAddress):
+  print("handler")
   global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
@@ -486,14 +499,14 @@ def handle_mqtt_message(client, userdata, message):
 
     mqtt_data = json.loads(message.payload.decode())
 
-    extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-    mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+  #   extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+  #   mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
 
-  elif message.topic == '/efwb/post/connectcheck' :
-    handle_gateway_state(json.loads(message.payload))
+  # elif message.topic == '/efwb/post/connectcheck' :
+  #   handle_gateway_state(json.loads(message.payload))
     
-  elif message.topic == '/efwb/bandnum' :
-    handle_gateway_bandnum(json.loads(message.payload))
+  # elif message.topic == '/efwb/bandnum' :
+  #   handle_gateway_bandnum(json.loads(message.payload))
 
 
 @socketio.on('connect', namespace='/receiver')

@@ -325,7 +325,10 @@ class BMP280(db.Model):
     band = db.relationship('Bands')
 
     pressure = db.Column('pressure', db.Float, comment='기압측정값')
-
+class Server(db.Model):
+    __tablename__ = "server"
+    id = db.Column('id', db.Integer, primary_key=True)
+    start = db.Column('start', db.Integer, default=0)
 class Events(db.Model):
     __tablename__ = 'events'
 
