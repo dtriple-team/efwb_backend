@@ -65,30 +65,30 @@ def page_index():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/band", methods=["GET"])
-def page_bandlist():
+def page_band():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/band/detail", methods=["GET"])
-def page_bandlist():
+def page_band_detail():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/gateway", methods=["GET"])
-def page_bandlist():
+def page_gateway():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/gateway/detail", methods=["GET"])
-def page_bandlist():
+def page_gateway_detail():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/user", methods=["GET"])
-def page_bandlist():
+def page_user():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/user/detail", methods=["GET"])
-def page_bandlist():
+def page_user_detail():
     resp = make_response(render_template("index.html"))
     return resp
 @app.route("/log", methods=["GET"])
-def page_bandlist():
+def page_log():
     resp = make_response(render_template("index.html"))
     return resp
