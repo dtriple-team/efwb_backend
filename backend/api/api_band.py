@@ -1566,16 +1566,18 @@ def events_post_api():
 
   if len(data['days']) == 0 :
     dev = db.session.query(Events).\
-      distinct(Events.datetime).\
-    filter(Events.FK_bid==data['bid']).\
-      all()
+     distinct(Events.datetime, Events.type).\
+      filter(Events.FK_bid==data['bid']).\
+        group_by(Events.datetime, Events.type).\
+          all()
   else :
     dev = db.session.query(Events).\
-      distinct(Events.datetime).\
+      distinct(Events.datetime, Events.type).\
       filter(Events.FK_bid==data['bid']).\
         filter(func.date(Events.datetime).\
           between(data['days'][0], datetimeBetween(data['days']))).\
-            all()
+            group_by(Events.datetime, Events.type).all()
+
   for i in dev:
     json_data.append(i.serialize())
   result = {
