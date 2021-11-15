@@ -154,7 +154,7 @@ def gatewayCheck():
       time1 = g.connect_check_time
       time2 = datetime.datetime.now()
       if (time2-time1).seconds > 180:
-        if g.connect_state == 1:
+        if (g.connect_time - g.disconnect_time).seconds > 0 :
             gatewayLog(g, False)
         else:
           dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
