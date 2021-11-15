@@ -64,3 +64,31 @@ gatewayCheckThread()
 def page_index():
     resp = make_response(render_template("index.html"))
     return resp
+@app.route("/band", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/band/detail", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/gateway", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/gateway/detail", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/user", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/user/detail", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
+@app.route("/log", methods=["GET"])
+def page_bandlist():
+    resp = make_response(render_template("index.html"))
+    return resp
