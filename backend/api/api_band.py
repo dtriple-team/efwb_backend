@@ -36,6 +36,7 @@ spo2BandData = {}
 
 gateway_thread = None
 mqtt_thread = None
+airpressure_thread = None
 thread_lock = Lock()
 start = False
 
@@ -143,33 +144,45 @@ def gatewayLog(g, check):
 #       print(e)
 
 #   # threading.Timer(300, gatewayCheck).start()
+def gatewayCheckThread():
+  global gateway_thread
+  with thread_lock:
+    if gateway_thread is None:
+      gateway_thread = socketio.start_background_task(gatewayCheck)
+def getAirpressureThread():
+  global airpressure_thread
+  with airpressure_thread:
+    if airpressure_thread is None:
+      airpressure_thread = socketio.start_background_task(getAirpressure)
 
 def gatewayCheck():
-  print("gatewayCheck start")
-  try:
-    gateways = db.session.query(Gateways).all()
-    db.session.flush()
-    db.session.close()
-    for g in gateways:
-      time1 = g.connect_check_time.replace(tzinfo=None)
-      time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
-      print(g.id, time1, time2)
-      if (time2-time1).seconds > 120:
-        if g.connect_state==1 :
-            print(g.id,"off")
-            gatewayLog(g, False)
-        else:
-          dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
-          db.session.flush()
-          db.session.close()
-          if dev is None:
-            gatewayLog(g, False)
-    threading.Timer(60, gatewayCheck).start()     
-    print("Close Gateway Check ")
+  while True:
+    socketio.sleep(120)
 
-  except Exception as e:
-    print(e)
-  print("Restart Gateway Check")
+    print("gatewayCheck start")
+    try:
+      gateways = db.session.query(Gateways).all()
+      db.session.flush()
+      db.session.close()
+      for g in gateways:
+        time1 = g.connect_check_time.replace(tzinfo=None)
+        time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
+        print(g.id, time1, time2)
+        if (time2-time1).seconds > 120:
+          if g.connect_state==1 :
+              print(g.id,"off")
+              gatewayLog(g, False)
+          else:
+            dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
+            db.session.flush()
+            db.session.close()
+            if dev is None:
+              gatewayLog(g, False)
+      print("Close Gateway Check ")
+
+    except Exception as e:
+      print(e)
+    print("Restart Gateway Check")
 
 
 # def gatewayCheckThread():
@@ -283,30 +296,32 @@ def eventHandler(mqtt_data, dev):
     }
     socketio.emit('efwbasync', event_scoket, namespace='/receiver')
 def getAirpressure():
-  print("getAltitud start")
-  dev = db.session.query(Gateways).all()
-  for g in dev:
-  
-    d = datetime.datetime.now(timezone('Asia/Seoul'))
-    urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-    try:
-      html = urlopen("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
+  while True:
+    socketio.sleep(3600)
+    print("getAltitud start")
+    dev = db.session.query(Gateways).all()
+    for g in dev:
+    
+      d = datetime.datetime.now(timezone('Asia/Seoul'))
+      urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
+      try:
+        html = urlopen("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
 
-      bsObject = BeautifulSoup(html, "html.parser") 
-      temp = bsObject.find("table", {"class": "table_develop3"})
-      trtemp = temp.find_all('tr')
-      atemp = temp.find_all('a')
+        bsObject = BeautifulSoup(html, "html.parser") 
+        temp = bsObject.find("table", {"class": "table_develop3"})
+        trtemp = temp.find_all('tr')
+        atemp = temp.find_all('a')
 
-      for a in range(len(atemp)):
-          if atemp[a].text == g.location:
-              break
-      tdtemp = trtemp[a+2].find_all('td')
-      
-      db.session.query(Gateways).filter_by(id = g.id).update((dict(airpressure=float(tdtemp[len(tdtemp)-1].text))))
-      db.session.commit()
-    except:
-      pass
-  threading.Timer(3600, getAirpressure).start()
+        for a in range(len(atemp)):
+            if atemp[a].text == g.location:
+                break
+        tdtemp = trtemp[a+2].find_all('td')
+        
+        db.session.query(Gateways).filter_by(id = g.id).update((dict(airpressure=float(tdtemp[len(tdtemp)-1].text))))
+        db.session.commit()
+      except:
+        pass
+    
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
 
   p = (pressure / (airpressure * 100)); # ***분모 자리에 해면기압 정보 넣을 것!! (ex. 1018) // Dtriple
