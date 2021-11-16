@@ -144,16 +144,6 @@ def gatewayLog(g, check):
 #       print(e)
 
 #   # threading.Timer(300, gatewayCheck).start()
-def gatewayCheckThread():
-  global gateway_thread
-  with thread_lock:
-    if gateway_thread is None:
-      gateway_thread = socketio.start_background_task(gatewayCheck)
-def getAirpressureThread():
-  global airpressure_thread
-  with airpressure_thread:
-    if airpressure_thread is None:
-      airpressure_thread = socketio.start_background_task(getAirpressure)
 
 def gatewayCheck():
   while True:
@@ -321,6 +311,19 @@ def getAirpressure():
         db.session.commit()
       except:
         pass
+
+def gatewayCheckThread():
+  global gateway_thread
+  
+  with thread_lock:
+    if gateway_thread is None:
+      gateway_thread = socketio.start_background_task(gatewayCheck)
+def getAirpressureThread():
+  global airpressure_thread
+
+  with thread_lock:
+    if airpressure_thread is None:
+      airpressure_thread = socketio.start_background_task(getAirpressure)
     
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
 
