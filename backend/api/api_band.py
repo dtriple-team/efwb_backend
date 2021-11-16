@@ -153,8 +153,10 @@ def gatewayCheck():
     for g in gateways:
       time1 = g.connect_check_time
       time2 = datetime.datetime.now()
-      if (time2-time1).seconds > 180:
-        if (g.connect_time - g.disconnect_time).seconds > 0 :
+      print((time2-time1).seconds)
+      if (time2-time1).seconds > 100:
+        print("off")
+        if g.connect_state==1 and (g.connect_time - g.disconnect_time).seconds > 0 :
             gatewayLog(g, False)
         else:
           dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
@@ -167,7 +169,7 @@ def gatewayCheck():
 
   except Exception as e:
     print(e)
-  threading.Timer(180, gatewayCheck).start()
+  threading.Timer(60, gatewayCheck).start()
 
 # def gatewayCheckThread():
 #   global gateway_thread
