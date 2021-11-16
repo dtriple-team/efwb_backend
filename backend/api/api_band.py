@@ -151,12 +151,12 @@ def gatewayCheck():
     db.session.flush()
     db.session.close()
     for g in gateways:
-      time1 = g.connect_check_time
-      time2 = datetime.datetime.now()
-      print((time2-time1).seconds)
-      if (time2-time1).seconds > 100:
-        print("off")
-        if g.connect_state==1 and (g.connect_time - g.disconnect_time).seconds > 0 :
+      time1 = g.connect_check_time.replace(tzinfo=None)
+      time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
+      print(g.id, time1, time2)
+      if (time2-time1).seconds > 120:
+        if g.connect_state==1 :
+            print(g.id,"off")
             gatewayLog(g, False)
         else:
           dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
@@ -164,12 +164,13 @@ def gatewayCheck():
           db.session.close()
           if dev is None:
             gatewayLog(g, False)
-        
+    threading.Timer(60, gatewayCheck).start()     
     print("Close Gateway Check ")
 
   except Exception as e:
     print(e)
-  threading.Timer(60, gatewayCheck).start()
+  print("Restart Gateway Check")
+
 
 # def gatewayCheckThread():
 #   global gateway_thread
