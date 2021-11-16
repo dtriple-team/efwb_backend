@@ -49,16 +49,9 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 from backend.api.api_create import *
 
-def gatewayCheckThread():
 
-    gatewayth = threading.Thread(target=gatewayCheck)
-    airpressureth = threading.Thread(target=getAirpressure)
-    gatewayth.start()
-    airpressureth.start()
-    gatewayth.join() 
-    airpressureth.join()
-     
 gatewayCheckThread()
+getAirpressureThread()
 
 @app.route("/", methods=["GET"])
 def page_index():
