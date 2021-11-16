@@ -318,7 +318,7 @@ def handle_sync_data(mqtt_data, extAddress):
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
   if dev is not None:
-    print("handle start")
+
     gatewayDev = db.session.query(Gateways.airpressure).\
       filter(Gateways.id == GatewaysBands.FK_pid).\
         filter(GatewaysBands.FK_bid == dev.id).first()
