@@ -37,18 +37,6 @@ gateway_thread = None
 mqtt_thread = None
 airpressure_thread = None
 thread_lock = Lock()
-start = False
-
-#dev = db.session.query(Server).first()
-
-#if dev.start == 0:
-#  print("mqtt start")
-#  mqtt.subscribe('/efwb/post/sync')
-#  mqtt.subscribe('/efwb/post/connectcheck')
-#  db.session.query(Server).filter_by(id = dev.id).update(dict(start = 1))
-#  db.session.commit()
-#  db.session.flush()
-#  db.session.close()
 
 mqtt.subscribe('/efwb/post/sync')
 mqtt.subscribe('/efwb/post/connectcheck')
@@ -333,7 +321,7 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   return round(alt,2)
 
 def handle_sync_data(mqtt_data, extAddress):
-
+  print("handle_sync_data")
   global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
@@ -469,7 +457,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
       eventHandler(mqtt_data, dev)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-    
+      print("close handle_sync_data")
     except Exception as e :
       print("****** error ********")
       print(e)
