@@ -427,28 +427,28 @@ def handle_sync_data(mqtt_data, extAddress):
       db.session.commit()
       db.session.flush()
 
-      if mqtt_data['active'] == 'true':
-        if dev.connect_state == 0 :
-          Bands.query.filter_by(id = dev.id).update(dict(
-            connect_time=datetime.datetime.now(timezone('Asia/Seoul'))
-          , connect_state = 1))
-          bandlog = BandLog()
-          bandlog.FK_bid = dev.id
-          bandlog.type = 1
-          db.session.add(bandlog)
-          db.session.commit()
-          db.session.flush()
+      # if mqtt_data['active'] == 'true':
+      #   if dev.connect_state == 0 :
+      #     Bands.query.filter_by(id = dev.id).update(dict(
+      #       connect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+      #     , connect_state = 1))
+      #     bandlog = BandLog()
+      #     bandlog.FK_bid = dev.id
+      #     bandlog.type = 1
+      #     db.session.add(bandlog)
+      #     db.session.commit()
+      #     db.session.flush()
          
-      else :
-        Bands.query.filter_by(id = dev.id).update(dict(
-          disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
-        , connect_state = 0))
-        bandlog = BandLog()
-        bandlog.FK_bid = dev.id
-        bandlog.type = 0
-        db.session.add(bandlog)
-        db.session.commit()
-        db.session.flush()
+      # else :
+      #   Bands.query.filter_by(id = dev.id).update(dict(
+      #     disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+      #   , connect_state = 0))
+      #   bandlog = BandLog()
+      #   bandlog.FK_bid = dev.id
+      #   bandlog.type = 0
+      #   db.session.add(bandlog)
+      #   db.session.commit()
+      #   db.session.flush()
         
 
       eventHandler(mqtt_data, dev)
@@ -510,7 +510,7 @@ def handle_mqtt_message(client, userdata, message):
       mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
-     gatewayCheck()
+     #gatewayCheck()
      getAirpressure()
   elif message.topic == '/efwb/bandnum' :
      handle_gateway_bandnum(json.loads(message.payload))
