@@ -145,6 +145,8 @@ def gatewayLog(g, check):
 #   # threading.Timer(300, gatewayCheck).start()
 
 def gatewayCheck():
+  while True:
+    socketio.sleep(120)
 
     print("gatewayCheck start")
     try:
@@ -188,19 +190,19 @@ def gatewayCheck():
 #     return True
 
 
-def serverTest(hostName):
-  try:
-    url = "http://"+hostName+":1310/servertest"
+# def serverTest(hostName):
+#   try:
+#     url = "http://"+hostName+":1310/servertest"
 
-    payload={}
-    headers = {}
+#     payload={}
+#     headers = {}
 
-    response = requests.request("GET", url, headers=headers, data=payload)
-    result=response.text
-    return result
-  except Exception as e:
-    print(e) 
-    return None
+#     response = requests.request("GET", url, headers=headers, data=payload)
+#     result=response.text
+#     return result
+#   except Exception as e:
+#     print(e) 
+#     return None
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
@@ -283,6 +285,8 @@ def eventHandler(mqtt_data, dev):
     }
     socketio.emit('efwbasync', event_scoket, namespace='/receiver')
 def getAirpressure():
+  while True:
+    socketio.sleep(3600)
     print("getAltitud start")
     dev = db.session.query(Gateways).all()
     for g in dev:
@@ -512,15 +516,14 @@ def handle_gateway_bandnum(panid):
 def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
   if message.topic == '/efwb/post/sync':
-
-    mqtt_data = json.loads(message.payload.decode())
-
-    extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-    #mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-    handle_sync_data(mqtt_data, extAddress)
+    with thread_lock:
+      if mqtt_thread is None:
+  
+        mqtt_data = json.loads(message.payload.decode())
+        extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+      mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
-     gatewayCheck()
-     getAirpressure()
      handle_gateway_state(json.loads(message.payload))
     
   elif message.topic == '/efwb/bandnum' :
