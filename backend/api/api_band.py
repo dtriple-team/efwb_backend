@@ -9,7 +9,6 @@ import time
 import platform
 import subprocess
 from sqlalchemy.sql.elements import Null
-from ping3 import ping
 import threading
 from threading import Lock
 from backend import app, socketio, mqtt, login_manager
@@ -146,8 +145,6 @@ def gatewayLog(g, check):
 #   # threading.Timer(300, gatewayCheck).start()
 
 def gatewayCheck():
-  while True:
-    socketio.sleep(120)
 
     print("gatewayCheck start")
     try:
@@ -182,13 +179,13 @@ def gatewayCheck():
 #       gateway_thread = socketio.start_background_task(gatewayCheck)
 
 
-def pingTest(hostName):
-  resp = ping(hostName)
+# def pingTest(hostName):
+#   resp = ping(hostName)
 
-  if resp == False:
-    return False
-  else:
-    return True
+#   if resp == False:
+#     return False
+#   else:
+#     return True
 
 
 def serverTest(hostName):
@@ -286,8 +283,6 @@ def eventHandler(mqtt_data, dev):
     }
     socketio.emit('efwbasync', event_scoket, namespace='/receiver')
 def getAirpressure():
-  while True:
-    socketio.sleep(3600)
     print("getAltitud start")
     dev = db.session.query(Gateways).all()
     for g in dev:
@@ -314,7 +309,7 @@ def getAirpressure():
 
 def gatewayCheckThread():
   global gateway_thread
-  
+
   with thread_lock:
     if gateway_thread is None:
       gateway_thread = socketio.start_background_task(gatewayCheck)
@@ -524,6 +519,8 @@ def handle_mqtt_message(client, userdata, message):
     mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
 
   elif message.topic == '/efwb/post/connectcheck' :
+     gatewayCheck()
+     getAirpressure()
      handle_gateway_state(json.loads(message.payload))
     
   elif message.topic == '/efwb/bandnum' :
