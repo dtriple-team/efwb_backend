@@ -50,8 +50,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 from backend.api.api_create import *
 
 
-gatewayCheckThread()
-getAirpressureThread()
+# gatewayCheckThread()
+# getAirpressureThread()
 
 @app.route("/", methods=["GET"])
 def page_index():

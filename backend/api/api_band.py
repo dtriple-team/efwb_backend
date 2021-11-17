@@ -133,9 +133,7 @@ def gatewayLog(g, check):
 #   # threading.Timer(300, gatewayCheck).start()
 
 def gatewayCheck():
-  while True:
-    socketio.sleep(120)
-
+ 
     print("gatewayCheck start")
     try:
       gateways = db.session.query(Gateways).all()
@@ -273,8 +271,6 @@ def eventHandler(mqtt_data, dev):
     }
     socketio.emit('efwbasync', event_scoket, namespace='/receiver')
 def getAirpressure():
-  while True:
-    socketio.sleep(3600)
     print("getAltitud start")
     dev = db.session.query(Gateways).all()
     for g in dev:
@@ -513,7 +509,8 @@ def handle_mqtt_message(client, userdata, message):
       mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
-    
+     gatewayCheck()
+     getAirpressure()
   elif message.topic == '/efwb/bandnum' :
      handle_gateway_bandnum(json.loads(message.payload))
 
