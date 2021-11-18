@@ -451,7 +451,7 @@ def handle_sync_data(mqtt_data, extAddress):
         
 
       eventHandler(mqtt_data, dev)
-      socketio.sleep(1)
+      socketio.sleep(0.01)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
       print("close handle_sync_data")
     except Exception as e :
