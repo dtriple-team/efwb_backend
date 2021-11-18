@@ -316,7 +316,7 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   return round(alt,2)
 
 def handle_sync_data(mqtt_data, extAddress):
-  print("start handle_sync_data")
+  print("start")
   global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
@@ -449,9 +449,8 @@ def handle_sync_data(mqtt_data, extAddress):
       #   db.session.commit()
       #   db.session.flush()
         
-
+      print("event")
       eventHandler(mqtt_data, dev)
-      socketio.sleep(0.01)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
       print("close handle_sync_data")
     except Exception as e :
