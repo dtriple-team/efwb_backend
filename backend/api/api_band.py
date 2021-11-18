@@ -451,7 +451,7 @@ def handle_sync_data(mqtt_data, extAddress):
       #   db.session.flush()
         
 
-      eventHandler(mqtt_data, dev)
+      # eventHandler(mqtt_data, dev)
       
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
       print("close handle_sync_data")
