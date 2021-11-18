@@ -39,20 +39,7 @@ airpressure_thread = None
 thread_lock = Lock()
 example_thread = None
 
-server = db.session.query(Server).first()
-if server.start == 0 :
-  print("first")
-  print(server.start)
-  db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
-  db.session.commit()
-  
-else :
-  print("second")
-  print(server.start)
-  db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
-  db.session.commit()
-  mqtt.subscribe('/efwb/post/sync')
-  mqtt.subscribe('/efwb/post/connectcheck')
+
   
 def bandLog(g):
   try:
@@ -145,7 +132,9 @@ def gatewayLog(g, check):
 #   # threading.Timer(300, gatewayCheck).start()
 
 def gatewayCheck():
- 
+  while True:
+    socketio.sleep(120)
+
     print("gatewayCheck start")
     try:
       gateways = db.session.query(Gateways).all()
@@ -165,11 +154,9 @@ def gatewayCheck():
             db.session.close()
             if dev is None:
               gatewayLog(g, False)
-      print("Close Gateway Check ")
 
     except Exception as e:
       print(e)
-    print("Restart Gateway Check")
 
 
 # def gatewayCheckThread():
@@ -283,6 +270,8 @@ def eventHandler(mqtt_data, dev):
     }
     socketio.emit('efwbasync', event_scoket, namespace='/receiver')
 def getAirpressure():
+  while True:
+    socketio.sleep(3600)
     print("getAltitud start")
     dev = db.session.query(Gateways).all()
     for g in dev:
@@ -319,7 +308,23 @@ def getAirpressureThread():
   with thread_lock:
     if airpressure_thread is None:
       airpressure_thread = socketio.start_background_task(getAirpressure)
-    
+server = db.session.query(Server).first()
+if server.start == 0 :
+  print("first")
+  print(server.start)
+  db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
+  db.session.commit()
+  
+else :
+  print("second")
+  print(server.start)
+  db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
+  db.session.commit()
+  mqtt.subscribe('/efwb/post/sync')
+  mqtt.subscribe('/efwb/post/connectcheck')
+  gatewayCheckThread()
+  getAirpressureThread()   
+
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
 
   p = (pressure / (airpressure * 100)); # ***분모 자리에 해면기압 정보 넣을 것!! (ex. 1018) // Dtriple
@@ -514,13 +519,15 @@ def handle_gateway_bandnum(panid):
 def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
   if message.topic == '/efwb/post/sync':
-      mqtt_data = json.loads(message.payload.decode())
-      extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-      handle_sync_data(mqtt_data, extAddress)
+    with thread_lock:
+      if mqtt_thread is None:
+        mqtt_data = json.loads(message.payload.decode())
+        extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+        mqtt_thread = socketio.start.start_background_task(handle_sync_data( mqtt_data,extAddress))
+      mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
-     #gatewayCheck()
-     getAirpressure()
+     
   elif message.topic == '/efwb/bandnum' :
      handle_gateway_bandnum(json.loads(message.payload))
 
