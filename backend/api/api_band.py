@@ -314,7 +314,8 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   alt = 44330 * (1 - p**b)
  
   return round(alt,2)
-
+def messageReceived(methods=['GET', 'POST']):
+  print('message was received!!!')
 def handle_sync_data(mqtt_data, extAddress):
   print("start handle_sync_data")
   global spo2BandData
@@ -452,7 +453,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
       eventHandler(mqtt_data, dev)
       
-      socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
+      socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
     except Exception as e :
       print("****** error ********")
