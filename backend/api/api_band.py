@@ -39,6 +39,21 @@ airpressure_thread = None
 thread_lock = Lock()
 example_thread = None
 
+server = db.session.query(Server).first()
+if server.start == 0 :
+  print("first")
+  print(server.start)
+  db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
+  db.session.commit()
+  
+else :
+  print("second")
+  print(server.start)
+  db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
+  db.session.commit()
+  mqtt.subscribe('/efwb/post/sync')
+  mqtt.subscribe('/efwb/post/connectcheck')
+  
 def bandLog(g):
   try:
     print("bandLog Start") 
@@ -512,8 +527,7 @@ def handle_mqtt_message(client, userdata, message):
 @socketio.on('connect', namespace='/receiver')
 def connect():
   print("***socket connect***")
-  mqtt.subscribe('/efwb/post/sync')
-  mqtt.subscribe('/efwb/post/connectcheck')
+
 
 
 

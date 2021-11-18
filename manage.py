@@ -38,6 +38,13 @@ def insert_data():
     with app.app_context():
         DBManager.insert_dummy_data()
 
+@manager.command
+def add_server():
+    if check_message('Are you sure to add_server ? (Y/n)') == False:
+        return
+    with app.app_context():
+        DBManager.insert_dummy_server()
+    
 def check_message(message):
     inp = input(message)
     if inp == 'Y':

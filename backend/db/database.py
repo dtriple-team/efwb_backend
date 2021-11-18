@@ -49,6 +49,7 @@ class DBManager:
         DBManager.insert_dummy_users_gateways()
         DBManager.insert_dummy_gateways_bands()
         DBManager.insert_dummy_users_bands()
+        DBManager.insert_dummy_server()
         #DBManager.insert_dummy_sensor_data()
         # DBManager.insert_dummy_event_data()
     def password_encoder(password):
@@ -676,4 +677,11 @@ class DBManager:
         event.type = 4
         event.value = 3
         DBManager.db.session.add(event)          
+        DBManager.db.session.commit()
+    @staticmethod
+    def insert_dummy_server():
+        from backend.db.table_band import Server
+        server = Server()
+        server.start = 0
+        DBManager.db.session.add(server)          
         DBManager.db.session.commit()
