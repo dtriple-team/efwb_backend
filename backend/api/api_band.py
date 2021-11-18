@@ -40,21 +40,7 @@ thread_lock = Lock()
 example_thread = None
 mqtt.subscribe('/efwb/post/sync')
 mqtt.subscribe('/efwb/post/connectcheck')
-count = 0
-def example():
-  while True:
-    socketio.sleep(0.01)
-    global count
-    count+=1
-    print(count)
-    socketio.emit('example', count,namespace='/receiver')
-def example_th():
-  global example_thread
 
-  with thread_lock:
-    if example_thread is None:
-      example_thread = socketio.start_background_task(example)
-example_th()
 def bandLog(g):
   try:
     print("bandLog Start") 
@@ -520,6 +506,7 @@ def handle_mqtt_message(client, userdata, message):
         extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
         mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
       mqtt_thread = None
+    handle_sync_data(mqtt_data, extAddress)
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
      #gatewayCheck()
