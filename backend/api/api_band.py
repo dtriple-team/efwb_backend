@@ -647,7 +647,7 @@ def handle_mqtt_message(client, userdata, message):
         extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
         mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
       mqtt_thread = None
-    handle_sync_data_(mqtt_data, extAddress)
+    
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
      #gatewayCheck()
