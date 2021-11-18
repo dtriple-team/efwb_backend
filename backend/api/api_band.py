@@ -456,7 +456,147 @@ def handle_sync_data(mqtt_data, extAddress):
     except Exception as e :
       print("****** error ********")
       print(e)
+def handle_sync_data_(mqtt_data, extAddress):
+  print("handle_sync_data")
+  global spo2BandData
+  dev = db.session.query(Bands).filter_by(bid = extAddress).first()
+  
+  if dev is not None:
 
+    gatewayDev = db.session.query(Gateways.airpressure).\
+      filter(Gateways.id == GatewaysBands.FK_pid).\
+        filter(GatewaysBands.FK_bid == dev.id).first()
+    sensorDev = db.session.query(SensorData).\
+      filter(SensorData.FK_bid == dev.id).\
+      filter(func.date(SensorData.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).\
+        order_by(SensorData.walk_steps.desc()).first()
+    db.session.flush()
+    db.session.close()
+    try :
+      mqtt_data['extAddress']['high'] = extAddress
+      if mqtt_data['extAddress']['low'] not in spo2BandData :
+        spo2BandData[mqtt_data['extAddress']['low']] = 0
+      bandData = mqtt_data['bandData']
+      data = SensorData()
+      data.FK_bid = dev.id
+
+      data.start_byte = bandData['start_byte']
+      data.sample_count = bandData['sample_count']
+      data.fall_detect = bandData['fall_detect']
+      data.battery_level = bandData['battery_level']
+      data.hrConfidence = bandData['hrConfidence']
+      data.spo2Confidence = bandData['spo2Confidence']
+      data.hr = bandData['hr']
+
+      if bandData['spo2'] == 0 :
+          data.spo2 = 0
+          mqtt_data['bandData']['spo2'] = 0
+          spo2BandData[mqtt_data['extAddress']['low']] = 0
+      elif bandData['spo2']<=1000 and bandData['spo2']>=400:
+        data.spo2 = bandData['spo2']
+        spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
+      else :
+        if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
+          data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
+          mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
+        else :
+          data.spo2 = 0
+          mqtt_data['bandData']['spo2'] = 0
+          spo2BandData[mqtt_data['extAddress']['low']] = 0
+              
+      data.motionFlag = bandData['motionFlag'] 
+      data.scdState = bandData['scdState']
+      data.activity = bandData['activity']
+
+      temp_walk_steps = bandData['walk_steps']
+      if sensorDev is not None :
+      
+        if sensorDev.walk_steps>bandData['walk_steps']  :
+          tempwalk = bandData['walk_steps'] - sensorDev.temp_walk_steps
+
+          if tempwalk>0:
+            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps + tempwalk
+          
+          elif tempwalk<0:
+            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps + bandData['walk_steps']
+
+          else : 
+            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
+
+        elif sensorDev.walk_steps==bandData['walk_steps']:
+            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
+
+      data.walk_steps = mqtt_data['bandData']['walk_steps']
+      data.temp_walk_steps = temp_walk_steps
+ 
+      temp_walk_steps = bandData['run_steps']
+      if sensorDev is not None :
+        if sensorDev.run_steps>bandData['run_steps']  :
+          tempwalk = bandData['run_steps']-sensorDev.temp_run_steps
+          if tempwalk>0:
+            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps + tempwalk
+            
+          elif tempwalk<0:
+            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps + bandData['run_steps']
+
+          else : 
+            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
+
+
+        elif sensorDev.run_steps==bandData['run_steps']:
+            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
+
+      data.run_steps = mqtt_data['bandData']['run_steps']
+      data.temp_run_steps = temp_walk_steps
+
+      data.x = bandData['x']
+      data.y = bandData['y']
+      data.z = bandData['z']
+      data.t = bandData['t'] 
+      if gatewayDev is not None:
+        if mqtt_data['bandData']['h'] != 0:
+          mqtt_data['bandData']['h'] = getAltitude(mqtt_data['bandData']['h'], gatewayDev.airpressure)
+          data.h = mqtt_data['bandData']['h']
+        else:
+          data.h = mqtt_data['bandData']['h']
+      else:
+        data.h = mqtt_data['bandData']['h']
+      data.rssi = mqtt_data['rssi']   
+      data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
+      db.session.add(data)
+      db.session.commit()
+      db.session.flush()
+
+      # if mqtt_data['active'] == 'true':
+      #   if dev.connect_state == 0 :
+      #     Bands.query.filter_by(id = dev.id).update(dict(
+      #       connect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+      #     , connect_state = 1))
+      #     bandlog = BandLog()
+      #     bandlog.FK_bid = dev.id
+      #     bandlog.type = 1
+      #     db.session.add(bandlog)
+      #     db.session.commit()
+      #     db.session.flush()
+         
+      # else :
+      #   Bands.query.filter_by(id = dev.id).update(dict(
+      #     disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
+      #   , connect_state = 0))
+      #   bandlog = BandLog()
+      #   bandlog.FK_bid = dev.id
+      #   bandlog.type = 0
+      #   db.session.add(bandlog)
+      #   db.session.commit()
+      #   db.session.flush()
+        
+
+      eventHandler(mqtt_data, dev)
+      socketio.emit('efwbsync', mqtt_data)
+      print("close handle_sync_data")
+    except Exception as e :
+      print("****** error ********")
+      print(e)
 
 def handle_gateway_state(panid):
   print("handle_gateway_state", panid)
@@ -506,7 +646,7 @@ def handle_mqtt_message(client, userdata, message):
         extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
         mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
       mqtt_thread = None
-    handle_sync_data(mqtt_data, extAddress)
+    handle_sync_data_(mqtt_data, extAddress)
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
      #gatewayCheck()
