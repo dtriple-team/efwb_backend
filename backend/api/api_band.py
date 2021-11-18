@@ -37,11 +37,24 @@ gateway_thread = None
 mqtt_thread = None
 airpressure_thread = None
 thread_lock = Lock()
-
+example_thread = None
 mqtt.subscribe('/efwb/post/sync')
 mqtt.subscribe('/efwb/post/connectcheck')
+count = 0
+def example():
+  while True:
+    socketio.sleep(0.01)
+    global count
+    count+=1
+    print(count)
+    socketio.emit('example', count,namespace='/receiver')
+def example_th():
+  global example_thread
 
-
+  with thread_lock:
+    if example_thread is None:
+      example_thread = socketio.start_background_task(example)
+example_th()
 def bandLog(g):
   try:
     print("bandLog Start") 
