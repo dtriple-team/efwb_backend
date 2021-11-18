@@ -451,6 +451,7 @@ def handle_sync_data(mqtt_data, extAddress):
         
 
       eventHandler(mqtt_data, dev)
+      socketio.sleep(5)
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
       print("close handle_sync_data")
     except Exception as e :
@@ -639,9 +640,14 @@ def handle_gateway_bandnum(panid):
 def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
   if message.topic == '/efwb/post/sync':
-    mqtt_data = json.loads(message.payload.decode())
-    extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-    mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+    with thread_lock:
+      if mqtt_thread is None:
+  
+        mqtt_data = json.loads(message.payload.decode())
+        extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+      mqtt_thread = None
+    handle_sync_data_(mqtt_data, extAddress)
   elif message.topic == '/efwb/post/connectcheck' :
      handle_gateway_state(json.loads(message.payload))
      #gatewayCheck()
