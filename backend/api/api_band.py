@@ -310,10 +310,12 @@ def getAirpressureThread():
       airpressure_thread = socketio.start_background_task(getAirpressure)
 server = db.session.query(Server).first()
 if server.start == 0 :
+  print("first")
   db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
   db.session.commit()
   
 else :
+  print("second")
   db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
   db.session.commit()
   mqtt.subscribe('/efwb/post/sync')
@@ -322,12 +324,16 @@ else :
   getAirpressureThread()   
 
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
-
-  p = (pressure / (airpressure * 100)); # ***분모 자리에 해면기압 정보 넣을 것!! (ex. 1018) // Dtriple
-  b = 1 / 5.255
-  alt = 44330 * (1 - p**b)
+  try:
+    p = (pressure / (airpressure * 100)); # ***분모 자리에 해면기압 정보 넣을 것!! (ex. 1018) // Dtriple
+    b = 1 / 5.255
+    alt = 44330 * (1 - p**b)
  
-  return round(alt,2)
+    return round(alt,2)
+  
+  except:
+    pass
+ 
 def messageReceived(methods=['GET', 'POST']):
   print('message was received!!!')
 
@@ -337,14 +343,16 @@ def handle_sync_data(mqtt_data, extAddress):
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
   if dev is not None:
-
+    print("dev")
     gatewayDev = db.session.query(Gateways.airpressure).\
       filter(Gateways.id == GatewaysBands.FK_pid).\
         filter(GatewaysBands.FK_bid == dev.id).first()
+    print("gatewayDev")    
     sensorDev = db.session.query(SensorData).\
       filter(SensorData.FK_bid == dev.id).\
       filter(func.date(SensorData.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).\
         order_by(SensorData.walk_steps.desc()).first()
+    print("sensorDev")  
     db.session.flush()
     db.session.close()
     try :
@@ -378,14 +386,13 @@ def handle_sync_data(mqtt_data, extAddress):
           data.spo2 = 0
           mqtt_data['bandData']['spo2'] = 0
           spo2BandData[mqtt_data['extAddress']['low']] = 0
-              
+      print("spo2BandData") 
       data.motionFlag = bandData['motionFlag'] 
       data.scdState = bandData['scdState']
       data.activity = bandData['activity']
 
       temp_walk_steps = bandData['walk_steps']
       if sensorDev is not None :
-      
         if sensorDev.walk_steps>bandData['walk_steps']  :
           tempwalk = bandData['walk_steps'] - sensorDev.temp_walk_steps
 
@@ -400,10 +407,10 @@ def handle_sync_data(mqtt_data, extAddress):
 
         elif sensorDev.walk_steps==bandData['walk_steps']:
             mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
-
+      print("walk_steps") 
       data.walk_steps = mqtt_data['bandData']['walk_steps']
       data.temp_walk_steps = temp_walk_steps
- 
+
       temp_walk_steps = bandData['run_steps']
       if sensorDev is not None :
         if sensorDev.run_steps>bandData['run_steps']  :
@@ -420,7 +427,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
         elif sensorDev.run_steps==bandData['run_steps']:
             mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
-
+      print("run_steps") 
       data.run_steps = mqtt_data['bandData']['run_steps']
       data.temp_run_steps = temp_walk_steps
 
@@ -436,12 +443,13 @@ def handle_sync_data(mqtt_data, extAddress):
           data.h = mqtt_data['bandData']['h']
       else:
         data.h = mqtt_data['bandData']['h']
+      print("getAltitude") 
       data.rssi = mqtt_data['rssi']   
       data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
       db.session.commit()
       db.session.flush()
-
+      
       # if mqtt_data['active'] == 'true':
       #   if dev.connect_state == 0 :
       #     Bands.query.filter_by(id = dev.id).update(dict(
@@ -467,7 +475,7 @@ def handle_sync_data(mqtt_data, extAddress):
         
 
       eventHandler(mqtt_data, dev)
-      
+      print("eventHandler") 
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
     except Exception as e :
