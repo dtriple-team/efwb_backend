@@ -310,14 +310,10 @@ def getAirpressureThread():
       airpressure_thread = socketio.start_background_task(getAirpressure)
 server = db.session.query(Server).first()
 if server.start == 0 :
-  print("first")
-  print(server.start)
   db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
   db.session.commit()
   
 else :
-  print("second")
-  print(server.start)
   db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
   db.session.commit()
   mqtt.subscribe('/efwb/post/sync')
