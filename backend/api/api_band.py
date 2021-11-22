@@ -38,7 +38,7 @@ mqtt_thread = None
 airpressure_thread = None
 thread_lock = Lock()
 example_thread = None
-
+gw_thread = None
 
   
 def bandLog(g):
@@ -518,6 +518,7 @@ def handle_gateway_bandnum(panid):
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
+  global gw_thread
   if message.topic == '/efwb/post/sync':
     with thread_lock:
       if mqtt_thread is None:
@@ -526,7 +527,10 @@ def handle_mqtt_message(client, userdata, message):
         mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
         mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
-     handle_gateway_state(json.loads(message.payload))
+      with thread_lock:
+        if gw_thread is None:
+          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+          gw_thread = None
      
   elif message.topic == '/efwb/bandnum' :
      handle_gateway_bandnum(json.loads(message.payload))
