@@ -348,10 +348,9 @@ def handle_sync_data(mqtt_data, extAddress):
       filter(Gateways.id == GatewaysBands.FK_pid).\
         filter(GatewaysBands.FK_bid == dev.id).first()
     print("gatewayDev")    
-    sensorDev = db.session.query(SensorData).\
-      filter(SensorData.FK_bid == dev.id).\
-      filter(func.date(SensorData.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).\
-        order_by(SensorData.walk_steps.desc()).first()
+    sensorDev = db.session.query(WalkRunCount).\
+      filter(WalkRunCount.FK_bid == dev.id).\
+         filter(func.date(WalkRunCount.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
     print("sensorDev")  
     db.session.flush()
     db.session.close()
@@ -410,6 +409,10 @@ def handle_sync_data(mqtt_data, extAddress):
       print("walk_steps") 
       data.walk_steps = mqtt_data['bandData']['walk_steps']
       data.temp_walk_steps = temp_walk_steps
+      
+      walkRunCount = WalkRunCount()
+      walkRunCount.walk_steps = mqtt_data['bandData']['walk_steps']
+      walkRunCount.temp_walk_steps = temp_walk_steps
 
       temp_walk_steps = bandData['run_steps']
       if sensorDev is not None :
@@ -427,10 +430,30 @@ def handle_sync_data(mqtt_data, extAddress):
 
         elif sensorDev.run_steps==bandData['run_steps']:
             mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
+      
       print("run_steps") 
       data.run_steps = mqtt_data['bandData']['run_steps']
       data.temp_run_steps = temp_walk_steps
 
+      walkRunCount.run_steps =  mqtt_data['bandData']['run_steps']
+      walkRunCount.temp_run_steps = temp_walk_steps
+      walkRunCount.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
+      sensorDev = db.session.query(WalkRunCount).\
+        filter(WalkRunCount.FK_bid == dev.id).first()
+      if sensorDev is not None :
+        db.session.query(WalkRunCount).\
+          filter(WalkRunCount.FK_bid == dev.id).\
+            update(dict(walk_steps = walkRunCount.walk_steps,
+              temp_walk_steps = walkRunCount.temp_walk_steps,
+                run_steps = walkRunCount.run_steps, 
+                  temp_run_steps = walkRunCount.temp_run_steps,
+                  datetime=walkRunCount.datetime))
+        db.session.commit()
+        db.session.flush()
+      else :
+        db.session.add(walkRunCount)
+        db.session.commit()
+        db.session.flush()
       data.x = bandData['x']
       data.y = bandData['y']
       data.z = bandData['z']

@@ -307,14 +307,29 @@ class SensorData(db.Model):
         }
         return resultJSON 
    
-class Activity(db.Model):
-    __tablename__ = 'activity'
+class WalkRunCount(db.Model):
+    __tablename__ = 'walkruncount'
 
     id = db.Column('id', db.Integer, primary_key=True)
-    datetime = db.Column('datetime', db.Integer, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='datetime')
+    datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='datetime')
     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id)) 
     band = db.relationship('Bands')
-
+    walk_steps = db.Column('walk_steps', db.Integer, comment='걷기')
+    run_steps = db.Column('run_steps', db.Integer, comment='달리기')
+    temp_walk_steps = db.Column('temp_walk_steps', db.Integer, default=0, comment='임시걷기')
+    temp_run_steps = db.Column('temp_run_steps', db.Integer, default=0, comment='임시달리기')
+    def serialize(self):
+        resultJSON = {
+            # property (a)
+            "id": self.id, 
+            "datetime": self.datetime,
+            "bid": self.FK_bid,
+            "walk_steps": self.walk_steps,
+            "run_steps": self.run_steps,
+            "temp_walk_steps": self.temp_walk_steps,
+            "temp_run_steps": self.temp_run_steps,
+        }
+        return resultJSON 
 
 class BMP280(db.Model):
     __tablename__ = 'bmp280'
