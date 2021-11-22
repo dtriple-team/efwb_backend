@@ -685,3 +685,18 @@ class DBManager:
         server.start = 0
         DBManager.db.session.add(server)          
         DBManager.db.session.commit()
+    @staticmethod
+    def insert_dummy_walkrun():
+        from backend.db.table_band import WalkRunCount
+        walkRunCount = WalkRunCount()
+        walkRunCount.FK_bid = 7
+        walkRunCount.run_steps = 0 
+        walkRunCount.walk_steps = 195
+        DBManager.db.session.add(walkRunCount)         
+
+        walkRunCount = WalkRunCount()
+        walkRunCount.FK_bid = 9
+        walkRunCount.run_steps = 0 
+        walkRunCount.walk_steps = 399
+        DBManager.db.session.add(walkRunCount)    
+        DBManager.db.session.commit()

@@ -44,7 +44,13 @@ def add_server():
         return
     with app.app_context():
         DBManager.insert_dummy_server()
-    
+@manager.command
+def add_walkrun():
+    if check_message('Are you sure to walk run table ? (Y/n)') == False:
+        return
+    with app.app_context():
+        DBManager.insert_dummy_walkrun()    
+        
 def check_message(message):
     inp = input(message)
     if inp == 'Y':

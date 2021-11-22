@@ -320,8 +320,8 @@ else :
   db.session.commit()
   mqtt.subscribe('/efwb/post/sync')
   mqtt.subscribe('/efwb/post/connectcheck')
-  gatewayCheckThread()
-  getAirpressureThread()   
+  # gatewayCheckThread()
+  # getAirpressureThread()   
 
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   try:
@@ -411,6 +411,7 @@ def handle_sync_data(mqtt_data, extAddress):
       data.temp_walk_steps = temp_walk_steps
       
       walkRunCount = WalkRunCount()
+      walkRunCount.FK_bid = dev.id
       walkRunCount.walk_steps = mqtt_data['bandData']['walk_steps']
       walkRunCount.temp_walk_steps = temp_walk_steps
 
@@ -551,8 +552,8 @@ def handle_mqtt_message(client, userdata, message):
       if mqtt_thread is None:
         mqtt_data = json.loads(message.payload.decode())
         extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-        mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
-        mqtt_thread = None
+        # mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
+        # mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
       with thread_lock:
         if gw_thread is None:
