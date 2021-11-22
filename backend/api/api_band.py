@@ -308,20 +308,20 @@ def getAirpressureThread():
   with thread_lock:
     if airpressure_thread is None:
       airpressure_thread = socketio.start_background_task(getAirpressure)
-# server = db.session.query(Server).first()
-# if server.start == 0 :
-#   print("first")
-#   db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
-#   db.session.commit()
+server = db.session.query(Server).first()
+if server.start == 0 :
+  print("first")
+  db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
+  db.session.commit()
   
-# else :
-#   print("second")
-#   db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
-#   db.session.commit()
-#   mqtt.subscribe('/efwb/post/sync')
-#   mqtt.subscribe('/efwb/post/connectcheck')
-  # gatewayCheckThread()
-  # getAirpressureThread()   
+else :
+  print("second")
+  db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
+  db.session.commit()
+  mqtt.subscribe('/efwb/post/sync')
+  mqtt.subscribe('/efwb/post/connectcheck')
+  gatewayCheckThread()
+  getAirpressureThread()   
 
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   try:
@@ -552,8 +552,8 @@ def handle_mqtt_message(client, userdata, message):
       if mqtt_thread is None:
         mqtt_data = json.loads(message.payload.decode())
         extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-        # mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
-        # mqtt_thread = None
+        mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
+        mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
       with thread_lock:
         if gw_thread is None:
