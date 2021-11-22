@@ -8,8 +8,6 @@ from backend.api.api_band import *
 db = DBManager.db
 # REST API(s) available :
 
-
-
 manager.create_api(Groups
                    , url_prefix='/api/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
