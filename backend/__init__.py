@@ -21,8 +21,8 @@ app = Flask(__name__
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
-app.config['MQTT_BROKER_URL'] = "t-vsm.com"
-app.config['MQTT_BROKER_PORT'] = 18831
+app.config['MQTT_BROKER_URL'] = "13.125.45.228"
+app.config['MQTT_BROKER_PORT'] = 1883
 
 
 
