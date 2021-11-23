@@ -4,7 +4,6 @@ from flask_cors import CORS
 from flask_sqlalchemy import get_debug_queries
 import os
 import platform
-import threading
 from flask import Flask, render_template, make_response
 from flask_restless import APIManager
 from flask_socketio import SocketIO
@@ -21,8 +20,8 @@ app = Flask(__name__
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
-app.config['MQTT_BROKER_URL'] = "127.0.0.1"
-app.config['MQTT_BROKER_PORT'] = 1883
+app.config['MQTT_BROKER_URL'] = "t-vsm.com"
+app.config['MQTT_BROKER_PORT'] = 18831
 
 
 
