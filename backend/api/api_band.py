@@ -208,28 +208,12 @@ def get_event(id, type):
   eventDev = db.session.query(Events).filter_by(FK_bid=id).filter_by(type=type).order_by(Events.id.desc()).first()
 
   if eventDev is None:
-    if type == 3 :
-      sensorDev = db.session.query(func.count(SensorData.id).label('count')).\
-      filter(SensorData.FK_bid==id).\
-      filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
-        filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
-      if sensorDev is not None and sensorDev.count > 10:
-        return True
-    else :
-      return True
+    return True
   else:
     time1 = eventDev.datetime
     time2 = datetime.datetime.now()
-    if (time2-time1).seconds > 30 :
-      if type == 3 :
-        sensorDev = db.session.query(func.count(SensorData.id).label('count')).\
-        filter(SensorData.FK_bid==id).\
-        filter(SensorData.datetime>func.date_add(func.now(), text('interval -30 second'))).\
-          filter(or_(SensorData.scdState== 0, SensorData.scdState==1)).first()
-        if sensorDev is not None and sensorDev.count > 10:
-          return True
-      else:
-        return True
+    if (time2-time1).seconds > 60 :
+      return True
   return False
 def event_socket_emit(dev, type, value):
 
