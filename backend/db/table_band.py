@@ -360,6 +360,7 @@ class Events(db.Model):
             "id": self.id, 
             "datetime": self.datetime,
             "bid": self.FK_bid,
+            "bandid": self.band.bid,
             "type": self.type,
             "value": self.value,
         }
