@@ -432,7 +432,7 @@ def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
   global gw_thread, work
   if message.topic == '/efwb/post/sync':
-    if work!=True :
+    if work==False :
       with thread_lock:
         if mqtt_thread is None:
           mqtt_data = json.loads(message.payload.decode())
@@ -440,11 +440,9 @@ def handle_mqtt_message(client, userdata, message):
           mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
           mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
-      work = True
       with thread_lock:
         if gw_thread is None:
           gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
-          work = False
           gw_thread = None
      
   elif message.topic == '/efwb/bandnum' :
