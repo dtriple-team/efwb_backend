@@ -82,9 +82,11 @@ def gatewayLog(g, check):
     socketio.emit('gateway_connect', gateway,  namespace='/receiver')
 
 def gatewayCheck():
+  global work
   while True:
     socketio.sleep(120)
     print("gatewayCheck start")
+    work = True
     try:
       gateways = db.session.query(Gateways).all()
       db.session.flush()
@@ -106,11 +108,10 @@ def gatewayCheck():
 
     except Exception as e:
       print(e)
-
+    work = False
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
-
 
 def event_db_save(id, type, value) :
   db_event = Events()
@@ -174,9 +175,11 @@ def eventHandler(mqtt_data, dev):
   if mqtt_data['bandData']['hr'] > 130:
     event_socket_emit(dev, 5, mqtt_data['bandData']['hr'])
 def getAirpressure():
+  global work
   while True:
     socketio.sleep(3600)
     print("getAltitud start")
+    work = True
     dev = db.session.query(Gateways).all()
     for g in dev:
     
@@ -199,6 +202,7 @@ def getAirpressure():
         db.session.commit()
       except:
         pass
+    work = False
 
 def gatewayCheckThread():
   global gateway_thread
@@ -436,9 +440,11 @@ def handle_mqtt_message(client, userdata, message):
           mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
           mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
+      work = True
       with thread_lock:
         if gw_thread is None:
           gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+          work = False
           gw_thread = None
      
   elif message.topic == '/efwb/bandnum' :
@@ -447,9 +453,6 @@ def handle_mqtt_message(client, userdata, message):
 @socketio.on('connect', namespace='/receiver')
 def connect():
   print("***socket connect***")
-
-
-
 
 @socketio.on('disconnect', namespace='/receiver')
 def disconnect():
@@ -1297,6 +1300,8 @@ def getAttribute(str, sensor):
 
 @app.route('/api/efwb/v1/sensordata/vital', methods=['POST'])
 def sensordata_day_get_api():
+  global work
+  work = True
   data = json.loads(request.data)
 
   params = ['bid','dataname', 'days']
@@ -1337,11 +1342,13 @@ def sensordata_day_get_api():
     "result": "OK",
     "data": json_data
   }
-
+  work = False
   return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/sensordata/activity', methods=['POST'])
 def activity_day_get_api():
+  global work
+  work = True
   data = json.loads(request.data)
 
   params = ['bid', 'days']
@@ -1377,7 +1384,7 @@ def activity_day_get_api():
     "result": "OK",
     "data": json_data
   }
-
+  work = False
   return make_response(jsonify(result), 200)  
 
 def datetimeBetween(data):
