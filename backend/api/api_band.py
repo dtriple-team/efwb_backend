@@ -426,14 +426,15 @@ def handle_gateway_bandnum(panid):
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   global mqtt_thread
-  global gw_thread
+  global gw_thread, work
   if message.topic == '/efwb/post/sync':
-    with thread_lock:
-      if mqtt_thread is None:
-        mqtt_data = json.loads(message.payload.decode())
-        extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-        mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
-        mqtt_thread = None
+    if work!=True :
+      with thread_lock:
+        if mqtt_thread is None:
+          mqtt_data = json.loads(message.payload.decode())
+          extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+          mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
+          mqtt_thread = None
   elif message.topic == '/efwb/post/connectcheck' :
       with thread_lock:
         if gw_thread is None:
@@ -1434,6 +1435,8 @@ def sensordata_activity_oneday_post_api():
   return make_response(jsonify(result), 200)
 @app.route('/api/efwb/v1/events', methods=["POST"])
 def events_post_api():
+  global work
+  work = True
   data = json.loads(request.data)
   params = ['bid', 'days']
 
@@ -1478,9 +1481,12 @@ def events_post_api():
     "data": json_data
   }
 
+  work = False
   return make_response(jsonify(result), 200)
 @app.route('/api/efwb/v1/events/fall_detect/all', methods=["POST"])
 def events_all_fall_post_api():
+  global work
+  work = True
   data = json.loads(request.data)
   params = ['uid']
 
@@ -1501,6 +1507,7 @@ def events_all_fall_post_api():
               filter(Events.type==0).\
                 filter(func.date_format(Events.datetime,'%Y-%m-%d') == func.date_format(dateti,'%Y-%m-%d')).first()
     json_data.append({"x": dev.day, "y": int(dev.fall)})
+  work = False
   return make_response(jsonify(json_data), 200) 
   
 @app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
@@ -1688,6 +1695,8 @@ def bandlog_post_api():
   return make_response(jsonify(result), 200)  
 @app.route('/api/efwb/v1/weather/<where>', methods=["GET"])
 def get_weather_api(where):
+  global work
+  work = True
   result={"temp": 0}
   try:
     html = requests.get(
@@ -1727,6 +1736,7 @@ def get_weather_api(where):
     }
   except:
     result={"temp": 0}
+  work = False
   return make_response(jsonify(result), 200)  
 def addDBList(table, list1, list2, lengthCheck, tableCheck):
   users_table = table
