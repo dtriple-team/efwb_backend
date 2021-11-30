@@ -1327,15 +1327,15 @@ def sensordata_day_get_api():
       for b in valuedata :
         sensordata_list.append({"x": b.x,"y": float(b.y)})
 
-    dev = db.session.query(func.min(getAttribute(data['dataname'], SensorData)).label('min'), func.max(getAttribute(data['dataname'], SensorData)).label('max'), func.avg(getAttribute(data['dataname'], SensorData)).label('avg')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
-    for b in dev: 
-      resultJSON = {
-        "minmax":str(b.min)+" - "+str(b.max), 
-        "normal": float(b.avg),
-      }
+    # dev = db.session.query(func.min(getAttribute(data['dataname'], SensorData)).label('min'), func.max(getAttribute(data['dataname'], SensorData)).label('max'), func.avg(getAttribute(data['dataname'], SensorData)).label('avg')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+    # for b in dev: 
+    #   resultJSON = {
+    #     "minmax":str(b.min)+" - "+str(b.max), 
+    #     "normal": float(b.avg),
+    #   }
     dayValue = date(int(i[0:4]), int(i[5:7]), int(i[8:10])).weekday()
     dateValue = i[5:7]+"월 "+i[8:10]+"일 "+day[dayValue]
-    json_data.append({"date": dateValue, "total": resultJSON,  "data": sensordata_list})
+    json_data.append({"date": dateValue,  "data": sensordata_list})
 
   result = {
     "result": "OK",
