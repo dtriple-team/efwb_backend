@@ -29,7 +29,7 @@ airpressure_thread = None
 thread_lock = Lock()
 example_thread = None
 gw_thread = None
-
+work = False
   
 def bandLog(g):
   try:
@@ -84,7 +84,6 @@ def gatewayLog(g, check):
 def gatewayCheck():
   while True:
     socketio.sleep(120)
-
     print("gatewayCheck start")
     try:
       gateways = db.session.query(Gateways).all()
