@@ -1300,6 +1300,7 @@ def getAttribute(str, sensor):
 def sensordata_day_get_api():
   global work
   work = True
+  print("======================vital sign===============")
   data = json.loads(request.data)
 
   params = ['bid','dataname', 'days']
