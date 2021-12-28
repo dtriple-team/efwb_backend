@@ -3,7 +3,7 @@ print ("module [backend.api_band_create] loaded")
 
 from backend import manager, app, DBManager
 # from backend.api_common import *
-from backend.db.table_band import *
+from backend.db.table.table_band import *
 from backend.api.api_band import *
 db = DBManager.db
 # REST API(s) available :

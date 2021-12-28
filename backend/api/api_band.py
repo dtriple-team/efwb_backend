@@ -12,7 +12,9 @@ from flask_restless import ProcessingException
 from flask_restful import reqparse
 from datetime import datetime
 from functools import wraps
-from backend.db.table_band import *
+from backend.db.table.table_band import *
+from backend.db.service.query import *
+from backend.api.socket import *
 from sqlalchemy import func, case, or_, Interval
 from sqlalchemy.sql.expression import text
 
@@ -30,56 +32,22 @@ thread_lock = Lock()
 example_thread = None
 gw_thread = None
 work = False
-  
-def bandLog(g):
-  try:
-    print("bandLog Start") 
-    dev = db.session.query(Bands).\
-            filter(Bands.connect_state == 1).\
-            filter(Bands.id == GatewaysBands.FK_bid).\
-            filter(GatewaysBands.FK_pid == g.id).all()
-    if dev :
-      for b in dev:
-        Bands.query.filter_by(id = b.id).update(dict(
-          disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
-          , connect_state = 0))
-        bandlog = BandLog()
-        bandlog.FK_bid = b.id
-        bandlog.type = 0
-        db.session.add(bandlog)
-        db.session.commit()
-        db.session.flush()
-        db.session.close()
-        # socketio.emit()
-  except:
-    pass
 
-def gatewayLog(g, check):
-  print("gatewayLog Start")
-  gatewayLog = GatewayLog()
-  gatewayLog.FK_pid = g.id
-
+def setGatewayLog(gid, gpid, check):
+  print("[method] setGatewayLog")
   if check:
-    gatewayLog.type = 1
-    db.session.add(gatewayLog)          
-    Gateways.query.filter_by(id=g.id).update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul'))))
-    db.session.commit()
-    db.session.flush()
-    db.session.close()
+    updateGatewaysConnect(gid, 1)
   else :
-    gatewayLog.type = 0
-    db.session.add(gatewayLog)
-    Gateways.query.filter_by(id=g.id).update(dict(connect_state=0, disconnect_time =  datetime.datetime.now(timezone('Asia/Seoul'))))    
-    db.session.commit()
-    db.session.flush()
-    db.session.close()
-    bandLog(g)
+    updateGatewaysConnect(gid, 0)
+    for b in selectBandsConnectGateway(gid):
+      insertConnectBandLog(b.id, 0)
+      updateConnectBands(b.id, 0)
     gateway={
-      "panid": g.pid,
+      "panid": gpid,
       "bandnum": 0,
       "connectstate": False
     }
-    socketio.emit('gateway_connect', gateway,  namespace='/receiver')
+    socket_emit('gateway_connect', gateway)
 
 def gatewayCheck():
   global work
@@ -88,40 +56,21 @@ def gatewayCheck():
     print("gatewayCheck start")
     work = True
     try:
-      gateways = db.session.query(Gateways).all()
-      db.session.flush()
-      db.session.close()
+      gateways = selectGatewayAll()
       for g in gateways:
         time1 = g.connect_check_time.replace(tzinfo=None)
         time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
-        print(g.id, time1, time2)
         if (time2-time1).seconds > 120:
           if g.connect_state==1 :
-              print(g.id,"off")
-              gatewayLog(g, False)
+              setGatewayLog(g.id, g.pid, False)
           else:
-            dev = GatewayLog.query.filter_by(FK_pid=g.id).first()
-            db.session.flush()
-            db.session.close()
+            dev = selectGatewayLog(g.id)
             if dev is None:
-              gatewayLog(g, False)
+              setGatewayLog(g.id, g.pid, False)
 
     except Exception as e:
       print(e)
     work = False
-@mqtt.on_connect()
-def handle_connect(client, userdata, flags, rc):
-    print("mqtt connect")
-
-def event_db_save(id, type, value) :
-  db_event = Events()
-  db_event.FK_bid = id
-  db_event.type = type
-  db_event.value = value
-  db_event.datetime = datetime.datetime.now()
-  db.session.add(db_event)
-  db.session.commit()
-  db.session.flush()  
 
 def get_event(id, type):
   eventDev = db.session.query(Events).filter_by(FK_bid=id).filter_by(type=type).order_by(Events.id.desc()).first()
@@ -138,12 +87,11 @@ def event_socket_emit(dev, type, value):
 
   event = get_event(dev.id, type)
   if event:
-    
-    event_db_save(dev.id, type, value)
+    insertEvent(dev.id, type, value)
     event_socket = {
-    "type" : type,
-    "value" : value,
-    "bid" : dev.bid
+      "type" : type,
+      "value" : value,
+      "bid" : dev.bid
     }
   
     socketio.emit('efwbasync', event_socket, namespace='/receiver')
@@ -165,7 +113,7 @@ def eventHandler(mqtt_data, dev):
    
     event_socket_emit(dev, 3, mqtt_data['bandData']['scdState'])
   if mqtt_data['active'] == 'false':
-    event_db_save(dev.id, 4, 0)
+    insertEvent(dev.id, 4, 0)
     event_scoket = {
       "type" : 4,
       "value" : mqtt_data['active'],
@@ -216,6 +164,7 @@ def getAirpressureThread():
   with thread_lock:
     if airpressure_thread is None:
       airpressure_thread = socketio.start_background_task(getAirpressure)
+
 server = db.session.query(Server).first()
 if server.start == 0 :
   print("first")
@@ -227,7 +176,9 @@ else :
   db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
   db.session.commit()
   mqtt.subscribe('/efwb/post/sync')
+  mqtt.subscribe('/efwb/post/async')
   mqtt.subscribe('/efwb/post/connectcheck')
+  
   gatewayCheckThread()
   getAirpressureThread()   
 
@@ -246,26 +197,26 @@ def messageReceived(methods=['GET', 'POST']):
   print('message was received!!!')
 
 def handle_sync_data(mqtt_data, extAddress):
-  print("start handle_sync_data")
-  global spo2BandData
+  # print("start handle_sync_data")
+  # global spo2BandData
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
   if dev is not None:
-    print("dev")
+    # print("dev")
     gatewayDev = db.session.query(Gateways.airpressure).\
       filter(Gateways.id == GatewaysBands.FK_pid).\
         filter(GatewaysBands.FK_bid == dev.id).first()
-    print("gatewayDev")    
+    # print("gatewayDev")    
     sensorDev = db.session.query(WalkRunCount).\
       filter(WalkRunCount.FK_bid == dev.id).\
          filter(func.date(WalkRunCount.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-    print("sensorDev")  
+    # print("sensorDev")  
     db.session.flush()
     db.session.close()
     try :
       mqtt_data['extAddress']['high'] = extAddress
-      if mqtt_data['extAddress']['low'] not in spo2BandData :
-        spo2BandData[mqtt_data['extAddress']['low']] = 0
+      # if mqtt_data['extAddress']['low'] not in spo2BandData :
+      #   spo2BandData[mqtt_data['extAddress']['low']] = 0
       bandData = mqtt_data['bandData']
       data = SensorData()
       data.FK_bid = dev.id
@@ -277,23 +228,23 @@ def handle_sync_data(mqtt_data, extAddress):
       data.hrConfidence = bandData['hrConfidence']
       data.spo2Confidence = bandData['spo2Confidence']
       data.hr = bandData['hr']
-
-      if bandData['spo2'] == 0 :
-          data.spo2 = 0
-          mqtt_data['bandData']['spo2'] = 0
-          spo2BandData[mqtt_data['extAddress']['low']] = 0
-      elif bandData['spo2']<=1000 and bandData['spo2']>=400:
-        data.spo2 = bandData['spo2']
-        spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
-      else :
-        if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
-          data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
-          mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
-        else :
-          data.spo2 = 0
-          mqtt_data['bandData']['spo2'] = 0
-          spo2BandData[mqtt_data['extAddress']['low']] = 0
-      print("spo2BandData") 
+      data.spo2 = bandData['spo2']
+      # if bandData['spo2'] == 0 :
+      #     data.spo2 = 0
+      #     mqtt_data['bandData']['spo2'] = 0
+      #     spo2BandData[mqtt_data['extAddress']['low']] = 0
+      # elif bandData['spo2']<=1000 and bandData['spo2']>=400:
+      #   data.spo2 = bandData['spo2']
+      #   spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
+      # else :
+      #   if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
+      #     data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
+      #     mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
+      #   else :
+      #     data.spo2 = 0
+      #     mqtt_data['bandData']['spo2'] = 0
+      #     spo2BandData[mqtt_data['extAddress']['low']] = 0
+      # print("spo2BandData") 
       data.motionFlag = bandData['motionFlag'] 
       data.scdState = bandData['scdState']
       data.activity = bandData['activity']
@@ -314,7 +265,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
         elif sensorDev.walk_steps==bandData['walk_steps']:
             mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
-      print("walk_steps") 
+      # print("walk_steps") 
       data.walk_steps = mqtt_data['bandData']['walk_steps']
       data.temp_walk_steps = temp_walk_steps
       
@@ -340,7 +291,7 @@ def handle_sync_data(mqtt_data, extAddress):
         elif sensorDev.run_steps==bandData['run_steps']:
             mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
       
-      print("run_steps") 
+      # print("run_steps") 
       data.run_steps = mqtt_data['bandData']['run_steps']
       data.temp_run_steps = temp_walk_steps
 
@@ -375,14 +326,14 @@ def handle_sync_data(mqtt_data, extAddress):
           data.h = mqtt_data['bandData']['h']
       else:
         data.h = mqtt_data['bandData']['h']
-      print("getAltitude") 
+      # print("getAltitude") 
       data.rssi = mqtt_data['rssi']   
       data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
-      db.session.commit()
+      db.session.commit()     
       db.session.flush()
       
-      eventHandler(mqtt_data, dev)
+      # eventHandler(mqtt_data, dev)
       
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
@@ -396,7 +347,7 @@ def handle_gateway_state(panid):
     dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
     if dev is not None:
       if dev.connect_state == 0:
-        gatewayLog(dev, True)
+        setGatewayLog(dev.id, True)
         db.session.query(Gateways).\
           filter_by(id=dev.id).\
             update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
@@ -414,7 +365,7 @@ def handle_gateway_bandnum(panid):
     dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
     if dev is not None:
       if dev.connect_state == 0:
-        gatewayLog(dev, True)
+        setGatewayLog(dev.id, True)
         db.session.query(Gateways).\
           filter_by(id=dev.id).\
             update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
@@ -447,6 +398,17 @@ def handle_mqtt_message(client, userdata, message):
      
   elif message.topic == '/efwb/bandnum' :
      handle_gateway_bandnum(json.loads(message.payload))
+  elif message.topic == '/efwb/post/async' :
+    event_data = json.loads(message.payload.decode())
+    extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+    dev = db.session.query(Bands).filter_by(bid = extAddress).first()
+    insertEvent(dev.id, event_data['type'], event_data['value'])
+    event_socket = {
+      "type" : event_data['type'],
+      "value" : event_data['value'],
+      "bid" : dev.bid
+    }
+    socket_emit('efwbasync', event_socket)
 
 @socketio.on('connect', namespace='/receiver')
 def connect():

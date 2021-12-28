@@ -81,7 +81,7 @@ class DBManager:
 
     def insert_dummy_users():
         print("insert_dummy_users")
-        from backend.db.table_band import Users, Server
+        from backend.db.table.table_band import Users, Server
 
         server = Server()
         server.start = 0
@@ -105,9 +105,10 @@ class DBManager:
         user.permission = 1
         DBManager.db.session.add(user)
         DBManager.db.session.commit()
+        
     def insert_dummy_groups():
         print("insert_dummy_groups")
-        from backend.db.table_band import Groups
+        from backend.db.table.table_band import Groups
 
         group = Groups()
         group.gid = 1000
@@ -128,7 +129,7 @@ class DBManager:
 
     def insert_dummy_users_groups():
         print("insert_dummy_users_groups")
-        from backend.db.table_band import UsersGroups
+        from backend.db.table.table_band import UsersGroups
         users_groups = UsersGroups()
         users_groups.FK_uid = 1
         users_groups.FK_gid = 1
@@ -142,7 +143,7 @@ class DBManager:
         DBManager.db.session.commit()
     def insert_dummy_gateways():
         print("insert_dummy_gateways")
-        from backend.db.table_band import Gateways
+        from backend.db.table.table_band import Gateways
         gateways = Gateways()
         gateways.pid = "0xA020"
         gateways.alias = "dtriple"
@@ -160,7 +161,7 @@ class DBManager:
 
     def insert_dummy_bands():
         print("insert_dummy_bands")
-        from backend.db.table_band import Bands
+        from backend.db.table.table_band import Bands
         bands = Bands()
         bands.bid = "0x11012001"
         bands.alias = "d1"
@@ -345,7 +346,7 @@ class DBManager:
 
     def insert_dummy_users_gateways():
         print("insert_dummy_users_gateways")
-        from backend.db.table_band import UsersGateways
+        from backend.db.table.table_band import UsersGateways
         users_gateways = UsersGateways()
         users_gateways.FK_pid = 1
         users_gateways.FK_uid = 1
@@ -359,7 +360,7 @@ class DBManager:
 
     def insert_dummy_gateways_bands():
         print("insert_dummy_gateways_bands")
-        from backend.db.table_band import GatewaysBands
+        from backend.db.table.table_band import GatewaysBands
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 1
@@ -463,7 +464,7 @@ class DBManager:
         DBManager.db.session.commit()
     def insert_dummy_users_bands():
         print("insert_dummy_users_bands")
-        from backend.db.table_band import UsersBands
+        from backend.db.table.table_band import UsersBands
 
         for b in range(20):
             users_bands = UsersBands()
@@ -482,7 +483,7 @@ class DBManager:
         DBManager.db.session.commit()
     def insert_dummy_sensor_data():
         print("insert_dummy_sensor_data")
-        from backend.db.table_band import SensorData 
+        from backend.db.table.table_band import SensorData 
         data = SensorData()
         data.FK_bid = 1
         data.start_byte = 1
@@ -624,7 +625,7 @@ class DBManager:
         DBManager.db.session.commit()
         
     def insert_dummy_event_data():
-        from backend.db.table_band import Events
+        from backend.db.table.table_band import Events
         event = Events()
         event.FK_bid = 1
         event.type = 0
@@ -651,7 +652,7 @@ class DBManager:
         event.value = 0
         DBManager.db.session.add(event)  
 
-        from backend.db.table_band import Events
+        from backend.db.table.table_band import Events
         event = Events()
         event.FK_bid = 2
         event.type = 0
@@ -680,14 +681,14 @@ class DBManager:
         DBManager.db.session.commit()
     @staticmethod
     def insert_dummy_server():
-        from backend.db.table_band import Server
+        from backend.db.table.table_band import Server
         server = Server()
         server.start = 0
         DBManager.db.session.add(server)          
         DBManager.db.session.commit()
     @staticmethod
     def insert_dummy_walkrun():
-        from backend.db.table_band import WalkRunCount
+        from backend.db.table.table_band import WalkRunCount
         walkRunCount = WalkRunCount()
         walkRunCount.FK_bid = 7
         walkRunCount.run_steps = 0 
