@@ -7,13 +7,13 @@ import requests
 from threading import Lock
 from backend import app, socketio, mqtt, login_manager
 from flask import make_response, jsonify, request, json
-from flask_socketio import send, emit
 from flask_restless import ProcessingException
 from flask_restful import reqparse
 from datetime import datetime
 from functools import wraps
 from backend.db.table.table_band import *
 from backend.db.service.query import *
+from backend.api.crawling import *
 from backend.api.socket import *
 from sqlalchemy import func, case, or_, Interval
 from sqlalchemy.sql.expression import text
@@ -72,84 +72,21 @@ def gatewayCheck():
       print(e)
     work = False
 
-def get_event(id, type):
-  eventDev = db.session.query(Events).filter_by(FK_bid=id).filter_by(type=type).order_by(Events.id.desc()).first()
-
-  if eventDev is None:
-    return True
-  else:
-    time1 = eventDev.datetime
-    time2 = datetime.datetime.now()
-    if (time2-time1).seconds > 60 :
-      return True
-  return False
-def event_socket_emit(dev, type, value):
-
-  event = get_event(dev.id, type)
-  if event:
-    insertEvent(dev.id, type, value)
-    event_socket = {
-      "type" : type,
-      "value" : value,
-      "bid" : dev.bid
-    }
-  
-    socketio.emit('efwbasync', event_socket, namespace='/receiver')
-
-def eventHandler(mqtt_data, dev):
-  if mqtt_data['bandData']['fall_detect'] == 1 :
-    
-    event_socket_emit(dev, 0, mqtt_data['bandData']['fall_detect'])
-
-  if mqtt_data['rssi'] < -80 :
-    
-    event_socket_emit(dev, 1, mqtt_data['rssi'])
-
-  if mqtt_data['bandData']['battery_level'] < 10 :
-    
-    event_socket_emit(dev, 2, mqtt_data['bandData']['battery_level'] )
-
-  if mqtt_data['bandData']['scdState'] == 0 or mqtt_data['bandData']['scdState'] == 1:
-   
-    event_socket_emit(dev, 3, mqtt_data['bandData']['scdState'])
-  if mqtt_data['active'] == 'false':
-    insertEvent(dev.id, 4, 0)
-    event_scoket = {
-      "type" : 4,
-      "value" : mqtt_data['active'],
-      "bid" : dev.bid
-    }
-    socketio.emit('efwbasync', event_scoket, namespace='/receiver')
-  if mqtt_data['bandData']['hr'] > 130:
-    event_socket_emit(dev, 5, mqtt_data['bandData']['hr'])
-def getAirpressure():
+def getAirpressureTask():
   global work
   while True:
     socketio.sleep(3600)
     print("getAltitud start")
     work = True
-    dev = db.session.query(Gateways).all()
+    dev = selectGatewayAll()
     for g in dev:
     
       d = datetime.datetime.now(timezone('Asia/Seoul'))
       urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-      try:
-        html = urlopen("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
+      airpressure = getAirpressure(urldate, g.location)
 
-        bsObject = BeautifulSoup(html, "html.parser") 
-        temp = bsObject.find("table", {"class": "table_develop3"})
-        trtemp = temp.find_all('tr')
-        atemp = temp.find_all('a')
-
-        for a in range(len(atemp)):
-            if atemp[a].text == g.location:
-                break
-        tdtemp = trtemp[a+2].find_all('td')
-        
-        db.session.query(Gateways).filter_by(id = g.id).update((dict(airpressure=float(tdtemp[len(tdtemp)-1].text))))
-        db.session.commit()
-      except:
-        pass
+      if airpressure != 0 :
+        updateGatewaysAirpressure(g.id, airpressure)
     work = False
 
 def gatewayCheckThread():
@@ -158,29 +95,14 @@ def gatewayCheckThread():
   with thread_lock:
     if gateway_thread is None:
       gateway_thread = socketio.start_background_task(gatewayCheck)
+
 def getAirpressureThread():
   global airpressure_thread
 
   with thread_lock:
     if airpressure_thread is None:
-      airpressure_thread = socketio.start_background_task(getAirpressure)
+      airpressure_thread = socketio.start_background_task(getAirpressureTask)
 
-server = db.session.query(Server).first()
-if server.start == 0 :
-  print("first")
-  db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
-  db.session.commit()
-  
-else :
-  print("second")
-  db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
-  db.session.commit()
-  mqtt.subscribe('/efwb/post/sync')
-  mqtt.subscribe('/efwb/post/async')
-  mqtt.subscribe('/efwb/post/connectcheck')
-  
-  gatewayCheckThread()
-  getAirpressureThread()   
 
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   try:
@@ -189,7 +111,6 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
     alt = 44330 * (1 - p**b)
  
     return round(alt,2)
-  
   except:
     pass
  
@@ -215,8 +136,6 @@ def handle_sync_data(mqtt_data, extAddress):
     db.session.close()
     try :
       mqtt_data['extAddress']['high'] = extAddress
-      # if mqtt_data['extAddress']['low'] not in spo2BandData :
-      #   spo2BandData[mqtt_data['extAddress']['low']] = 0
       bandData = mqtt_data['bandData']
       data = SensorData()
       data.FK_bid = dev.id
@@ -229,22 +148,6 @@ def handle_sync_data(mqtt_data, extAddress):
       data.spo2Confidence = bandData['spo2Confidence']
       data.hr = bandData['hr']
       data.spo2 = bandData['spo2']
-      # if bandData['spo2'] == 0 :
-      #     data.spo2 = 0
-      #     mqtt_data['bandData']['spo2'] = 0
-      #     spo2BandData[mqtt_data['extAddress']['low']] = 0
-      # elif bandData['spo2']<=1000 and bandData['spo2']>=400:
-      #   data.spo2 = bandData['spo2']
-      #   spo2BandData[mqtt_data['extAddress']['low']] = bandData['spo2']
-      # else :
-      #   if spo2BandData[mqtt_data['extAddress']['low']]<=1000 and spo2BandData[mqtt_data['extAddress']['low']]>=400:
-      #     data.spo2 = spo2BandData[mqtt_data['extAddress']['low']]
-      #     mqtt_data['bandData']['spo2'] = spo2BandData[mqtt_data['extAddress']['low']]
-      #   else :
-      #     data.spo2 = 0
-      #     mqtt_data['bandData']['spo2'] = 0
-      #     spo2BandData[mqtt_data['extAddress']['low']] = 0
-      # print("spo2BandData") 
       data.motionFlag = bandData['motionFlag'] 
       data.scdState = bandData['scdState']
       data.activity = bandData['activity']
@@ -332,9 +235,6 @@ def handle_sync_data(mqtt_data, extAddress):
       db.session.add(data)
       db.session.commit()     
       db.session.flush()
-      
-      # eventHandler(mqtt_data, dev)
-      
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
     except Exception as e :
@@ -409,18 +309,6 @@ def handle_mqtt_message(client, userdata, message):
       "bid" : dev.bid
     }
     socket_emit('efwbasync', event_socket)
-
-@socketio.on('connect', namespace='/receiver')
-def connect():
-  print("***socket connect***")
-
-@socketio.on('disconnect', namespace='/receiver')
-def disconnect():
-    print("***socket disconnect***")
-
-@socketio.on('message', namespace='/receiver')
-def handle_message(data):
-    print('received message: ' + data)
 
 @login_manager.user_loader
 def load_user(id):
@@ -1275,7 +1163,11 @@ def sensordata_day_get_api():
   for i in data['days'] :
     # sensordata_list = [{"label": [], "data": [] } ] 
     sensordata_list = [] 
-    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'), func.date_format(SensorData.datetime, '%H').label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).group_by(func.hour(SensorData.datetime)).all()
+    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], 
+    SensorData)).label('y'), func.date_format(SensorData.datetime, '%H').\
+      label('x')).filter(SensorData.FK_bid == data['bid']).\
+        filter(func.date(SensorData.datetime) == i).\
+          group_by(func.hour(SensorData.datetime)).all()
     #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     if not valuedata :
       continue
@@ -1661,49 +1553,27 @@ def bandlog_post_api():
     }
 
   return make_response(jsonify(result), 200)  
+@app.route('/api/example', methods=["GET"])
+def example():
+  d = datetime.datetime.now(timezone('Asia/Seoul'))
+  urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
+  html = requests.get("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
+
+  bsObject = BeautifulSoup(html.text, "html.parser") 
+  temp = bsObject.find("table", {"class": "table_develop3"})
+  trtemp = temp.find_all('tr')
+  atemp = temp.find_all('a')
+  for a in range(len(atemp)):
+    if atemp[a].text == "대구":
+      break
+  tdtemp = trtemp[a+2].find_all('td')
+
+  print(tdtemp[len(tdtemp)-1].text)
 @app.route('/api/efwb/v1/weather/<where>', methods=["GET"])
 def get_weather_api(where):
   global work
   work = True
-  result={"temp": 0}
-  try:
-    html = requests.get(
-          'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=1&ie=utf8&query='+where+' 날씨')
-    soup = BeautifulSoup(html.text, 'html.parser')
-
-    temp = soup.find("body")
-    tempor = temp.find("div", {"class":"temperature_text"})
-    status = temp.find("span", {"class": "weather before_slash"})
-
-    min = temp.find("span", {"class": "lowest"})
-    max = temp.find("span", {"class": "highest"})
-    fore = temp.find_all("li",{"class": "_li"})
-    
-    forecast = []
-    for fo in range(4):
-      if fore[fo*2].find("dt", {"class": "time"}).text == "내일":
-        forecast.append({"time":"00시", "value":fore[fo*2].find("span", {"class": "num"}).text})
-      else :
-        forecast.append({"time":fore[fo*2].find("dt", {"class": "time"}).text, "value":fore[fo*2].find("span", {"class": "num"}).text})
-
-    html = requests.get(
-          'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=1&ie=utf8&query='+where+" 미세먼지")
-    soup = BeautifulSoup(html.text, 'html.parser')
-
-    temp = soup.find("div", {"class": "air_nextday_city"})
-    temp = temp.find_all("dd", {"class": "lvl"})
-    
-    result = {
-      "temp": tempor.text.replace(" 현재 온도", "").replace(" ", ""),
-      "status": status.text,
-      "min":min.text.replace("최저기온", ""),
-      "max":max.text.replace("최고기온", ""),
-      "finedust": temp[0].text,
-      "ultrafinedust":temp[0].text,
-      "forecast": forecast
-    }
-  except:
-    result={"temp": 0}
+  result=getWeather(where)
   work = False
   return make_response(jsonify(result), 200)  
 def addDBList(table, list1, list2, lengthCheck, tableCheck):

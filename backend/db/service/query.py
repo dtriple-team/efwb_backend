@@ -1,7 +1,10 @@
+print ("module [query] loaded")
 from backend import app
 from backend.db.table.table_band import *
 
 db = DBManager.db
+def insertSensorData(data, ):
+    data = SensorData()
 
 def insertEvent(id, type, value):
     events = Events()
@@ -23,6 +26,9 @@ def selectGatewayAll():
     gateways = db.session.query(Gateways).all()
     return gateways
 
+def updateGatewaysAirpressure(gid, airpressure):
+    db.session.query(Gateways).filter_by(id = gid).update((dict(airpressure=airpressure)))
+    db.session.commit()
 def updateGatewaysConnect(gid, type):
     print("[method] updateGatewaysConnect")
     Gateways.query.filter_by(id=gid).update(dict(connect_state=type, connect_time = datetime.datetime.now(timezone('Asia/Seoul'))))
@@ -47,6 +53,7 @@ def selectBandsConnectGateway(gid):
             filter(Bands.id == GatewaysBands.FK_bid).\
                 filter(GatewaysBands.FK_pid == gid).all()
     return dev
+
 def updateConnectBands(bid , type):
     print("[method] updateConnectBands")
     Bands.query.filter_by(id = bid).update(dict(

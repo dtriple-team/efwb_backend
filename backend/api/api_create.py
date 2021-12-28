@@ -9,16 +9,11 @@ db = DBManager.db
 # REST API(s) available :
 
 manager.create_api(Groups
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
-                   , preprocessors={
-                        'GET_SINGLE': [check_token],
-                        'GET_MANY': [check_token],
-                        'POST': [check_token],
-                        'PATCH': [check_token]
-                    })
+                   )
 manager.create_api(AccessHistory
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -27,7 +22,7 @@ manager.create_api(AccessHistory
                         'PATCH': [check_token]
                     })                   
 manager.create_api(Users
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -36,7 +31,7 @@ manager.create_api(Users
                         'PATCH': [check_token]
                     })
 manager.create_api(UsersGroups
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -45,7 +40,7 @@ manager.create_api(UsersGroups
                         'PATCH': [check_token]
                     })
 manager.create_api(Bands
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -54,7 +49,7 @@ manager.create_api(Bands
                         'PATCH': [check_token]
                     })
 manager.create_api(UsersGateways
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -63,7 +58,7 @@ manager.create_api(UsersGateways
                         'PATCH': [check_token]
                     })
 manager.create_api(GatewaysBands
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -72,16 +67,11 @@ manager.create_api(GatewaysBands
                         'PATCH': [check_token]
                     })                  
 manager.create_api(SensorData
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
-                   , preprocessors={
-                        'GET_SINGLE': [check_token],
-                        'GET_MANY': [check_token],
-                        'POST': [check_token],
-                        'PATCH': [check_token]
-                    })                         
+                   )                         
 manager.create_api(Events
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -90,7 +80,7 @@ manager.create_api(Events
                         'PATCH': [check_token]
                     })   
 manager.create_api(GatewayLog
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
@@ -99,7 +89,7 @@ manager.create_api(GatewayLog
                         'PATCH': [check_token]
                     }) 
 manager.create_api(BandLog
-                   , url_prefix='/api/v1'
+                   , url_prefix='/api/efwb/v1'
                    , methods=['GET', 'DELETE', 'PATCH', 'POST']
                    , preprocessors={
                         'GET_SINGLE': [check_token],
