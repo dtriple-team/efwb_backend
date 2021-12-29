@@ -239,7 +239,7 @@ def handle_sync_data(mqtt_data, extAddress):
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
       endTime = datetime.datetime.now()
-      print((endTime-startTime)/1000)
+      print((endTime-startTime).seconds)
     except Exception as e :
       print("****** error ********")
       print(e)
