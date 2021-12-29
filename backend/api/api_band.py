@@ -4,8 +4,7 @@ print("module [backend.api_band] loaded")
 
 import hashlib
 import requests
-from threading import Lock
-from backend import app, socketio, mqtt, login_manager
+from backend import app, login_manager
 from flask import make_response, jsonify, request, json
 from flask_restless import ProcessingException
 from flask_restful import reqparse
@@ -17,304 +16,14 @@ from backend.api.crawling import *
 from backend.api.socket import *
 from sqlalchemy import func, case, or_, Interval
 from sqlalchemy.sql.expression import text
-
 from datetime import date, timedelta
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
-
+from backend.api.mqtt import *
 count = 0
-spo2BandData = {}
-
-gateway_thread = None
-mqtt_thread = None
-airpressure_thread = None
-thread_lock = Lock()
-example_thread = None
-gw_thread = None
 work = False
 
-def setGatewayLog(gid, gpid, check):
-  print("[method] setGatewayLog")
-  if check:
-    updateGatewaysConnect(gid, 1)
-  else :
-    updateGatewaysConnect(gid, 0)
-    for b in selectBandsConnectGateway(gid):
-      insertConnectBandLog(b.id, 0)
-      updateConnectBands(b.id, 0)
-    gateway={
-      "panid": gpid,
-      "bandnum": 0,
-      "connectstate": False
-    }
-    socket_emit('gateway_connect', gateway)
 
-def gatewayCheck():
-  global work
-  while True:
-    socketio.sleep(120)
-    print("gatewayCheck start")
-    work = True
-    try:
-      gateways = selectGatewayAll()
-      for g in gateways:
-        time1 = g.connect_check_time.replace(tzinfo=None)
-        time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
-        if (time2-time1).seconds > 120:
-          if g.connect_state==1 :
-              setGatewayLog(g.id, g.pid, False)
-          else:
-            dev = selectGatewayLog(g.id)
-            if dev is None:
-              setGatewayLog(g.id, g.pid, False)
-
-    except Exception as e:
-      print(e)
-    work = False
-
-def getAirpressureTask():
-  global work
-  while True:
-    socketio.sleep(3600)
-    print("getAltitud start")
-    work = True
-    dev = selectGatewayAll()
-    for g in dev:
-    
-      d = datetime.datetime.now(timezone('Asia/Seoul'))
-      urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-      airpressure = getAirpressure(urldate, g.location)
-
-      if airpressure != 0 :
-        updateGatewaysAirpressure(g.id, airpressure)
-    work = False
-
-def gatewayCheckThread():
-  global gateway_thread
-
-  with thread_lock:
-    if gateway_thread is None:
-      gateway_thread = socketio.start_background_task(gatewayCheck)
-
-def getAirpressureThread():
-  global airpressure_thread
-
-  with thread_lock:
-    if airpressure_thread is None:
-      airpressure_thread = socketio.start_background_task(getAirpressureTask)
-
-
-def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
-  try:
-    p = (pressure / (airpressure * 100)); # ***분모 자리에 해면기압 정보 넣을 것!! (ex. 1018) // Dtriple
-    b = 1 / 5.255
-    alt = 44330 * (1 - p**b)
- 
-    return round(alt,2)
-  except:
-    pass
- 
 def messageReceived(methods=['GET', 'POST']):
   print('message was received!!!')
-
-def handle_sync_data(mqtt_data, extAddress):
-  # print("start handle_sync_data")
-  # global spo2BandData
-  startTime = datetime.datetime.now()
-  dev = db.session.query(Bands).filter_by(bid = extAddress).first()
-  
-  if dev is not None:
-    # print("dev")
-    gatewayDev = db.session.query(Gateways.airpressure).\
-      filter(Gateways.id == GatewaysBands.FK_pid).\
-        filter(GatewaysBands.FK_bid == dev.id).first()
-    # print("gatewayDev")    
-    sensorDev = db.session.query(WalkRunCount).\
-      filter(WalkRunCount.FK_bid == dev.id).\
-         filter(func.date(WalkRunCount.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-    # print("sensorDev")  
-    db.session.flush()
-    db.session.close()
-    print("get db", datetime.datetime.now() - startTime)
-    startTime = datetime.datetime.now()
-    try :
-      mqtt_data['extAddress']['high'] = extAddress
-      bandData = mqtt_data['bandData']
-      data = SensorData()
-      data.FK_bid = dev.id
-
-      data.start_byte = bandData['start_byte']
-      data.sample_count = bandData['sample_count']
-      data.fall_detect = bandData['fall_detect']
-      data.battery_level = bandData['battery_level']
-      data.hrConfidence = bandData['hrConfidence']
-      data.spo2Confidence = bandData['spo2Confidence']
-      data.hr = bandData['hr']
-      data.spo2 = bandData['spo2']
-      data.motionFlag = bandData['motionFlag'] 
-      data.scdState = bandData['scdState']
-      data.activity = bandData['activity']
-
-      temp_walk_steps = bandData['walk_steps']
-      if sensorDev is not None :
-        if sensorDev.walk_steps>bandData['walk_steps']  :
-          tempwalk = bandData['walk_steps'] - sensorDev.temp_walk_steps
-
-          if tempwalk>0:
-            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps + tempwalk
-          
-          elif tempwalk<0:
-            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps + bandData['walk_steps']
-
-          else : 
-            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
-
-        elif sensorDev.walk_steps==bandData['walk_steps']:
-            mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
-      # print("walk_steps") 
-      data.walk_steps = mqtt_data['bandData']['walk_steps']
-      data.temp_walk_steps = temp_walk_steps
-      
-      walkRunCount = WalkRunCount()
-      walkRunCount.FK_bid = dev.id
-      walkRunCount.walk_steps = mqtt_data['bandData']['walk_steps']
-      walkRunCount.temp_walk_steps = temp_walk_steps
-
-      temp_walk_steps = bandData['run_steps']
-      if sensorDev is not None :
-        if sensorDev.run_steps>bandData['run_steps']  :
-          tempwalk = bandData['run_steps']-sensorDev.temp_run_steps
-          if tempwalk>0:
-            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps + tempwalk
-            
-          elif tempwalk<0:
-            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps + bandData['run_steps']
-
-          else : 
-            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
-
-
-        elif sensorDev.run_steps==bandData['run_steps']:
-            mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
-      
-      # print("run_steps") 
-      data.run_steps = mqtt_data['bandData']['run_steps']
-      data.temp_run_steps = temp_walk_steps
-
-      walkRunCount.run_steps =  mqtt_data['bandData']['run_steps']
-      walkRunCount.temp_run_steps = temp_walk_steps
-      walkRunCount.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
-      sensorDev = db.session.query(WalkRunCount).\
-        filter(WalkRunCount.FK_bid == dev.id).first()
-      if sensorDev is not None :
-        db.session.query(WalkRunCount).\
-          filter(WalkRunCount.FK_bid == dev.id).\
-            update(dict(walk_steps = walkRunCount.walk_steps,
-              temp_walk_steps = walkRunCount.temp_walk_steps,
-                run_steps = walkRunCount.run_steps, 
-                  temp_run_steps = walkRunCount.temp_run_steps,
-                  datetime=walkRunCount.datetime))
-        db.session.commit()
-        db.session.flush()
-      else :
-        db.session.add(walkRunCount)
-        db.session.commit()
-        db.session.flush()
-      print("work - db", datetime.datetime.now() - startTime)
-      startTime = datetime.datetime.now()
-      data.x = bandData['x']
-      data.y = bandData['y']
-      data.z = bandData['z']
-      data.t = bandData['t'] 
-      if gatewayDev is not None:
-        if mqtt_data['bandData']['h'] != 0:
-          mqtt_data['bandData']['h'] = getAltitude(mqtt_data['bandData']['h'], gatewayDev.airpressure)
-          data.h = mqtt_data['bandData']['h']
-        else:
-          data.h = mqtt_data['bandData']['h']
-      else:
-        data.h = mqtt_data['bandData']['h']
-      # print("getAltitude") 
-      data.rssi = mqtt_data['rssi']   
-      data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
-      db.session.add(data)
-      db.session.commit()     
-      db.session.flush()
-      socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
-      print("close handle_sync_data")
-      print("고도값 - DB - socket",datetime.datetime.now() - startTime)
-    except Exception as e :
-      print("****** error ********")
-      print(e)
-
-def handle_gateway_state(panid):
-  print("handle_gateway_state", panid)
-  try:
-    dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
-    if dev is not None:
-      if dev.connect_state == 0:
-        setGatewayLog(dev.id, True)
-        db.session.query(Gateways).\
-          filter_by(id=dev.id).\
-            update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
-            connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-      else :
-        db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-      db.session.commit()
-      db.session.flush()
-    socketio.emit('gateway_connect', panid, namespace='/receiver')
-  except:
-    pass
-
-def handle_gateway_bandnum(panid):
-  try:
-    dev = db.session.query(Gateways).filter_by(pid=panid['panid']).first()
-    if dev is not None:
-      if dev.connect_state == 0:
-        setGatewayLog(dev.id, True)
-        db.session.query(Gateways).\
-          filter_by(id=dev.id).\
-            update(dict(connect_state=1, connect_time = datetime.datetime.now(timezone('Asia/Seoul')), 
-            connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-      else :
-        db.session.query(Gateways).filter_by(id=dev.id).update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
-      db.session.commit()
-      db.session.flush()
-    socketio.emit('gateway_connect', panid, namespace='/receiver')
-  except:
-    pass
-
-@mqtt.on_message()
-def handle_mqtt_message(client, userdata, message):
-  global mqtt_thread
-  global gw_thread, work
-  if message.topic == '/efwb/post/sync':
-    if work==False :
-      with thread_lock:
-        if mqtt_thread is None:
-          mqtt_data = json.loads(message.payload.decode())
-          extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-          mqtt_thread = socketio.start_background_task(handle_sync_data( mqtt_data,extAddress))
-          mqtt_thread = None
-  elif message.topic == '/efwb/post/connectcheck' :
-      with thread_lock:
-        if gw_thread is None:
-          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
-          gw_thread = None
-     
-  elif message.topic == '/efwb/bandnum' :
-     handle_gateway_bandnum(json.loads(message.payload))
-  elif message.topic == '/efwb/post/async' :
-    event_data = json.loads(message.payload.decode())
-    extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
-    dev = db.session.query(Bands).filter_by(bid = extAddress).first()
-    insertEvent(dev.id, event_data['type'], event_data['value'])
-    event_socket = {
-      "type" : event_data['type'],
-      "value" : event_data['value'],
-      "bid" : dev.bid
-    }
-    socket_emit('efwbasync', event_socket)
 
 @login_manager.user_loader
 def load_user(id):
@@ -422,8 +131,8 @@ def token_required(fn):
     return decorated
 
 @app.route('/api/efwb/v1/gateway/bandnum', methods=["GET"]) 
-def  gateway_bandnum_get_api():
-  mqtt.publish('efwb/get/connectcheck', 'bandnum')
+def gateway_bandnum_get_api():
+  mqttPublish('efwb/get/connectcheck', 'bandnum')
   return make_response(jsonify('ok'), 200)
 @app.route('/api/efwb/v1/groups/add', methods=['POST'])
 @token_required
@@ -1559,22 +1268,7 @@ def bandlog_post_api():
     }
 
   return make_response(jsonify(result), 200)  
-@app.route('/api/example', methods=["GET"])
-def example():
-  d = datetime.datetime.now(timezone('Asia/Seoul'))
-  urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-  html = requests.get("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+urldate+"%3A00&x=25&y=1")  
 
-  bsObject = BeautifulSoup(html.text, "html.parser") 
-  temp = bsObject.find("table", {"class": "table_develop3"})
-  trtemp = temp.find_all('tr')
-  atemp = temp.find_all('a')
-  for a in range(len(atemp)):
-    if atemp[a].text == "대구":
-      break
-  tdtemp = trtemp[a+2].find_all('td')
-
-  print(tdtemp[len(tdtemp)-1].text)
 @app.route('/api/efwb/v1/weather/<where>', methods=["GET"])
 def get_weather_api(where):
   global work

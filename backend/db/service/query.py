@@ -1,8 +1,12 @@
 print ("module [query] loaded")
 from backend import app
 from backend.db.table.table_band import *
-
+from sqlalchemy import func, case, or_, Interval
 db = DBManager.db
+
+def selectGatewayPid(pid):
+    dev = db.session.query(Gateways).filter_by(pid=pid).first()
+    return dev
 def insertSensorData(data, ):
     data = SensorData()
 
@@ -29,12 +33,23 @@ def selectGatewayAll():
 def updateGatewaysAirpressure(gid, airpressure):
     db.session.query(Gateways).filter_by(id = gid).update((dict(airpressure=airpressure)))
     db.session.commit()
-def updateGatewaysConnect(gid, type):
-    print("[method] updateGatewaysConnect")
-    Gateways.query.filter_by(id=gid).update(dict(connect_state=type, connect_time = datetime.datetime.now(timezone('Asia/Seoul'))))
+def updateGatewaysConnectCheck(gid):
+    db.session.query(Gateways).filter_by(id=gid).\
+        update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
     db.session.commit()
     db.session.flush()
-    db.session.close() 
+def updateGatewaysConnect(gid, type):
+    print("[method] updateGatewaysConnect")
+    getTime = datetime.datetime.now(timezone('Asia/Seoul'))
+    if type:
+        Gateways.query.filter_by(id=gid).\
+            update(dict(connect_state=1, connect_time = getTime, connect_check_time=getTime))
+    else : 
+         Gateways.query.filter_by(id=gid).\
+             update(dict(connect_state=0, disconnect_time = getTime))
+    db.session.commit()
+    db.session.flush()
+
 
 def insertGatewaysLog(gid, type):
     print("[method] insertGatewaysLog")
@@ -44,7 +59,7 @@ def insertGatewaysLog(gid, type):
     db.session.add(gatewayLog) 
     db.session.commit()
     db.session.flush()
-    db.session.close() 
+    # db.session.close() 
 
 def selectBandsConnectGateway(gid):
     print("[method] selectBandsConnectGateway")
@@ -61,7 +76,6 @@ def updateConnectBands(bid , type):
           , connect_state = type))
     db.session.commit()
     db.session.flush()
-    db.session.close()
 
 def insertConnectBandLog(bid, type):
     print("[method] setBandLog")
@@ -71,5 +85,4 @@ def insertConnectBandLog(bid, type):
     db.session.add(bandlog)
     db.session.commit()
     db.session.flush()
-    db.session.close()
       

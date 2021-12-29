@@ -9,7 +9,7 @@ from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
-
+from threading import Lock
 
 # app = Flask(__name__)
 
@@ -44,11 +44,11 @@ login_manager.init_app(app)
 mqtt = Mqtt(app)
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 socketio = SocketIO(app, cors_allowed_origins="*")
-
+thread_lock = Lock()
 
 from backend.api.api_create import *
-
-
+from backend.api.mqtt import *
+from backend.api.thread import *
 # gatewayCheckThread()
 # getAirpressureThread()
 
