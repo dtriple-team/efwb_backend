@@ -135,6 +135,8 @@ def handle_sync_data(mqtt_data, extAddress):
     # print("sensorDev")  
     db.session.flush()
     db.session.close()
+    print("get db", datetime.datetime.now() - startTime)
+    startTime = datetime.datetime.now()
     try :
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
@@ -218,6 +220,8 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.add(walkRunCount)
         db.session.commit()
         db.session.flush()
+      print("work - db", datetime.datetime.now() - startTime)
+      startTime = datetime.datetime.now()
       data.x = bandData['x']
       data.y = bandData['y']
       data.z = bandData['z']
@@ -238,8 +242,7 @@ def handle_sync_data(mqtt_data, extAddress):
       db.session.flush()
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
-      endTime = datetime.datetime.now()
-      print((endTime-startTime))
+      print("고도값 - DB - socket",datetime.datetime.now() - startTime)
     except Exception as e :
       print("****** error ********")
       print(e)
