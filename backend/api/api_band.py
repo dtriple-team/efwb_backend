@@ -120,6 +120,7 @@ def messageReceived(methods=['GET', 'POST']):
 def handle_sync_data(mqtt_data, extAddress):
   # print("start handle_sync_data")
   # global spo2BandData
+  startTime = datetime.datetime.now()
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
   if dev is not None:
@@ -237,6 +238,8 @@ def handle_sync_data(mqtt_data, extAddress):
       db.session.flush()
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver', callback=messageReceived)
       print("close handle_sync_data")
+      endTime = datetime.datetime.now()
+      print((endTime-startTime)/1000)
     except Exception as e :
       print("****** error ********")
       print(e)
