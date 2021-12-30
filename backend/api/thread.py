@@ -25,8 +25,8 @@ def setGatewayLog(gid, gpid, check):
 def gatewayCheck():
   global work
   while True:
-    # socketio.sleep(120)
-    socketio.sleep(60)
+    socketio.sleep(120)
+    # socketio.sleep(60)
     print("gatewayCheck start")
     work = True
     try:
@@ -49,8 +49,8 @@ def gatewayCheck():
 def getAirpressureTask():
   global work
   while True:
-    # socketio.sleep(3600)
-    socketio.sleep(60)
+    socketio.sleep(3600)
+    # socketio.sleep(60)
     print("getAltitud start")
     work = True
     dev = selectGatewayAll()
