@@ -7,6 +7,7 @@ from backend.api.socket import *
 
 mqtt_thread = None
 gw_thread = None
+event_thread = None
 
 def mqttPublish(topic, message):
     mqtt.publish(topic, message)
@@ -167,8 +168,7 @@ def handle_connect(client, userdata, flags, rc):
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-  global mqtt_thread
-  global gw_thread, work
+  global mqtt_thread, gw_thread, event_thread
   if message.topic == '/efwb/post/sync':
       with thread_lock:
           if mqtt_thread is None:
@@ -183,13 +183,16 @@ def handle_mqtt_message(client, userdata, message):
           gw_thread = None
      
   elif message.topic == '/efwb/post/async' :
-    event_data = json.loads(message.payload.decode())
-    extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
-    dev = db.session.query(Bands).filter_by(bid = extAddress).first()
-    insertEvent(dev.id, event_data['type'], event_data['value'])
-    event_socket = {
-      "type" : event_data['type'],
-      "value" : event_data['value'],
-      "bid" : dev.bid
-    }
-    socket_emit('efwbasync', event_socket)
+      with thread_lock:
+        if event_thread is None:
+          event_data = json.loads(message.payload.decode())
+          extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+          dev = db.session.query(Bands).filter_by(bid = extAddress).first()
+          insertEvent(dev.id, event_data['type'], event_data['value'])
+          event_socket = {
+            "type" : event_data['type'],
+            "value" : event_data['value'],
+            "bid" : dev.bid
+          }
+          socket_emit('efwbasync', event_socket)
+          event_thread = None
