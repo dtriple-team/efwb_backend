@@ -860,7 +860,105 @@ def getAttribute(str, sensor):
     return sensor.hr
   elif str == 'spo2':
     return sensor.spo2
+@app.route('/api/efwb/v1/sensordata/oneday', methods=['POST'])
+def sensordata_oneday_get_api():
+  data = json.loads(request.data)
+  params = ['bid', 'date']
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400) 
 
+  day = ['월', '화', '수', '목', '금', '토', '일']
+  sensordata_list = [[],[],[],[]] 
+  valuedata = db.session.query(func.avg(SensorData.hr).label('hr'), 
+  func.avg(SensorData.spo2).label('spo2'),
+  (func.max(SensorData.walk_steps)-func.min(SensorData.walk_steps)).label('walk_steps'),
+  (func.max(SensorData.run_steps)-func.min(SensorData.run_steps)).label('run_steps'),
+  func.date_format(SensorData.datetime, '%H').\
+      label('x')).filter(SensorData.FK_bid == data['bid']).\
+        filter(func.date(SensorData.datetime) == data['date'][0]).\
+          group_by(func.hour(SensorData.datetime)).all()
+    #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+  for b in valuedata :
+    sensordata_list[0].append({"x": b.x, "y": float(b.hr)})
+    sensordata_list[1].append({"x": b.x, "y": float(b.spo2/10)})
+    sensordata_list[2].append({"x": b.x, "y": int(b.walk_steps)})
+    sensordata_list[3].append({"x": b.x, "y": int(b.run_steps)})
+
+  dayValue = date(int(data['date'][0][0:4]), int(data['date'][0][5:7]), int(data['date'][0][8:10])).weekday()
+  dateValue =data['date'][0][5:7]+"월 "+data['date'][0][8:10]+"일 "+day[dayValue]
+
+  result = {
+    "result": "OK",
+    "data": {"date": dateValue,  "data": sensordata_list}
+  }
+  return make_response(jsonify(result), 200)  
+
+@app.route('/api/efwb/v1/sensordata/range', methods=['POST'])
+def sensordata_range_get_api():
+  data = json.loads(request.data)
+  params = ['bid', 'days', 'dataname']
+  for param in params:
+    if param not in data:
+      return make_response(jsonify('Parameters are not enough.'), 400) 
+
+  day = ['월', '화', '수', '목', '금', '토', '일']
+  if data['dataname'] == 'walk_steps':
+    json_data = []
+    valuedata = db.session.query((func.max(SensorData.walk_steps)-func.min(SensorData.walk_steps)).label('walk_steps'), 
+    (func.max(SensorData.run_steps)-func.min(SensorData.run_steps)).label('run_steps'), 
+    func.date_format(SensorData.datetime, '%Y-%m-%d %H').label('x')).\
+      filter(SensorData.FK_bid == data['bid']).\
+          filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+            group_by(func.date_format(SensorData.datetime, '%Y-%m-%d %H')).all()
+      #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+    
+    for d in data['days']:
+      sensordata_list = [[],[]] 
+      check = False
+      for b in valuedata :
+        if d == b.x[0:10]:
+          check = True
+          sensordata_list[0].append({"x": b.x[11:len(b.x)], "y": float(b.walk_steps)})
+          sensordata_list[1].append({"x": b.x[11:len(b.x)], "y": float(b.run_steps)})
+      if(check):
+        dayValue = date(int(d[0:4]), int(d[5:7]), int(d[8:10])).weekday()
+        dateValue =d[5:7]+"월 "+d[8:10]+"일 "+day[dayValue]
+        json_data.append({"date": dateValue,  "data": sensordata_list})
+
+    result = {
+      "result": "OK",
+      "data": json_data
+    }
+    return make_response(jsonify(result), 200)  
+  else:
+    json_data = []
+    valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'),
+    func.date_format(SensorData.datetime, '%Y-%m-%d %H').\
+        label('x')).filter(SensorData.FK_bid == data['bid']).\
+          filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+            group_by(func.date_format(SensorData.datetime, '%Y-%m-%d %H')).all()
+      #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+    for d in data['days']:
+      sensordata_list = [] 
+      check = False
+      for b in valuedata :
+        if d == b.x[0:10]:
+          check = True
+          if data['dataname'] == 'spo2':
+            sensordata_list.append({"x":  b.x[11:len(b.x)], "y": float(b.y/10)})
+          else :
+            sensordata_list.append({"x":  b.x[11:len(b.x)], "y": float(b.y)})
+      if(check):
+        dayValue = date(int(d[0:4]), int(d[5:7]), int(d[8:10])).weekday()
+        dateValue =d[5:7]+"월 "+d[8:10]+"일 "+day[dayValue]
+        json_data.append({"date": dateValue,  "data": sensordata_list})
+
+    result = {
+      "result": "OK",
+      "data": json_data
+    }
+    return make_response(jsonify(result), 200)  
 @app.route('/api/efwb/v1/sensordata/vital', methods=['POST'])
 def sensordata_day_get_api():
   global work
