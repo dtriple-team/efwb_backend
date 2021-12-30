@@ -869,10 +869,12 @@ def sensordata_day_get_api():
   data = json.loads(request.data)
 
   params = ['bid','dataname', 'days']
-  
+  startTime = datetime.datetime.now()
   for param in params:
     if param not in data:
       return make_response(jsonify('Parameters are not enough.'), 400)  
+  print("check param", datetime.datetime.now()-startTime)
+  startTime = datetime.datetime.now()
   json_data = []
   day = ['월', '화', '수', '목', '금', '토', '일']
   for i in data['days'] :
@@ -884,6 +886,8 @@ def sensordata_day_get_api():
         filter(func.date(SensorData.datetime) == i).\
           group_by(func.hour(SensorData.datetime)).all()
     #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+    print("query", datetime.datetime.now()-startTime)
+    startTime = datetime.datetime.now()
     if not valuedata :
       continue
     if data['dataname'] =='spo2' :
@@ -895,7 +899,8 @@ def sensordata_day_get_api():
     else:
       for b in valuedata :
         sensordata_list.append({"x": b.x,"y": float(b.y)})
-
+    print("array push", datetime.datetime.now()-startTime)
+    startTime = datetime.datetime.now()
     # dev = db.session.query(func.min(getAttribute(data['dataname'], SensorData)).label('min'), func.max(getAttribute(data['dataname'], SensorData)).label('max'), func.avg(getAttribute(data['dataname'], SensorData)).label('avg')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
     # for b in dev: 
     #   resultJSON = {
@@ -911,6 +916,8 @@ def sensordata_day_get_api():
     "data": json_data
   }
   work = False
+  print("send data", datetime.datetime.now()-startTime)
+  startTime = datetime.datetime.now()
   return make_response(jsonify(result), 200)  
 
 @app.route('/api/efwb/v1/sensordata/activity', methods=['POST'])
