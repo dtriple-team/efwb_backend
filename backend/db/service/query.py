@@ -26,9 +26,13 @@ def selectGatewayLog(gid):
     return gatewaylog
 
 def selectGatewayAll():
-    print("[method] selectGatewayAll")
-    gateways = db.session.query(Gateways).all()
-    return gateways
+    try:
+        print("[method] selectGatewayAll")
+        gateways = db.session.query(Gateways).all()
+        return gateways
+    except:
+        return []
+    
 
 def updateGatewaysAirpressure(gid, airpressure):
     db.session.query(Gateways).filter_by(id = gid).update((dict(airpressure=airpressure)))
