@@ -5,11 +5,59 @@ from sqlalchemy import func, case, or_, Interval
 db = DBManager.db
 
 def selectGatewayPid(pid):
-    dev = db.session.query(Gateways).filter_by(pid=pid).first()
-    return dev
+    gw = db.session.query(Gateways).filter_by(pid=pid).first()
+    return gw
+def selectBandBid(bid):
+    band = db.session.query(Bands).filter_by(bid = bid).first()
+    return band
+
+def insertGatewaysBands(pid, bid):
+    gateways_bands = GatewaysBands()
+    gateways_bands.FK_pid = pid
+    gateways_bands.FK_bid = bid
+    db.session.add(gateways_bands)
+    db.session.commit()
+
+def insertBandData(extAddress):
+    bands = Bands()
+    bands.bid = extAddress
+    bands.alias = "init"
+    bands.name = "init"
+    bands.gender = 0
+    bands.birth = "1997-09-01"
+        
+    db.session.add(bands)        
+    db.session.commit()
+    
+def insertUsersGateways(uid,pid):
+    users_gateways = UsersGateways()
+    users_gateways.FK_pid = pid
+    users_gateways.FK_uid = uid
+    db.session.add(users_gateways)
+    db.session.commit()
+    
+def insertUsersBands(uid, bid):
+    users_bands = UsersBands()
+    users_bands.FK_bid = bid
+    users_bands.FK_uid = uid
+    db.session.add(users_bands)
+    db.session.commit()
+
 def insertSensorData(data, ):
     data = SensorData()
-
+def updateGatewaysIP(id, ip):
+    db.session.query(Gateways).filter_by(id=id).update(dict(ip=ip))
+    db.session.commit()
+    print("dfs")
+def insertGateway(gw):
+    gw_all = selectGatewayAll()
+    gateways = Gateways()
+    gateways.pid = gw['panid']
+    gateways.alias = "init"
+    gateways.ip = gw['ip']
+    gateways.location = "부산"
+    db.session.add(gateways)
+    db.session.commit()
 def insertEvent(id, type, value):
     events = Events()
     events.FK_bid = id

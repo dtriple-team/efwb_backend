@@ -4,7 +4,7 @@ from flask import make_response, jsonify, request, json
 from backend.db.table.table_band import *
 from backend.db.service.query import *
 from backend.api.socket import *
-
+from backend.api.crawling import *
 mqtt_thread = None
 gw_thread = None
 event_thread = None
@@ -21,24 +21,17 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   except:
     pass
 def handle_sync_data(mqtt_data, extAddress):
-  # print("start handle_sync_data")
-  # global spo2BandData
-  # startTime = datetime.datetime.now()
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   
   if dev is not None:
-    # print("dev")
     gatewayDev = db.session.query(Gateways.airpressure).\
       filter(Gateways.id == GatewaysBands.FK_pid).\
-        filter(GatewaysBands.FK_bid == dev.id).first()
-    # print("gatewayDev")    
+        filter(GatewaysBands.FK_bid == dev.id).first() 
     sensorDev = db.session.query(WalkRunCount).\
       filter(WalkRunCount.FK_bid == dev.id).\
          filter(func.date(WalkRunCount.datetime)==func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-    # print("sensorDev")  
     db.session.flush()
-    # print("get db", datetime.datetime.now() - startTime)
-    # startTime = datetime.datetime.now()
+    
     try :
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
@@ -73,7 +66,6 @@ def handle_sync_data(mqtt_data, extAddress):
 
         elif sensorDev.walk_steps==bandData['walk_steps']:
             mqtt_data['bandData']['walk_steps'] = sensorDev.walk_steps
-      # print("walk_steps") 
       data.walk_steps = mqtt_data['bandData']['walk_steps']
       data.temp_walk_steps = temp_walk_steps
       
@@ -98,8 +90,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
         elif sensorDev.run_steps==bandData['run_steps']:
             mqtt_data['bandData']['run_steps'] = sensorDev.run_steps
-      
-      # print("run_steps") 
+       
       data.run_steps = mqtt_data['bandData']['run_steps']
       data.temp_run_steps = temp_walk_steps
 
@@ -122,8 +113,6 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.add(walkRunCount)
         db.session.commit()
         db.session.flush()
-      # print("work - db", datetime.datetime.now() - startTime)
-      # startTime = datetime.datetime.now()
       data.x = bandData['x']
       data.y = bandData['y']
       data.z = bandData['z']
@@ -136,28 +125,42 @@ def handle_sync_data(mqtt_data, extAddress):
           data.h = mqtt_data['bandData']['h']
       else:
         data.h = mqtt_data['bandData']['h']
-      # print("getAltitude") 
       data.rssi = mqtt_data['rssi']   
       data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
       db.session.commit()     
       db.session.flush()
       socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-      # print("close handle_sync_data")
-      # print("고도값 - DB - socket",datetime.datetime.now() - startTime)
     except Exception as e :
       print("****** error ********")
       print(e)
+  else :
+    insertBandData(extAddress)
+    band = selectBandBid(extAddress)
+    gw = selectGatewayPid(mqtt_data['pid'])
+    if band is not None and gw is not None:
+      insertGatewaysBands(gw.id, band.id)
+      insertUsersBands(1, band.id)
 
 def handle_gateway_state(panid):
   print("handle_gateway_state", panid)
   try:
     dev = selectGatewayPid(panid['panid'])
     if dev is not None:
+      if dev.ip != panid['ip'] :
+        updateGatewaysIP(dev.id, panid['ip'])
       if dev.connect_state == 0:
         updateGatewaysConnect(dev.id, True)
       else :
         updateGatewaysConnectCheck(dev.id)
+    else :
+        insertGateway(panid)
+        dev = selectGatewayPid(panid['panid'])
+        insertUsersGateways(1, dev.id)
+        d = datetime.datetime.now(timezone('Asia/Seoul'))
+        urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
+        airpressure = getAirpressure(urldate, dev.location)
+        updateGatewaysAirpressure(dev.id, airpressure)
     socketio.emit('gateway_connect', panid, namespace='/receiver')
   except:
     pass
