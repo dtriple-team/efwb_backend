@@ -18,6 +18,16 @@ def insertGatewaysBands(pid, bid):
     db.session.add(gateways_bands)
     db.session.commit()
 
+def insertUsers():
+    user = Users()
+    user.uid = 2001
+    user.username = "demo"
+    user.password = DBManager.password_encoder_512("1234")
+    user.name = "demo"
+    user.permission = 1
+    db.session.add(user)
+    db.session.commit()
+
 def insertBandData(extAddress):
     bands = Bands()
     bands.bid = extAddress
@@ -35,7 +45,12 @@ def insertUsersGateways(uid,pid):
     users_gateways.FK_uid = uid
     db.session.add(users_gateways)
     db.session.commit()
-    
+def insertUsersGroups(uid,gid):
+    users_groups = UsersGroups()
+    users_groups.FK_gid = gid
+    users_groups.FK_uid = uid
+    db.session.add(users_groups)
+    db.session.commit()   
 def insertUsersBands(uid, bid):
     users_bands = UsersBands()
     users_bands.FK_bid = bid
@@ -50,7 +65,6 @@ def updateGatewaysIP(id, ip):
     db.session.commit()
     print("dfs")
 def insertGateway(gw):
-    gw_all = selectGatewayAll()
     gateways = Gateways()
     gateways.pid = gw['panid']
     gateways.alias = "init"

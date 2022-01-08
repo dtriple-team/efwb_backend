@@ -159,8 +159,9 @@ def handle_gateway_state(panid):
         insertUsersGateways(1, dev.id)
         d = datetime.datetime.now(timezone('Asia/Seoul'))
         urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-        airpressure = getAirpressure(urldate, dev.location)
-        updateGatewaysAirpressure(dev.id, airpressure)
+        trtemp, atemp = getAirpressure(urldate)
+        if trtemp != 0:
+          updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
     socketio.emit('gateway_connect', panid, namespace='/receiver')
   except:
     pass

@@ -701,3 +701,17 @@ class DBManager:
         walkRunCount.walk_steps = 399
         DBManager.db.session.add(walkRunCount)    
         DBManager.db.session.commit()
+
+    @staticmethod
+    def insert_dummy_example():
+        from backend.db.service.query import insertUsers, insertUsersGateways, insertUsersBands, insertGatewaysBands, insertUsersGroups
+        insertUsers()
+        insertUsersGateways(3, 3)
+        insertUsersBands(3,21)
+        insertUsersBands(3,22)
+        insertGatewaysBands(3, 21)
+        insertGatewaysBands(3, 22)
+        insertUsersGroups(3, 2)
+
+
+        

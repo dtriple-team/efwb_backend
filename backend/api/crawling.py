@@ -3,7 +3,7 @@ from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import requests
 
-def getAirpressure(date , location) :
+def getAirpressure(date) :
     try:
         html = requests.get("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+date+"%3A00&x=25&y=1")  
 
@@ -11,14 +11,17 @@ def getAirpressure(date , location) :
         temp = bsObject.find("table", {"class": "table_develop3"})
         trtemp = temp.find_all('tr')
         atemp = temp.find_all('a')
-
-        for a in range(len(atemp)):
+       
+        return trtemp, atemp
+    except:
+        return 0, 0
+def searchAirpressure(trtemp, atemp, location):
+    for a in range(len(atemp)):
             if atemp[a].text == location:
                 break
-        tdtemp = trtemp[a+2].find_all('td')
-        return float(tdtemp[len(tdtemp)-1].text)
-    except:
-        return float(0)
+    tdtemp = trtemp[a+2].find_all('td')
+    return  float(tdtemp[len(tdtemp)-1].text)
+
 def getWeather(location):
     try:
         html = requests.get(

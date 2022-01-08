@@ -54,14 +54,12 @@ def getAirpressureTask():
     print("getAltitud start")
     work = True
     dev = selectGatewayAll()
-    for g in dev:
-    
-      d = datetime.datetime.now(timezone('Asia/Seoul'))
-      urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-      airpressure = getAirpressure(urldate, g.location)
-
-      if airpressure != 0 :
-        updateGatewaysAirpressure(g.id, airpressure)
+    d = datetime.datetime.now(timezone('Asia/Seoul'))
+    urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
+    trtemp, atemp = getAirpressure(urldate)
+    if trtemp != 0 :
+      for g in dev:
+        updateGatewaysAirpressure(g.id, searchAirpressure(trtemp, atemp, g.location))
     work = False
 
 def gatewayCheckThread():
