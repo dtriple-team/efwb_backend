@@ -713,5 +713,12 @@ class DBManager:
         insertGatewaysBands(3, 22)
         insertUsersGroups(3, 2)
 
+    @staticmethod
+    def insert_dummy_name():
+        from backend.db.service.query import updateBandNameAlias, updateGatewayAlias
+        updateBandNameAlias(21, "BAP", "BAP")
+        updateBandNameAlias(22, "BAP", "BAP")
+        updateGatewayAlias(3, "BAP")
+
 
         

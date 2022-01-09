@@ -57,6 +57,12 @@ def example():
         return
     with app.app_context():
         DBManager.insert_dummy_example()  
+@manager.command
+def name():
+    if check_message('Are you sure to walk run table ? (Y/n)') == False:
+        return
+    with app.app_context():
+        DBManager.insert_dummy_name()  
 def check_message(message):
     inp = input(message)
     if inp == 'Y':

@@ -27,7 +27,12 @@ def insertUsers():
     user.permission = 1
     db.session.add(user)
     db.session.commit()
-
+def updateBandNameAlias(bid, name, alias):
+    db.session.query(Bands).filter_by(id = bid).update(dict(name=name, alias=alias))
+    db.session.commit()
+def updateGatewayAlias(pid, alias):
+    db.session.query(Gateways).filter_by(id = pid).update(dict(alias=alias))
+    db.session.commit()
 def insertBandData(extAddress):
     bands = Bands()
     bands.bid = extAddress

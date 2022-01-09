@@ -36,6 +36,9 @@ def getWeather(location):
         max = temp.find("span", {"class": "highest"})
         fore = temp.find_all("li",{"class": "_li"})
         
+        wind = temp.find_all("dt", {"class": "term"})
+        wind_strength = temp.find_all("dd", {"class": "desc"})
+
         forecast = []
         for fo in range(4):
             if fore[fo*2].find("dt", {"class": "time"}).text == "내일":
@@ -57,7 +60,9 @@ def getWeather(location):
             "max":max.text.replace("최고기온", ""),
             "finedust": temp[0].text,
             "ultrafinedust":temp[0].text,
-            "forecast": forecast
+            "forecast": forecast,
+            "wind":wind[2].text,
+            "wind_strength":wind_strength[2].text
         }
         return result
     except:
