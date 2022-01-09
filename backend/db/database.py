@@ -716,9 +716,9 @@ class DBManager:
     @staticmethod
     def insert_dummy_name():
         from backend.db.service.query import updateBandNameAlias, updateGatewayAlias
-        updateBandNameAlias(21, "BAP", "BAP")
-        updateBandNameAlias(22, "BAP", "BAP")
-        updateGatewayAlias(3, "BAP")
+        updateBandNameAlias(21, "BPA", "BPA")
+        updateBandNameAlias(22, "BPA", "BPA")
+        updateGatewayAlias(3, "BPA")
 
 
         
