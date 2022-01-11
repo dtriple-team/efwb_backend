@@ -812,7 +812,23 @@ def users_bands_list_get_api():
   }
 
   return make_response(jsonify(result), 200)
+@app.route('/api/efwb/v1/usersgateways/check', methods=['POST'])
+def users_gateways_check_api():
+  data = json.loads(request.data)
+  params = ['uid', 'pid']
+  result = False
+  for param in params:
+    if param not in data :
+      return make_response(jsonify('Parameters are not enough.'), 400) 
+  usersgateways = UsersGateways.query.filter(UsersGateways.FK_uid == data['uid']).all()
+  gateway = Gateways.query.filter(Gateways.pid == data['pid']).first()
+  
+  for ug in usersgateways:
+    if ug.FK_pid == gateway.id:
+      result=True
+      break
 
+  return make_response(jsonify({"data": result}), 200)  
 @app.route('/api/efwb/v1/usersgateways/delete', methods=['DELETE'])
 @token_required
 def users_bands_delete_api():
@@ -1065,7 +1081,7 @@ def events_post_api():
   global work
   work = True
   data = json.loads(request.data)
-  params = ['bid', 'days']
+  params = ['bid', 'days', 'uid']
 
   for param in params:
     if param not in data:
@@ -1074,7 +1090,14 @@ def events_post_api():
   dev = []
   print(data)
   if len(data['days']) == 0 :
-    if data['bid'] != -1 :
+    if data['uid'] != -1 :
+      dev = db.session.query(Events).\
+      distinct(Events.datetime, Events.type).\
+        filter( UsersBands.FK_uid == data['uid']).\
+          filter(UsersBands.FK_bid == Events.FK_bid).\
+          group_by(Events.datetime, Events.type).\
+            all()
+    elif data['bid'] != -1 :
       dev = db.session.query(Events).\
       distinct(Events.datetime, Events.type).\
         filter(Events.FK_bid==data['bid']).\
@@ -1086,7 +1109,15 @@ def events_post_api():
         group_by(Events.datetime, Events.type).\
           all()
   else :
-    if data['bid'] != -1:
+    if data['uid'] != -1:
+      dev = db.session.query(Events).\
+      distinct(Events.datetime, Events.type).\
+        filter( UsersBands.FK_uid == data['uid']).\
+          filter(UsersBands.FK_bid == Events.FK_bid).\
+          filter(func.date(Events.datetime).\
+            between(data['days'][0], datetimeBetween(data['days']))).\
+              group_by(Events.datetime, Events.type).all()
+    elif data['bid'] != -1:
       dev = db.session.query(Events).\
         distinct(Events.datetime, Events.type).\
         filter(Events.FK_bid==data['bid']).\
@@ -1094,7 +1125,6 @@ def events_post_api():
             between(data['days'][0], datetimeBetween(data['days']))).\
               group_by(Events.datetime, Events.type).all()
     else:
-      
       dev = db.session.query(Events).\
         distinct(Events.datetime, Events.type).\
           filter(func.date(Events.datetime).\
@@ -1127,10 +1157,8 @@ def events_all_fall_post_api():
     dateti = time + timedelta(days=-d)
     dev = db.session.query(func.date_format(dateti, '%m/%d').label('day'),
     func.ifnull(func.sum(Events.value), 0).label('fall')).\
-      filter(Users.id == data['uid']).\
-        filter(Users.id == UsersGateways.FK_uid).\
-          filter(UsersGateways.FK_pid == GatewaysBands.FK_pid).\
-            filter(GatewaysBands.FK_bid == Events.FK_bid).\
+        filter(UsersBands.FK_uid == data['uid']).\
+            filter(UsersBands.FK_bid == Events.FK_bid).\
               filter(Events.type==0).\
                 filter(func.date_format(Events.datetime,'%Y-%m-%d') == func.date_format(dateti,'%Y-%m-%d')).first()
     json_data.append({"x": dev.day, "y": int(dev.fall)})
