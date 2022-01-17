@@ -10,6 +10,7 @@ airpressure_thread = None
 def setGatewayLog(gid, gpid, check):
   print("[method] setGatewayLog")
   updateGatewaysConnect(gid, check)
+  insertGatewaysLog(gid, check)
   if check == False:
     dev =  selectBandsConnectGateway(gid)
     for b in dev:
