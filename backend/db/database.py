@@ -705,13 +705,8 @@ class DBManager:
     @staticmethod
     def insert_dummy_example():
         from backend.db.service.query import insertUsers, insertUsersGateways, insertUsersBands, insertGatewaysBands, insertUsersGroups
-        insertUsers()
-        insertUsersGateways(3, 3)
-        insertUsersBands(3,21)
-        insertUsersBands(3,22)
-        insertGatewaysBands(3, 21)
-        insertGatewaysBands(3, 22)
-        insertUsersGroups(3, 2)
+        insertUsersBands(1,21)
+        insertUsersBands(1,22)
 
     @staticmethod
     def insert_dummy_name():
