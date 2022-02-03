@@ -16,10 +16,12 @@ def getAirpressure(date) :
     except:
         return 0, 0
 def searchAirpressure(trtemp, atemp, location):
-    for a in range(len(atemp)):
-            if atemp[a].text == location:
+
+    at = 0
+    for at in range(len(atemp)):
+            if atemp[at].text == location:
                 break
-    tdtemp = trtemp[a+2].find_all('td')
+    tdtemp = trtemp[at+2].find_all('td')
     return  float(tdtemp[len(tdtemp)-1].text)
 
 def getWeather(location):

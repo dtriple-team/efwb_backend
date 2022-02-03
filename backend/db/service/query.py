@@ -4,6 +4,23 @@ from backend.db.table.table_band import *
 from sqlalchemy import func, case, or_, Interval
 db = DBManager.db
 
+def getBandsEventsUser(uid, permission):
+    dev = db.session.query(Events).\
+      distinct(Events.datetime, Events.type).\
+        filter( UsersBands.FK_uid == uid).\
+          filter(UsersBands.FK_bid == Events.FK_bid).\
+          group_by(Events.datetime, Events.type).\
+            all()
+    return dev
+
+def getBandsEventsBands(bid):
+    dev = db.session.query(Events).\
+      distinct(Events.datetime, Events.type).\
+        filter(Events.FK_bid==bid).\
+          group_by(Events.datetime, Events.type).\
+            all()
+    return dev
+
 def selectGatewayPid(pid):
     gw = db.session.query(Gateways).filter_by(pid=pid).first()
     return gw
@@ -27,12 +44,15 @@ def insertUsers():
     user.permission = 1
     db.session.add(user)
     db.session.commit()
+
 def updateBandNameAlias(bid, name, alias):
     db.session.query(Bands).filter_by(id = bid).update(dict(name=name, alias=alias))
     db.session.commit()
+
 def updateGatewayAlias(pid, alias):
     db.session.query(Gateways).filter_by(id = pid).update(dict(alias=alias))
     db.session.commit()
+
 def insertBandData(extAddress):
     bands = Bands()
     bands.bid = extAddress
@@ -50,12 +70,14 @@ def insertUsersGateways(uid,pid):
     users_gateways.FK_uid = uid
     db.session.add(users_gateways)
     db.session.commit()
+
 def insertUsersGroups(uid,gid):
     users_groups = UsersGroups()
     users_groups.FK_gid = gid
     users_groups.FK_uid = uid
     db.session.add(users_groups)
     db.session.commit()   
+
 def insertUsersBands(uid, bid):
     users_bands = UsersBands()
     users_bands.FK_bid = bid
@@ -65,16 +87,17 @@ def insertUsersBands(uid, bid):
 
 def insertSensorData(data, ):
     data = SensorData()
+
 def updateGatewaysIP(id, ip):
     db.session.query(Gateways).filter_by(id=id).update(dict(ip=ip))
     db.session.commit()
-    print("dfs")
+
 def insertGateway(gw):
     gateways = Gateways()
     gateways.pid = gw['panid']
     gateways.alias = "init"
     gateways.ip = gw['ip']
-    gateways.location = "부산"
+    gateways.location = "서울"
     db.session.add(gateways)
     db.session.commit()
 def insertEvent(id, type, value):
@@ -96,19 +119,23 @@ def selectGatewayAll():
     try:
         print("[method] selectGatewayAll")
         gateways = db.session.query(Gateways).all()
+        print(gateways)
         return gateways
     except:
+        print("error")
         return []
     
 
 def updateGatewaysAirpressure(gid, airpressure):
     db.session.query(Gateways).filter_by(id = gid).update((dict(airpressure=airpressure)))
     db.session.commit()
+
 def updateGatewaysConnectCheck(gid):
     db.session.query(Gateways).filter_by(id=gid).\
         update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
     db.session.commit()
     db.session.flush()
+    
 def updateGatewaysConnect(gid, type):
     print("[method] updateGatewaysConnect")
     getTime = datetime.datetime.now(timezone('Asia/Seoul'))
