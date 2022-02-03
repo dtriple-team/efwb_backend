@@ -1,5 +1,4 @@
 print ("module [socket] loaded")
-from tkinter.font import names
 from backend import socketio
 from backend.api.mqtt import *
 from backend.db.service.query import *
