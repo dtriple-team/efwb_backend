@@ -43,6 +43,7 @@ login_manager.init_app(app)
 # api
 mqtt = Mqtt(app)
 mqtt.init_app(app)
+
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 socketio = SocketIO(app, cors_allowed_origins="*")
 thread_lock = Lock()
