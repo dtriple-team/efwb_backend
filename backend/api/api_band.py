@@ -37,8 +37,9 @@ def init_setting():
   mqtt.subscribe('/efwb/post/sync')
   mqtt.subscribe('/efwb/post/async')
   mqtt.subscribe('/efwb/post/connectcheck')
-  gatewayCheckThread()
-  getAirpressureThread()  
+  if threadCheck() :
+    gatewayCheckThread()
+    getAirpressureThread() 
   return make_response("ok", 200)
 
 @app.route('/api/efwb/v1/login', methods=['POST'])
