@@ -5,6 +5,7 @@ import backend.api.socket as socket
 from backend.api.crawling import *
 gateway_thread = None
 airpressure_thread = None
+thread_check = True
 
 def setGatewayLog(gid, gpid, check):
   print("[method] setGatewayLog")
@@ -59,16 +60,22 @@ def getAirpressureTask():
     if trtemp != 0 :
       for g in dev:
         updateGatewaysAirpressure(g.id, searchAirpressure(trtemp, atemp, g.location))
+
 def gatewayCheckThread():
   global gateway_thread
-
   with thread_lock:
     if gateway_thread is None:
       gateway_thread = socketio.start_background_task(gatewayCheck)
 
 def getAirpressureThread():
   global airpressure_thread
-
+  global thread_check
+  thread_check = False
+  print("airpressure_check")
   with thread_lock:
     if airpressure_thread is None:
       airpressure_thread = socketio.start_background_task(getAirpressureTask)
+
+def threadCheck():
+  global thread_check
+  return thread_check

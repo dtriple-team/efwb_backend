@@ -30,6 +30,7 @@ def messageReceived(methods=['GET', 'POST']):
 def load_user(id):
     user = DBManager.db.session.query(Users).get(id)
     return user
+
 @app.route('/api/efwb/v1/login', methods=['POST'])
 def login_api():
     print("login api")
