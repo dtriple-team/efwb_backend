@@ -42,6 +42,13 @@ def init_setting():
     getAirpressureThread() 
   return make_response("ok", 200)
 
+@app.route('/api/efwb/v1/thread', methods=['GET'])
+def init_thread():
+  if threadCheck() :
+    gatewayCheckThread()
+    getAirpressureThread() 
+  return make_response("ok", 200)
+  
 @app.route('/api/efwb/v1/login', methods=['POST'])
 def login_api():
     print("login api")

@@ -24,20 +24,18 @@ def setGatewayLog(gid, gpid, check):
     socket.socket_emit('gateway_connect', gateway)
     
 def gatewayCheck():
-  global work
   while True:
     socketio.sleep(120)
     # socketio.sleep(60)
     print("gatewayCheck start")
-    work = True
     try:
       gateways = selectGatewayAll()
-      print("thread")
       print(gateways)
       for g in gateways:
         time1 = g.connect_check_time.replace(tzinfo=None)
         time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
         if (time2-time1).seconds > 120:
+          print(g.id, g.connect_state)
           if g.connect_state==1 :
               setGatewayLog(g.id, g.pid, False)
           else:
@@ -47,7 +45,7 @@ def gatewayCheck():
 
     except Exception as e:
       print(e)
-    work = False
+
 def getAirpressureTask():
   while True:
     socketio.sleep(3600)
@@ -63,6 +61,7 @@ def getAirpressureTask():
 
 def gatewayCheckThread():
   global gateway_thread
+  print("gateway_check")
   with thread_lock:
     if gateway_thread is None:
       gateway_thread = socketio.start_background_task(gatewayCheck)

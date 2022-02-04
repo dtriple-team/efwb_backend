@@ -171,9 +171,6 @@ def handle_connect(client, userdata, flags, rc):
     mqtt.subscribe('/efwb/post/sync')
     mqtt.subscribe('/efwb/post/async')
     mqtt.subscribe('/efwb/post/connectcheck')
-    if threadCheck() :
-      gatewayCheckThread()
-      getAirpressureThread() 
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
