@@ -33,13 +33,14 @@ def load_user(id):
 
 @app.route('/api/efwb/v1/setting', methods=['GET'])
 def init_setting():
+  mqtt.unsubscribe_all()
   mqtt.subscribe('/efwb/post/sync')
   mqtt.subscribe('/efwb/post/async')
   mqtt.subscribe('/efwb/post/connectcheck')
   gatewayCheckThread()
   getAirpressureThread()  
   return make_response("ok", 200)
-  
+
 @app.route('/api/efwb/v1/login', methods=['POST'])
 def login_api():
     print("login api")
