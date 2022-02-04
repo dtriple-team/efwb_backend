@@ -118,12 +118,11 @@ def selectGatewayLog(gid):
 def selectGatewayAll():
     try:
         print("[method] selectGatewayAll")
-        gateways = db.session.query(Gateways).all()
+        gateways = Gateways.query.all()
         print(gateways)
         return gateways
-    except:
-        print("error")
-        DBManager.init(app)
+    except Exception as e:
+        print(e)
         return []
     
 
