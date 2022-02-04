@@ -123,6 +123,7 @@ def selectGatewayAll():
         return gateways
     except:
         print("error")
+        DBManager.init(app)
         return []
     
 

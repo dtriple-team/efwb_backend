@@ -24,8 +24,7 @@ def handle_sync_data(mqtt_data, extAddress):
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   if dev is not None:
     gatewayDev = db.session.query(Gateways.airpressure).\
-      filter(Gateways.id == GatewaysBands.FK_pid).\
-        filter(GatewaysBands.FK_bid == dev.id).first() 
+      filter(Gateways.pid == mqtt_data['pid']).first() 
     if gatewayDev is not None:
       sensorDev = db.session.query(WalkRunCount).\
         filter(WalkRunCount.FK_bid == dev.id).\
