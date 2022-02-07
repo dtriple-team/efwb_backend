@@ -46,7 +46,6 @@ class DBManager:
         DBManager.insert_dummy_users_groups()
         DBManager.insert_dummy_gateways()
         DBManager.insert_dummy_bands()
-        DBManager.insert_dummy_users_gateways()
         DBManager.insert_dummy_gateways_bands()
         DBManager.insert_dummy_users_bands()
         DBManager.insert_dummy_server()
@@ -149,13 +148,7 @@ class DBManager:
         gateways.alias = "dtriple"
         gateways.ip = "192.168.0.105"
         gateways.location = "구미"
-        DBManager.db.session.add(gateways)
-
-        gateways = Gateways()
-        gateways.pid = "0xA022"
-        gateways.alias = "demo"
-        gateways.ip = "192.168.0.105"
-        gateways.location = "대구"
+        gateways.airpressure = 1026
         DBManager.db.session.add(gateways)
         DBManager.db.session.commit()
 

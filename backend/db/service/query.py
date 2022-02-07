@@ -118,7 +118,7 @@ def selectGatewayLog(gid):
 def selectGatewayAll():
     try:
         print("[method] selectGatewayAll")
-        gateways = Gateways.query.all()
+        gateways = db.session.query(Gateways).all()
         print(gateways)
         return gateways
     except Exception as e:
@@ -148,6 +148,12 @@ def updateGatewaysConnect(gid, type):
     db.session.commit()
     db.session.flush()
 
+def updateGatewaysThreadCheck(gid):
+    print("[method] updateGatewaysThreadCheck")
+    getTime = datetime.datetime.now(timezone('Asia/Seoul'))
+    Gateways.query.filter_by(id=gid).update(dict(thread_check_time=getTime))
+    db.session.commit()
+    db.session.flush()
 
 def insertGatewaysLog(gid, type):
     print("[method] insertGatewaysLog")

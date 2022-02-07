@@ -29,12 +29,16 @@ def gatewayCheck():
     # socketio.sleep(60)
     print("gatewayCheck start")
     try:
-      gateways = db.session.query(Gateways).all()
+      gateways = selectGatewayAll()
+      for g in gateways:
+        updateGatewaysThreadCheck(g.id)
+      gateways = selectGatewayAll()
       for g in gateways:
         time1 = g.connect_check_time.replace(tzinfo=None)
         time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
-        print(g.id, g.connect_state, g.connect_check_time)
+        print(g.id, g.connect_check_time)
         if (time2-time1).seconds > 120:
+          print(g.id, g.connect_state)
           if g.connect_state==1 :
               setGatewayLog(g.id, g.pid, False)
           else:
