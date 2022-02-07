@@ -11,7 +11,8 @@ from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
 from threading import Lock
 import logging
-
+from apscheduler.schedulers.background import BackgroundScheduler
+sched = BackgroundScheduler(timezone='Asia/Seoul')
 logging.basicConfig(filename = "test.log", level = logging.DEBUG)
 
 # app = Flask(__name__)
@@ -49,6 +50,7 @@ mqtt.init_app(app)
 
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 socketio = SocketIO(app,cors_allowed_origins="*")
+
 thread_lock = Lock()
 
 from backend.api.api_create import *
@@ -56,6 +58,11 @@ from backend.api.mqtt import *
 from backend.api.thread import *
 # gatewayCheckThread()
 # getAirpressureThread()
+@sched.scheduled_job('interval', seconds=20, id='test_1')
+def job1():
+    print(f'job1 : {time.strftime("%H:%M:%S")}')
+    gatewayCheck()
+sched.start()   
 
 @app.route("/", methods=["GET"])
 def page_index():
