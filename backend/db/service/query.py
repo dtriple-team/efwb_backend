@@ -113,12 +113,14 @@ def insertEvent(id, type, value):
 def selectGatewayLog(gid):
     print("[method] selectGatewayLog")
     gatewaylog = GatewayLog.query.filter_by(FK_pid=gid).first()
+    db.session.flush()
     return gatewaylog
 
 def selectGatewayAll():
     try:
         print("[method] selectGatewayAll")
         gateways = db.session.query(Gateways).all()
+        db.session.flush()
         print(gateways)
         return gateways
     except Exception as e:
@@ -129,6 +131,7 @@ def selectGatewayAll():
 def updateGatewaysAirpressure(gid, airpressure):
     db.session.query(Gateways).filter_by(id = gid).update((dict(airpressure=airpressure)))
     db.session.commit()
+    db.session.flush()
 
 def updateGatewaysConnectCheck(gid):
     db.session.query(Gateways).filter_by(id=gid).\

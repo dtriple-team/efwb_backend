@@ -3,6 +3,9 @@ from backend import socketio, thread_lock
 from backend.db.service.query import *
 import backend.api.socket as socket
 from backend.api.crawling import *
+from threading import Thread
+import time
+
 gateway_thread = None
 airpressure_thread = None
 thread_check = True
@@ -23,9 +26,32 @@ def setGatewayLog(gid, gpid, check):
     }
     socket.socket_emit('gateway_connect', gateway)
     
+# def gatewayCheck():
+#   while True:
+#     socketio.sleep(120)
+#     # socketio.sleep(60)
+#     print("gatewayCheck start")
+#     try:
+#       gateways = selectGatewayAll()
+#       for g in gateways:
+#         updateGatewaysThreadCheck(g.id)
+#       gateways = selectGatewayAll()
+#       for g in gateways:
+#         time1 = g.connect_check_time.replace(tzinfo=None)
+#         time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
+#         print(g.id, g.connect_check_time)
+#         if (time2-time1).seconds > 120:
+#           print(g.id, g.connect_state)
+#           if g.connect_state==1 :
+#               setGatewayLog(g.id, g.pid, False)
+#           else:
+#             dev = selectGatewayLog(g.id)
+#             if dev is None:
+#               setGatewayLog(g.id, g.pid, False)
+
+#     except Exception as e:
+#       print(e)
 def gatewayCheck():
-  while True:
-    socketio.sleep(120)
     # socketio.sleep(60)
     print("gatewayCheck start")
     try:
@@ -48,6 +74,31 @@ def gatewayCheck():
 
     except Exception as e:
       print(e)
+# def gatewayCheck():
+#     time.sleep(20)
+#     # socketio.sleep(60)
+#     print("gatewayCheck start")
+#     try:
+#       gateways = selectGatewayAll()
+#       # for g in gateways:
+#       #   updateGatewaysThreadCheck(g.id)
+#       # gateways = selectGatewayAll()
+#       for g in gateways:
+#         time1 = g.connect_check_time.replace(tzinfo=None)
+#         time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
+#         print(g.id, g.connect_check_time)
+#         if (time2-time1).seconds > 120:
+#           print(g.id, g.connect_state)
+#           if g.connect_state==1 :
+#               setGatewayLog(g.id, g.pid, False)
+#           else:
+#             dev = selectGatewayLog(g.id)
+#             if dev is None:
+#               setGatewayLog(g.id, g.pid, False)
+
+#     except Exception as e:
+#       print(e)
+#     gatewayCheckThread()
 
 def getAirpressureTask():
   while True:
@@ -68,6 +119,11 @@ def gatewayCheckThread():
   with thread_lock:
     if gateway_thread is None:
       gateway_thread = socketio.start_background_task(gatewayCheck)
+
+# def gatewayCheckThread():
+#   thread = Thread(target = gatewayCheck)
+#   thread.daemon = True
+#   thread.start()
 
 def getAirpressureThread():
   global airpressure_thread

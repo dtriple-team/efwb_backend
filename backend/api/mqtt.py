@@ -167,10 +167,10 @@ def handle_gateway_state(panid):
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
     print("mqtt connect")
-    # mqtt.unsubscribe_all()
-    # mqtt.subscribe('/efwb/post/sync')
-    # mqtt.subscribe('/efwb/post/async')
-    # mqtt.subscribe('/efwb/post/connectcheck')
+    mqtt.unsubscribe_all()
+    mqtt.subscribe('/efwb/post/sync')
+    mqtt.subscribe('/efwb/post/async')
+    mqtt.subscribe('/efwb/post/connectcheck')
     # if threadCheck() :
     #   gatewayCheckThread()
     #   getAirpressureThread() 
