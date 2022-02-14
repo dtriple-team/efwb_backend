@@ -13,7 +13,7 @@ from threading import Lock
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 sched = BackgroundScheduler(timezone='Asia/Seoul')
-logging.basicConfig(filename = "test.log", level = logging.DEBUG)
+# logging.basicConfig(filename = "test.log", level = logging.DEBUG)
 
 # app = Flask(__name__)
 
