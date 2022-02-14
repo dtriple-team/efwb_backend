@@ -145,7 +145,6 @@ class Gateways(db.Model):
     connect_time = db.Column('connect_time', db.DateTime,   default=datetime.datetime.now(timezone('Asia/Seoul')), comment='마지막 연결 시간')
     connect_check_time = db.Column('connect_check_time', db.DateTime,   default=datetime.datetime.now(timezone('Asia/Seoul')), comment='연결 체크 시간')
     connect_state = db.Column('connect_state', db.Integer,  default=0, comment='연결 상태' )
-    thread_check_time = db.Column('thread_check_time', db.DateTime, default=datetime.datetime.now(timezone('Asia/Seoul')), comment='thread 체크 시간')
     def serialize(self):
         resultJSON = {
             # property (a)
@@ -158,8 +157,7 @@ class Gateways(db.Model):
             "airpressure": self.airpressure,
             "disconnect_time": self.disconnect_time,
             "connect_time": self.connect_time,
-            "connect_state": self.connect_state,
-            "thread_check_time": self.thread_check_time
+            "connect_state": self.connect_state
         }
         return resultJSON 
 class GatewayLog(db.Model):

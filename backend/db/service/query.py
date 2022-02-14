@@ -151,13 +151,6 @@ def updateGatewaysConnect(gid, type):
     db.session.commit()
     db.session.flush()
 
-def updateGatewaysThreadCheck(gid):
-    print("[method] updateGatewaysThreadCheck")
-    getTime = datetime.datetime.now(timezone('Asia/Seoul'))
-    Gateways.query.filter_by(id=gid).update(dict(thread_check_time=getTime))
-    db.session.commit()
-    db.session.flush()
-
 def insertGatewaysLog(gid, type):
     print("[method] insertGatewaysLog")
     gatewayLog = GatewayLog()

@@ -58,10 +58,16 @@ from backend.api.mqtt import *
 from backend.api.thread import *
 # gatewayCheckThread()
 # getAirpressureThread()
-@sched.scheduled_job('interval', seconds=20, id='test_1')
+@sched.scheduled_job('interval', seconds=120, id='test_1')
 def job1():
-    print(f'job1 : {time.strftime("%H:%M:%S")}')
     gatewayCheck()
+
+
+@sched.scheduled_job('interval', minutes=60, id='test_2')
+def job2():
+    getAirpressureTask()
+
+
 sched.start()   
 
 @app.route("/", methods=["GET"])

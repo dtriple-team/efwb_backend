@@ -57,9 +57,6 @@ def gatewayCheck():
     try:
       gateways = selectGatewayAll()
       for g in gateways:
-        updateGatewaysThreadCheck(g.id)
-      gateways = selectGatewayAll()
-      for g in gateways:
         time1 = g.connect_check_time.replace(tzinfo=None)
         time2 = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
         print(g.id, g.connect_check_time)
@@ -100,10 +97,20 @@ def gatewayCheck():
 #       print(e)
 #     gatewayCheckThread()
 
+# def getAirpressureTask():
+#   while True:
+#     socketio.sleep(3600)
+#     # socketio.sleep(60)
+#     print("getAltitud start")
+#     dev = selectGatewayAll()
+#     d = datetime.datetime.now(timezone('Asia/Seoul'))
+#     urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
+#     trtemp, atemp = getAirpressure(urldate)
+#     if trtemp != 0 :
+#       for g in dev:
+#         updateGatewaysAirpressure(g.id, searchAirpressure(trtemp, atemp, g.location))
+
 def getAirpressureTask():
-  while True:
-    socketio.sleep(3600)
-    # socketio.sleep(60)
     print("getAltitud start")
     dev = selectGatewayAll()
     d = datetime.datetime.now(timezone('Asia/Seoul'))
