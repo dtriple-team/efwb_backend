@@ -1,16 +1,23 @@
 from backend import app, socketio, mqtt, thread_lock
 from backend.api.thread import *
-from flask import make_response, jsonify, request, json
+from flask import json
 from backend.db.table.table_band import *
 from backend.db.service.query import *
 from backend.api.socket import *
 from backend.api.crawling import *
+from threading import Lock
+
+
 mqtt_thread = None
 gw_thread = None
 event_thread = None
+
 num = 0
+thread_lock = Lock()
+
 def mqttPublish(topic, message):
     mqtt.publish(topic, message)
+
 def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
   try:
     p = (pressure / (airpressure * 100)); # ***분모 자리에 해면기압 정보 넣을 것!! (ex. 1018) // Dtriple
@@ -20,6 +27,7 @@ def getAltitude(pressure, airpressure): # 기압 - 높이 계산 Dtriple
     return round(alt,2)
   except:
     pass
+  
 def handle_sync_data(mqtt_data, extAddress):
   dev = db.session.query(Bands).filter_by(bid = extAddress).first()
   if dev is not None:
@@ -177,7 +185,7 @@ def handle_connect(client, userdata, flags, rc):
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-  global mqtt_thread, gw_thread, event_thread, num
+  global mqtt_thread, gw_thread, event_thread, num, thread_lock
   if message.topic == '/efwb/post/sync':
       num += 1
       with thread_lock:

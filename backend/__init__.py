@@ -9,10 +9,11 @@ from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
-from threading import Lock
+
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 sched = BackgroundScheduler(timezone='Asia/Seoul')
+
 # logging.basicConfig(filename = "test.log", level = logging.DEBUG)
 
 # app = Flask(__name__)
@@ -24,10 +25,6 @@ app = Flask(__name__
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
-app.config['MQTT_BROKER_URL'] = "13.125.45.228"
-app.config['MQTT_BROKER_PORT'] = 1883
-
-
 
 cur_system = platform.system()
 if cur_system == "Windows":
@@ -45,16 +42,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 # api
-mqtt = Mqtt(app)
+mqtt = Mqtt()
 mqtt.init_app(app)
 
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 socketio = SocketIO(app,cors_allowed_origins="*")
 
-thread_lock = Lock()
-
-from backend.api.api_create import *
-from backend.api.mqtt import *
 from backend.api.thread import *
 # gatewayCheckThread()
 # getAirpressureThread()
@@ -74,31 +67,34 @@ sched.start()
 def page_index():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/band", methods=["GET"])
+@app.route("/band/", methods=["GET"])
 def page_band():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/band/detail", methods=["GET"])
+@app.route("/band/detail/", methods=["GET"])
 def page_band_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/gateway", methods=["GET"])
+@app.route("/gateway/", methods=["GET"])
 def page_gateway():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/gateway/detail", methods=["GET"])
+@app.route("/gateway/detail/", methods=["GET"])
 def page_gateway_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/user", methods=["GET"])
+@app.route("/user/", methods=["GET"])
 def page_user():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/user/detail", methods=["GET"])
+@app.route("/user/detail/", methods=["GET"])
 def page_user_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/log", methods=["GET"])
+@app.route("/log/", methods=["GET"])
 def page_log():
     resp = make_response(render_template("index.html"))
     return resp
+
+from backend.api.api_create import *
+from backend.api.mqtt import *
