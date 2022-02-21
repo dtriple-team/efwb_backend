@@ -4,7 +4,7 @@ print("module [backend.api_band] loaded")
 
 import hashlib
 import requests
-from backend import app, login_manager
+from backend import app, login_manager, sched
 from flask import make_response, jsonify, request, json
 from flask_restless import ProcessingException
 from flask_restful import reqparse
@@ -37,6 +37,7 @@ def init_setting():
   mqtt.subscribe('/efwb/post/sync')
   mqtt.subscribe('/efwb/post/async')
   mqtt.subscribe('/efwb/post/connectcheck')
+  sched.start()  
   return make_response("ok", 200)
 
 @app.route('/api/efwb/v1/thread', methods=['GET'])

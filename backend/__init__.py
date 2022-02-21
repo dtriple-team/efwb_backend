@@ -61,7 +61,7 @@ def job2():
     getAirpressureTask()
 
 
-sched.start()   
+ 
 
 @app.route("/", methods=["GET"])
 def page_index():
