@@ -18,7 +18,7 @@ from sqlalchemy import func, case, or_, Interval
 from sqlalchemy.sql.expression import text
 from datetime import date, timedelta
 from backend.api.mqtt import *
-import backend.db.query.select as select
+from backend.db.service.select import *
 count = 0
 work = False
 
@@ -517,7 +517,7 @@ def check_band_permission_user():
   else:
     
     if data['permission'] == 1:
-      group = select.selectSameGroupOfUser(data['uid'])
+      group = selectSameGroupOfUser(data['uid'])
       if group is None:
         return make_response(jsonify('Group is not Found.'), 404)
 
@@ -567,7 +567,7 @@ def get_users_bandlist():
   else:
     
     if data['permission'] == 1:
-      group = select.selectSameGroupOfUser(data['uid'])
+      group = selectSameGroupOfUser(data['uid'])
       if group is None:
         return make_response(jsonify('Group is not Found.'), 404)
 
@@ -953,7 +953,7 @@ def get_users_gwlist():
 
   else:
     if data['permission'] == 1:
-      group = select.selectSameGroupOfUser(data['uid'])
+      group = selectSameGroupOfUser(data['uid'])
       if group is None:
         return make_response(jsonify('Group is not Found.'), 404)
       dev = db.session.query(Gateways).distinct(Gateways.id).\
@@ -990,7 +990,7 @@ def users_gateways_check_api():
       return make_response(jsonify('Parameters are not enough.'), 400) 
 
   if data['permission'] == 1:
-    group = select.selectSameGroupOfUser(data['uid'])
+    group =  selectSameGroupOfUser(data['uid'])
     gateways = db.session.query(Gateways.pid).distinct(Gateways.id).\
       filter(Gateways.pid==data['pid']).\
         filter(Gateways.id == GatewaysBands.FK_pid).\
@@ -1227,23 +1227,23 @@ def events_post_api():
   dev = []
   if len(data['days']) == 0 : #전체 이벤트에서
     if data['uid'] != -1 : #uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-      dev = select.selectBandsEventsUser(data['uid'], data['bid'])
+      dev =  selectBandsEventsUser(data['uid'], data['bid'])
             
     elif data['bid'] != -1 :#bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-      dev = select.selectBandsEventsBands(data['bid'])
+      dev =  selectBandsEventsBands(data['bid'])
 
     else : #uid bid 모두 정해져있지 않다 모든 전체 이벤트를 가져오겠다.
-      dev = select.selectBandsEvents()
+      dev =  selectBandsEvents()
 
   else : #정해진 날짜에서
     if data['uid'] != -1:#uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-      dev = select.selectBandsEventsUserDate(data['uid'], data['bid'], data['days'])
+      dev =  selectBandsEventsUserDate(data['uid'], data['bid'], data['days'])
 
     elif data['bid'] != -1: #bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-      dev = select.selectBandsEventsBandDate(data['bid'], data['days'])
+      dev =  selectBandsEventsBandDate(data['bid'], data['days'])
 
     else: #uid bid 모두 정해져있지 않다 모든 그 기간안의 이벤트를 가져오겠다.
-      dev = select.selectBandsEventsDate(data['days'])
+      dev =  selectBandsEventsDate(data['days'])
 
   for i in dev:
     json_data.append(i.serialize())
@@ -1266,13 +1266,13 @@ def events_all_fall_post_api():
   dev = []
 
   if data['permission'] == 0:
-    dev = select.selectFallDetectDate( data['date'], data['format'])
+    dev =  selectFallDetectDate( data['date'], data['format'])
   elif data['permission'] == 1:
-    dev = select.selectFallDetectDateStaff(data['uid'], data['date'], data['format'])
+    dev =  selectFallDetectDateStaff(data['uid'], data['date'], data['format'])
   elif data['permission'] == 2:
-    dev = select.selectFallDetectDateManager(data['uid'], data['date'], data['format'])
+    dev =  selectFallDetectDateManager(data['uid'], data['date'], data['format'])
   elif data['permission'] == 3:
-    dev = select.selectFallDetectDateUser(data['uid'], data['date'], data['format'])
+    dev =  selectFallDetectDateUser(data['uid'], data['date'], data['format'])
     
   for d in dev:
     json_data.append({"x": d.day, "y": int(d.fall)})

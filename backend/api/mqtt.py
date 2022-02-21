@@ -1,4 +1,4 @@
-from backend import app, socketio, mqtt, thread_lock
+from backend import app, socketio, mqtt
 from backend.api.thread import *
 from flask import json
 from backend.db.table.table_band import *

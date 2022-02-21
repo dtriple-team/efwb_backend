@@ -1,5 +1,5 @@
 from threading import Lock
-from backend import socketio, thread_lock
+from backend import socketio
 from backend.db.service.query import *
 import backend.api.socket as socket
 from backend.api.crawling import *
