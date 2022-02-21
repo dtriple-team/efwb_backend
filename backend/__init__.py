@@ -51,18 +51,29 @@ socketio = SocketIO(app,cors_allowed_origins="*")
 from backend.api.thread import *
 # gatewayCheckThread()
 # getAirpressureThread()
-@sched.scheduled_job('interval', seconds=120, id='test_1')
-def job1():
-    gatewayCheck()
+
+server = db.session.query(Server).first()
+if server.start == 0 :
+    print("first")
+    db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
+    db.session.commit()
+  
+else :
+    print("second")
+    db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
+    db.session.commit()
+    mqtt.subscribe('/efwb/post/sync')
+    mqtt.subscribe('/efwb/post/async')
+    mqtt.subscribe('/efwb/post/connectcheck')
+    @sched.scheduled_job('interval', seconds=120, id='test_1')
+    def job1():
+            gatewayCheck()
+    @sched.scheduled_job('interval', minutes=60, id='test_2')
+    def job2():
+        getAirpressureTask()
 
 
-@sched.scheduled_job('interval', minutes=60, id='test_2')
-def job2():
-    getAirpressureTask()
-
-
- 
-
+    sched.start()   
 @app.route("/", methods=["GET"])
 def page_index():
     resp = make_response(render_template("index.html"))

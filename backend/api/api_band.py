@@ -37,7 +37,7 @@ def init_setting():
   mqtt.subscribe('/efwb/post/sync')
   mqtt.subscribe('/efwb/post/async')
   mqtt.subscribe('/efwb/post/connectcheck')
-  sched.start()  
+  
   return make_response("ok", 200)
 
 @app.route('/api/efwb/v1/thread', methods=['GET'])
