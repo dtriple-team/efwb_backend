@@ -54,6 +54,8 @@ def setGatewayLog(gid, gpid, check):
 def gatewayCheck():
     # socketio.sleep(60)
     print("gatewayCheck start")
+    time = datetime.datetime.now(timezone('Asia/Seoul')).replace(tzinfo=None)
+    print(time)
     try:
       gateways = selectGatewayAll()
       for g in gateways:
