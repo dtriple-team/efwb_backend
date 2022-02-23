@@ -105,4 +105,4 @@ else :
         getAirpressureTask()
 
 
-    sched.start() 
+    
