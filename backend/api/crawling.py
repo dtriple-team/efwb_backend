@@ -6,14 +6,16 @@ import requests
 def getAirpressure(date) :
     try:
         html = requests.get("https://web.kma.go.kr/weather/observation/currentweather.jsp?auto_man=m&stn=0&type=t99&reg=100&tm="+date+"%3A00&x=25&y=1")  
-
+        
         bsObject = BeautifulSoup(html.text, "html.parser") 
         temp = bsObject.find("table", {"class": "table_develop3"})
+        print(temp)
         trtemp = temp.find_all('tr')
         atemp = temp.find_all('a')
-       
+        print(trtemp, atemp)
         return trtemp, atemp
-    except:
+    except Exception as e:
+        print(e)
         return 0, 0
 def searchAirpressure(trtemp, atemp, location):
 

@@ -9,7 +9,7 @@ import time
 gateway_thread = None
 airpressure_thread = None
 thread_check = True
-
+thread_lock = Lock()
 def setGatewayLog(gid, gpid, check):
   print("[method] setGatewayLog")
   updateGatewaysConnect(gid, check)
@@ -99,20 +99,10 @@ def gatewayCheck():
 #       print(e)
 #     gatewayCheckThread()
 
-# def getAirpressureTask():
-#   while True:
-#     socketio.sleep(3600)
-#     # socketio.sleep(60)
-#     print("getAltitud start")
-#     dev = selectGatewayAll()
-#     d = datetime.datetime.now(timezone('Asia/Seoul'))
-#     urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
-#     trtemp, atemp = getAirpressure(urldate)
-#     if trtemp != 0 :
-#       for g in dev:
-#         updateGatewaysAirpressure(g.id, searchAirpressure(trtemp, atemp, g.location))
-
 def getAirpressureTask():
+  while True:
+    socketio.sleep(20)
+    # socketio.sleep(60)
     print("getAltitud start")
     dev = selectGatewayAll()
     d = datetime.datetime.now(timezone('Asia/Seoul'))
@@ -121,6 +111,16 @@ def getAirpressureTask():
     if trtemp != 0 :
       for g in dev:
         updateGatewaysAirpressure(g.id, searchAirpressure(trtemp, atemp, g.location))
+
+# def getAirpressureTask():
+#     print("getAltitud start")
+#     dev = selectGatewayAll()
+#     d = datetime.datetime.now(timezone('Asia/Seoul'))
+#     urldate = str(d.year)+"."+str(d.month)+"."+str(d.day)+"."+str(d.hour)
+#     trtemp, atemp = getAirpressure(urldate)
+#     if trtemp != 0 :
+#       for g in dev:
+#         updateGatewaysAirpressure(g.id, searchAirpressure(trtemp, atemp, g.location))
 
 def gatewayCheckThread():
   global gateway_thread

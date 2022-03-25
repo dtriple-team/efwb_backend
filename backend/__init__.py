@@ -97,12 +97,6 @@ else :
     mqtt.subscribe('/efwb/post/sync')
     mqtt.subscribe('/efwb/post/async')
     mqtt.subscribe('/efwb/post/connectcheck')
-    @sched.scheduled_job('interval', seconds=120, id='test_1')
-    def job1():
-            gatewayCheck()
-    @sched.scheduled_job('interval', minutes=60, id='test_2')
-    def job2():
-        getAirpressureTask()
 
 
     

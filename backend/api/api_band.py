@@ -1092,6 +1092,29 @@ def sensordata_oneday_get_api():
   }
   return make_response(jsonify(result), 200)  
 
+@app.route('/api/efwb/v1/sensordata/activity/dashboard', methods=['GET'])
+def dashboard_activity_get_api():
+  json_data = []
+  walk_dev = db.session.query((SensorData.FK_bid).label("bid"), (func.max(SensorData.walk_steps).label("walk"))).\
+    filter(func.date(SensorData.datetime)=="2022-03-25").\
+      group_by(SensorData.FK_bid).all()
+  activity_dev = db.session.query((SensorData.FK_bid).label("bid"), func.ifnull(((func.count(SensorData.activity))*2/60),0).label("activity")).\
+    filter(func.date(SensorData.datetime)=="2022-03-25").filter(SensorData.activity>0).\
+      group_by(SensorData.FK_bid).all()
+  list = [[], [], []]
+  for d in range(len(walk_dev)):
+    list[0].append(walk_dev[d].bid)
+    list[1].append(int(walk_dev[d].walk))
+    list[2].append(int(activity_dev[d].activity))
+
+  result = {
+    "result": "OK",
+    "data": {"bid": list[0], "walk": list[1], "activity": list[2]}
+  }
+  print(result)
+  return make_response(jsonify(result), 200)
+
+
 @app.route('/api/efwb/v1/sensordata/range', methods=['POST'])
 def sensordata_range_get_api():
   data = json.loads(request.data)
