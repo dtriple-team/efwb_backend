@@ -147,8 +147,8 @@ class DBManager:
         gateways.pid = "0xA020"
         gateways.alias = "dtriple"
         gateways.ip = "192.168.0.105"
-        gateways.location = "구미"
-        gateways.airpressure = 1026
+        gateways.location = "울산"
+        gateways.airpressure = 1018
         DBManager.db.session.add(gateways)
         DBManager.db.session.commit()
 
@@ -230,7 +230,7 @@ class DBManager:
         bands = Bands()
         bands.bid = "0x11012009"
         bands.alias = "d9"
-        bands.name = "r"
+        bands.name = "강예린"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
@@ -239,102 +239,14 @@ class DBManager:
         bands = Bands()
         bands.bid = "0x11012010"
         bands.alias = "d10"
-        bands.name = "r"
+        bands.name = "하재경"
         bands.gender = 0
         bands.birth = "1997-09-01"
         
 
 
         DBManager.db.session.add(bands)
-        bands = Bands()
-        bands.bid = "0x11012011"
-        bands.alias = "d11"
-        bands.name = "h"
-        bands.gender = 1
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012012"
-        bands.alias = "d12"
-        bands.name = "j"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012013"
-        bands.alias = "d13"
-        bands.name = "p"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012014"
-        bands.alias = "d14"
-        bands.name = "h"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012015"
-        bands.alias = "d15"
-        bands.name = "k"
-        bands.gender = 1
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012016"
-        bands.alias = "d16"
-        bands.name = "j"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012017"
-        bands.alias = "d17"
-        bands.name = "s"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012018"
-        bands.alias = "d18"
-        bands.name = "s"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012019"
-        bands.alias = "d19"
-        bands.name = "r"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)
-
-        bands = Bands()
-        bands.bid = "0x11012020"
-        bands.alias = "d20"
-        bands.name = "r"
-        bands.gender = 0
-        bands.birth = "1997-09-01"
-        
-        DBManager.db.session.add(bands)        
+     
         DBManager.db.session.commit()
 
     def insert_dummy_users_gateways():
@@ -343,11 +255,6 @@ class DBManager:
         users_gateways = UsersGateways()
         users_gateways.FK_pid = 1
         users_gateways.FK_uid = 1
-        DBManager.db.session.add(users_gateways)
-
-        users_gateways = UsersGateways()
-        users_gateways.FK_pid = 2
-        users_gateways.FK_uid = 2
         DBManager.db.session.add(users_gateways)
         DBManager.db.session.commit()
 
@@ -404,66 +311,17 @@ class DBManager:
         DBManager.db.session.add(gateways_bands) 
 
 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 11
-        DBManager.db.session.add(gateways_bands) 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 12
-        DBManager.db.session.add(gateways_bands) 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 13
-        DBManager.db.session.add(gateways_bands) 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 14
-        DBManager.db.session.add(gateways_bands)  
-        
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 15
-        DBManager.db.session.add(gateways_bands) 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 16
-        DBManager.db.session.add(gateways_bands)  
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 17
-        DBManager.db.session.add(gateways_bands) 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 18
-        DBManager.db.session.add(gateways_bands)   
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 19
-        DBManager.db.session.add(gateways_bands) 
-
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 20
-        DBManager.db.session.add(gateways_bands)                   
+                
         DBManager.db.session.commit()
     def insert_dummy_users_bands():
         print("insert_dummy_users_bands")
         from backend.db.table.table_band import UsersBands
 
-        for b in range(20):
+        for b in range(10):
             users_bands = UsersBands()
             users_bands.FK_bid = b+1
             if b>9 :
-                users_bands. FK_uid = 2
+                users_bands.FK_uid = 2
                 DBManager.db.session.add(users_bands)
                 users_bands.FK_uid = 1
                 DBManager.db.session.add(users_bands)
