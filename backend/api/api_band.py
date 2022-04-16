@@ -1096,7 +1096,7 @@ def sensordata_oneday_get_api():
 def dashboard_activity_get_api():
   json_data = []
   walk_dev = db.session.query((SensorData.FK_bid).label("bid"), (func.max(SensorData.walk_steps).label("walk"))).\
-    filter(func.date(SensorData.datetime)=="2022-03-25").\
+    filter(func.date(SensorData.datetime)=="2022-04-15").\
       group_by(SensorData.FK_bid).all()
   activity_dev = db.session.query((SensorData.FK_bid).label("bid"), func.ifnull(((func.count(SensorData.activity))*2/60),0).label("activity")).\
     filter(func.date(SensorData.datetime)=="2022-03-25").filter(SensorData.activity>0).\
