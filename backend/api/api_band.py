@@ -1099,7 +1099,7 @@ def dashboard_activity_get_api():
     filter(func.date(SensorData.datetime)=="2022-04-15").\
       group_by(SensorData.FK_bid).all()
   activity_dev = db.session.query((SensorData.FK_bid).label("bid"), func.ifnull(((func.count(SensorData.activity))*2/60),0).label("activity")).\
-    filter(func.date(SensorData.datetime)=="2022-03-25").filter(SensorData.activity>0).\
+    filter(func.date(SensorData.datetime)=="2022-04-15").filter(SensorData.activity>0).\
       group_by(SensorData.FK_bid).all()
   list = [[], [], []]
   for d in range(len(walk_dev)):
