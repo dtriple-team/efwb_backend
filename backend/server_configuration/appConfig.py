@@ -5,7 +5,7 @@
 class DevelopmentConfig():
     BIND_PORT = 8080
     WEB_URL = "http://127.0.0.1"
-    SQLALCHEMY_DATABASE_URI = 'mysql://root:p@ssw0rd@localhost/efwb2'
+    SQLALCHEMY_DATABASE_URI = 'mysql://root:p@ssw0rd@127.0.0.1/efwb2'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MQTT_BROKER_URL = "localhost"
     MQTT_BROKER_PORT = 1883
