@@ -1,18 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-print ("module [backend_model.database] loaded")
-from datetime import datetime, timedelta
-
-from sqlalchemy.sql.expression import true
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func
-import random
+from sqlalchemy import or_, and_
 import hashlib
-from sqlalchemy import or_,and_
-
-
-
+import random
+from sqlalchemy import func
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql.expression import true
+from datetime import datetime, timedelta
+print("module [backend_model.database] loaded")
 
 
 class DBManager:
@@ -39,18 +34,19 @@ class DBManager:
 
     @staticmethod
     def insert_dummy_data():
-        print ('insert_dummy_data')
+        print('insert_dummy_data')
 
         DBManager.insert_dummy_groups()
         DBManager.insert_dummy_users()
         DBManager.insert_dummy_users_groups()
-        DBManager.insert_dummy_gateways()
-        DBManager.insert_dummy_bands()
-        DBManager.insert_dummy_gateways_bands()
-        DBManager.insert_dummy_users_bands()
+        # DBManager.insert_dummy_gateways()
+        # DBManager.insert_dummy_bands()
+        # DBManager.insert_dummy_gateways_bands()
+        # DBManager.insert_dummy_users_bands()
         DBManager.insert_dummy_server()
-        #DBManager.insert_dummy_sensor_data()
+        # DBManager.insert_dummy_sensor_data()
         # DBManager.insert_dummy_event_data()
+
     def password_encoder(password):
         pass1 = hashlib.sha1(password).digest()
         pass2 = hashlib.sha1(pass1).hexdigest()
@@ -74,7 +70,8 @@ class DBManager:
         return h.hexdigest()
 
     def get_random_ip():
-        ip_list = [u'28.23.43.1', u'40.12.33.11', u'100.123.234.11', u'61.34.22.44', u'56.34.56.77', u'123.234.222.55']
+        ip_list = [u'28.23.43.1', u'40.12.33.11', u'100.123.234.11',
+                   u'61.34.22.44', u'56.34.56.77', u'123.234.222.55']
 
         return ip_list[random.randrange(0, 6)]
 
@@ -86,7 +83,7 @@ class DBManager:
         server.start = 0
 
         DBManager.db.session.add(server)
-        
+
         user = Users()
         user.uid = 1000
         user.username = "admin"
@@ -94,7 +91,6 @@ class DBManager:
         user.name = "dtriple"
         user.permission = 0
         DBManager.db.session.add(user)
-
 
         user = Users()
         user.uid = 2000
@@ -104,7 +100,7 @@ class DBManager:
         user.permission = 1
         DBManager.db.session.add(user)
         DBManager.db.session.commit()
-        
+
     def insert_dummy_groups():
         print("insert_dummy_groups")
         from backend.db.table.table_band import Groups
@@ -114,14 +110,12 @@ class DBManager:
         group.groupname = "dtriple"
         group.permission = 0
 
-
         DBManager.db.session.add(group)
 
         group = Groups()
         group.gid = 2000
         group.groupname = "demo"
         group.permission = 1
-
 
         DBManager.db.session.add(group)
         DBManager.db.session.commit()
@@ -140,6 +134,7 @@ class DBManager:
 
         DBManager.db.session.add(users_groups)
         DBManager.db.session.commit()
+
     def insert_dummy_gateways():
         print("insert_dummy_gateways")
         from backend.db.table.table_band import Gateways
@@ -161,16 +156,16 @@ class DBManager:
         bands.name = "h"
         bands.gender = 1
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
-        bands.bid ="0x11012002"
+        bands.bid = "0x11012002"
         bands.alias = "d2"
         bands.name = "j"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -179,7 +174,7 @@ class DBManager:
         bands.name = "p"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -188,7 +183,7 @@ class DBManager:
         bands.name = "h"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -197,7 +192,7 @@ class DBManager:
         bands.name = "k"
         bands.gender = 1
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -206,7 +201,7 @@ class DBManager:
         bands.name = "j"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -215,7 +210,7 @@ class DBManager:
         bands.name = "s"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -224,7 +219,7 @@ class DBManager:
         bands.name = "s"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -233,7 +228,7 @@ class DBManager:
         bands.name = "강예린"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
+
         DBManager.db.session.add(bands)
 
         bands = Bands()
@@ -242,11 +237,9 @@ class DBManager:
         bands.name = "하재경"
         bands.gender = 0
         bands.birth = "1997-09-01"
-        
-
 
         DBManager.db.session.add(bands)
-     
+
         DBManager.db.session.commit()
 
     def insert_dummy_users_gateways():
@@ -273,46 +266,45 @@ class DBManager:
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 3
-        DBManager.db.session.add(gateways_bands)  
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 4
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 5
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 6
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 7
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 8
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 9
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
         gateways_bands = GatewaysBands()
         gateways_bands.FK_pid = 1
         gateways_bands.FK_bid = 10
-        DBManager.db.session.add(gateways_bands) 
+        DBManager.db.session.add(gateways_bands)
 
-
-                
         DBManager.db.session.commit()
+
     def insert_dummy_users_bands():
         print("insert_dummy_users_bands")
         from backend.db.table.table_band import UsersBands
@@ -320,21 +312,20 @@ class DBManager:
         for b in range(10):
             users_bands = UsersBands()
             users_bands.FK_bid = b+1
-            if b>9 :
+            if b > 9:
                 users_bands.FK_uid = 2
                 DBManager.db.session.add(users_bands)
                 users_bands.FK_uid = 1
                 DBManager.db.session.add(users_bands)
-            else :
+            else:
                 users_bands.FK_uid = 1
                 DBManager.db.session.add(users_bands)
-            
-            
-                
+
         DBManager.db.session.commit()
+
     def insert_dummy_sensor_data():
         print("insert_dummy_sensor_data")
-        from backend.db.table.table_band import SensorData 
+        from backend.db.table.table_band import SensorData
         data = SensorData()
         data.FK_bid = 1
         data.start_byte = 1
@@ -351,7 +342,6 @@ class DBManager:
         data.activity = 1
         data.walk_steps = 50
         data.run_steps = 50
-       
 
         data.x = 80
         data.y = 80
@@ -373,13 +363,12 @@ class DBManager:
         data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
-        
+
         data.motionFlag = True
         data.scdState = 0
         data.activity = 1
         data.walk_steps = 50
         data.run_steps = 50
-       
 
         data.x = 80
         data.y = 80
@@ -387,7 +376,7 @@ class DBManager:
         data.t = 80
         data.h = 80
 
-        data.rssi = -32     
+        data.rssi = -32
         DBManager.db.session.add(data)
 
         data = SensorData()
@@ -401,13 +390,12 @@ class DBManager:
         data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
-        
+
         data.motionFlag = True
         data.scdState = 0
         data.activity = 1
         data.walk_steps = 50
         data.run_steps = 50
-       
 
         data.x = 80
         data.y = 80
@@ -415,7 +403,7 @@ class DBManager:
         data.t = 80
         data.h = 80
 
-        data.rssi = -32     
+        data.rssi = -32
         DBManager.db.session.add(data)
 
         data = SensorData()
@@ -429,13 +417,12 @@ class DBManager:
         data.spo2Confidence = 1
         data.hr = 75
         data.spo2 = 50
-        
+
         data.motionFlag = True
         data.scdState = 0
         data.activity = 1
         data.walk_steps = 50
         data.run_steps = 50
-       
 
         data.x = 80
         data.y = 80
@@ -443,7 +430,7 @@ class DBManager:
         data.t = 80
         data.h = 80
 
-        data.rssi = -32     
+        data.rssi = -32
         DBManager.db.session.add(data)
 
         data = SensorData()
@@ -457,13 +444,12 @@ class DBManager:
         data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
-        
+
         data.motionFlag = True
         data.scdState = 0
         data.activity = 1
         data.walk_steps = 50
         data.run_steps = 50
-       
 
         data.x = 80
         data.y = 80
@@ -471,10 +457,10 @@ class DBManager:
         data.t = 80
         data.h = 80
 
-        data.rssi = -32     
+        data.rssi = -32
         DBManager.db.session.add(data)
         DBManager.db.session.commit()
-        
+
     def insert_dummy_event_data():
         from backend.db.table.table_band import Events
         event = Events()
@@ -491,17 +477,17 @@ class DBManager:
         event.FK_bid = 1
         event.type = 2
         event.value = 0
-        DBManager.db.session.add(event)      
+        DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 1
         event.type = 3
         event.value = 0
-        DBManager.db.session.add(event)   
+        DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 1
         event.type = 4
         event.value = 0
-        DBManager.db.session.add(event)  
+        DBManager.db.session.add(event)
 
         from backend.db.table.table_band import Events
         event = Events()
@@ -518,46 +504,48 @@ class DBManager:
         event.FK_bid = 2
         event.type = 2
         event.value = 0
-        DBManager.db.session.add(event)      
+        DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 2
         event.type = 3
         event.value = 0
-        DBManager.db.session.add(event)  
+        DBManager.db.session.add(event)
         event = Events()
         event.FK_bid = 2
         event.type = 4
         event.value = 3
-        DBManager.db.session.add(event)          
+        DBManager.db.session.add(event)
         DBManager.db.session.commit()
+
     @staticmethod
     def insert_dummy_server():
         from backend.db.table.table_band import Server
         server = Server()
         server.start = 0
-        DBManager.db.session.add(server)          
+        DBManager.db.session.add(server)
         DBManager.db.session.commit()
+
     @staticmethod
     def insert_dummy_walkrun():
         from backend.db.table.table_band import WalkRunCount
         walkRunCount = WalkRunCount()
         walkRunCount.FK_bid = 7
-        walkRunCount.run_steps = 0 
+        walkRunCount.run_steps = 0
         walkRunCount.walk_steps = 195
-        DBManager.db.session.add(walkRunCount)         
+        DBManager.db.session.add(walkRunCount)
 
         walkRunCount = WalkRunCount()
         walkRunCount.FK_bid = 9
-        walkRunCount.run_steps = 0 
+        walkRunCount.run_steps = 0
         walkRunCount.walk_steps = 399
-        DBManager.db.session.add(walkRunCount)    
+        DBManager.db.session.add(walkRunCount)
         DBManager.db.session.commit()
 
     @staticmethod
     def insert_dummy_example():
         from backend.db.service.query import insertUsers, insertUsersGateways, insertUsersBands, insertGatewaysBands, insertUsersGroups
-        insertUsersBands(1,21)
-        insertUsersBands(1,22)
+        insertUsersBands(1, 21)
+        insertUsersBands(1, 22)
 
     @staticmethod
     def insert_dummy_name():
@@ -565,6 +553,3 @@ class DBManager:
         updateBandNameAlias(21, "BPA", "BPA")
         updateBandNameAlias(22, "BPA", "BPA")
         updateGatewayAlias(3, "BPA")
-
-
-        
