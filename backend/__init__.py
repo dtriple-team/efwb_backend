@@ -83,19 +83,19 @@ def page_log():
 from backend.api.api_create import *
 from backend.api.mqtt import *
 
-# server = db.session.query(Server).first()
-# if server.start == 0 :
-#     print("first")
-#     db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
-#     db.session.commit()
+server = db.session.query(Server).first()
+if server.start == 0 :
+    print("first")
+    db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
+    db.session.commit()
   
-# else :
-#     print("second")
-#     db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
-#     db.session.commit()
-#     mqtt.subscribe('/efwb/post/sync')
-#     mqtt.subscribe('/efwb/post/async')
-#     mqtt.subscribe('/efwb/post/connectcheck')
+else :
+    print("second")
+    db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
+    db.session.commit()
+    mqtt.subscribe('/efwb/post/sync')
+    mqtt.subscribe('/efwb/post/async')
+    mqtt.subscribe('/efwb/post/connectcheck')
 # mqtt.subscribe('/efwb/post/sync')
 # mqtt.subscribe('/efwb/post/async')
 # mqtt.subscribe('/efwb/post/connectcheck')
