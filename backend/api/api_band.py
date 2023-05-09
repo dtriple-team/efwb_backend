@@ -13,7 +13,7 @@ from datetime import datetime
 from flask_restful import reqparse
 from flask_restless import ProcessingException
 from flask import make_response, jsonify, request, json
-from backend import app, login_manager, sched
+from backend import app, login_manager
 import requests
 import hashlib
 print("module [backend.api_band] loaded")
@@ -45,7 +45,7 @@ def init_setting():
 
 @app.route('/api/efwb/v1/thread', methods=['GET'])
 def init_thread():
-    sched.start()
+    # sched.start()
     return make_response("ok", 200)
 
 
