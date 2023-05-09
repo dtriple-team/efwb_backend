@@ -133,15 +133,16 @@ def handle_sync_data(mqtt_data, extAddress):
                 data.y = bandData['y']
                 data.z = bandData['z']
                 data.t = bandData['t']
-                if gatewayDev is not None:
-                    if mqtt_data['bandData']['h'] != 0:
-                        mqtt_data['bandData']['h'] = getAltitude(
-                            mqtt_data['bandData']['h'], gatewayDev.airpressure)
-                        data.h = mqtt_data['bandData']['h']
-                    else:
-                        data.h = mqtt_data['bandData']['h']
-                else:
-                    data.h = mqtt_data['bandData']['h']
+                data.h = bandData['h']
+                # if gatewayDev is not None:
+                #     if mqtt_data['bandData']['h'] != 0:
+                #         mqtt_data['bandData']['h'] = getAltitude(
+                #             mqtt_data['bandData']['h'], gatewayDev.airpressure)
+                #         data.h = mqtt_data['bandData']['h']
+                #     else:
+                #         data.h = mqtt_data['bandData']['h']
+                # else:
+                #     data.h = mqtt_data['bandData']['h']
                 data.rssi = mqtt_data['rssi']
                 data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
                 db.session.add(data)
