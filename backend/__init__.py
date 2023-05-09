@@ -96,8 +96,8 @@ from backend.api.mqtt import *
 #     mqtt.subscribe('/efwb/post/sync')
 #     mqtt.subscribe('/efwb/post/async')
 #     mqtt.subscribe('/efwb/post/connectcheck')
-mqtt.subscribe('/efwb/post/sync')
-mqtt.subscribe('/efwb/post/async')
-mqtt.subscribe('/efwb/post/connectcheck')
+# mqtt.subscribe('/efwb/post/sync')
+# mqtt.subscribe('/efwb/post/async')
+# mqtt.subscribe('/efwb/post/connectcheck')
 
     
