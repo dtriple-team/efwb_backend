@@ -201,6 +201,7 @@ def handle_connect(client, userdata, flags, rc):
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
+    print("MQTT Message")
     global mqtt_thread, gw_thread, event_thread, num, thread_lock
     if message.topic == '/efwb/post/sync':
         num += 1
