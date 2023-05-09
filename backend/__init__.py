@@ -11,8 +11,7 @@ from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
 
 import logging
-from apscheduler.schedulers.background import BackgroundScheduler
-sched = BackgroundScheduler(timezone='Asia/Seoul')
+
 
 # logging.basicConfig(filename = "test.log", level = logging.DEBUG)
 
