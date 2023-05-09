@@ -4,7 +4,7 @@
 
 class DevelopmentConfig():
     BIND_PORT = 8082
-    WEB_URL = "http://http://210.220.151.77/"
+    WEB_URL = "http://210.220.151.77/"
     SQLALCHEMY_DATABASE_URI = 'mysql://dbadmin:p@ssw0rd@127.0.0.1/efwb'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MQTT_BROKER_URL = "mj.d-triple.com"
