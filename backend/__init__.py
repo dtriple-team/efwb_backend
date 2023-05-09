@@ -27,8 +27,10 @@ cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
 
 cur_system = platform.system()
 if cur_system == "Windows":
+    print("dfsf")
     app.config.from_object(DevelopmentConfig)
 else:
+    print("linux")
     app.config.from_object(ProductionConfig)
 
 
