@@ -3,7 +3,6 @@ from backend.api.thread import *
 from flask import json
 from backend.db.table.table_band import *
 from backend.db.service.query import *
-from backend.api.socket import *
 from backend.api.crawling import *
 from threading import Lock
 
