@@ -1,6 +1,6 @@
 print ("module [socket] loaded")
 from backend import socketio
-import mqtt as mqtt_api
+from backend.api.mqtt import *
 from backend.db.service.query import *
 
 @socketio.on('connect', namespace='/receiver')
