@@ -1,6 +1,6 @@
 print ("module [socket] loaded")
 from backend import socketio
-from backend.api.mqtt import *
+import backend.api.mqtt as mqtt_api
 from backend.db.service.query import *
 
 @socketio.on('connect', namespace='/receiver')
@@ -15,12 +15,12 @@ def disconnect():
 @socketio.on('message', namespace='/receiver')
 def handle_message(data):
     if data == 0:
-        mqttPublish('efwb/get/connectcheck', 'bandnum')
+        mqtt_api.mqttPublish('efwb/get/connectcheck', 'bandnum')
     elif data == 1:
-        mqttPublish('efwb/get/connectcheck', 'bandnum')
+        mqtt_api.mqttPublish('efwb/get/connectcheck', 'bandnum')
 @socketio.on('gwcheck', namespace='/receiver')
 def handle_gwcheck(data):
-  mqttPublish('efwb/get/'+data+"/check", 'check')
+  mqtt_api.mqttPublish('efwb/get/'+data+"/check", 'check')
 
 def socket_emit(topic, message):
     socketio.emit(topic, message, namespace='/receiver')
