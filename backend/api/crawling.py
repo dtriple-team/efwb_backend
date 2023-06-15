@@ -70,9 +70,9 @@ def getWeather(location):
         }
         print(result)
         return result
-    except:
+    except Exception as e:
         result={"temp": 0}
-        print(result)
+        print("weather error ",e)
         return result
 # def getWeather(location):
 #     try:
