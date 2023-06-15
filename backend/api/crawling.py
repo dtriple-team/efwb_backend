@@ -68,6 +68,7 @@ def getWeather(location):
             "wind":wind[2].text,
             "wind_strength":wind_strength[2].text
         }
+        print(result)
         return result
     except:
         result={"temp": 0}
