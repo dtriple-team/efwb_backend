@@ -72,6 +72,7 @@ def getWeather(location):
         return result
     except:
         result={"temp": 0}
+        print(result)
         return result
 # def getWeather(location):
 #     try:
