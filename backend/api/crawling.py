@@ -42,16 +42,12 @@ def getWeather(location):
         
         wind = temp.find_all("dt", {"class": "term"})
         wind_strength = temp.find_all("dd", {"class": "desc"})
-        print("===================")
-        print(temp, tempor, status, min)
         forecast = []
         for fo in range(4):
             if fore[fo*2].find("dt", {"class": "time"}).text == "내일":
                 forecast.append({"time":"00시", "value":fore[fo*2].find("span", {"class": "num"}).text})
             else :
                 forecast.append({"time":fore[fo*2].find("dt", {"class": "time"}).text, "value":fore[fo*2].find("span", {"class": "num"}).text})
-        print("===================")
-        print(fore)
         html = requests.get(
             'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=1&ie=utf8&query='+location+" 미세먼지")
         soup = BeautifulSoup(html.text, 'html.parser')
@@ -70,11 +66,9 @@ def getWeather(location):
             "wind":wind[2].text,
             "wind_strength":wind_strength[2].text
         }
-        print(result)
         return result
     except Exception as e:
         result={"temp": 0}
-        print("weather error ",e)
         return result
 # def getWeather(location):
 #     try:
