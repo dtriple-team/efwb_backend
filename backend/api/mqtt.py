@@ -200,17 +200,23 @@ def handle_connect(client, userdata, flags, rc):
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
+    
     global mqtt_thread, gw_thread, event_thread, num, thread_lock
+    
     if message.topic == '/efwb/post/sync':
         num += 1
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
+                
+            
                 extAddress = hex(
                     int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+            
                 mqtt_thread = socketio.start_background_task(
                     handle_sync_data(mqtt_data, extAddress))
                 mqtt_thread = None
+                
     elif message.topic == '/efwb/post/connectcheck':
         with thread_lock:
             if gw_thread is None:
@@ -233,6 +239,5 @@ def handle_mqtt_message(client, userdata, message):
                         "value": event_data['value'],
                         "bid": dev.bid
                     }
-                    socketio.emit('efwbasync', event_socket,
-                                  namespace='/receiver')
+                    socketio.emit('efwbasync', event_socket, namespace='/receiver')
                 event_thread = None
