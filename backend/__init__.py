@@ -1,21 +1,16 @@
 print ("module [backend] loaded")
+import os
+import platform
+import logging
 
 from flask_cors import CORS
 from flask_sqlalchemy import get_debug_queries
-import os
-import platform
 from flask import Flask, render_template, make_response
 from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
 
-import logging
-
-
-# logging.basicConfig(filename = "test.log", level = logging.DEBUG)
-
-# app = Flask(__name__)
 
 app = Flask(__name__
             , template_folder=os.getcwd()+'/efwb-frontend/dist'
@@ -23,7 +18,13 @@ app = Flask(__name__
             , static_url_path='/static')
 
 
-cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
+cors = CORS(app, resources={r"/api/*": {"origins": "*"},
+                            r"/socket.io/*": {
+                            "origins": "*",
+                            "methods": ["GET", "POST"],
+                            "allow_headers": ["token"]
+                            }
+                        }, max_age=86400)
 
 cur_system = platform.system()
 if cur_system == "Windows":
@@ -45,7 +46,12 @@ mqtt = Mqtt()
 mqtt.init_app(app)
 
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
-socketio = SocketIO(app,cors_allowed_origins="*")
+
+# socket init
+socketio = SocketIO(app,
+                    cors_allowed_origins="*",
+                    ping_timeout=60,
+                    ping_interval=25)
 
 @app.route("/", methods=["GET"])
 def page_index():
@@ -85,19 +91,15 @@ from backend.api.mqtt import *
 
 server = db.session.query(Server).first()
 if server.start == 0 :
-    print("first")
     db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
     db.session.commit()
   
 else :
-    print("second")
     db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
     db.session.commit()
     mqtt.subscribe('/efwb/post/sync')
     mqtt.subscribe('/efwb/post/async')
     mqtt.subscribe('/efwb/post/connectcheck')
-# mqtt.subscribe('/efwb/post/sync')
-# mqtt.subscribe('/efwb/post/async')
-# mqtt.subscribe('/efwb/post/connectcheck')
-
     
+    # New CHU
+    mqtt.subscribe('/DT/eHG4/GPS/Location')
