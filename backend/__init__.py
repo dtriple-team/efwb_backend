@@ -51,7 +51,8 @@ manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 socketio = SocketIO(app,
                     cors_allowed_origins="*",
                     ping_timeout=60,
-                    ping_interval=25)
+                    ping_interval=25,
+                    ssl_context=None)
 
 @app.route("/", methods=["GET"])
 def page_index():
