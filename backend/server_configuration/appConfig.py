@@ -11,6 +11,7 @@ class DevelopmentConfig():
 
 
 class ProductionConfig():
+    BIND_PORT = 8081
     SQLALCHEMY_DATABASE_URI = 'mysql://dbadmin:p@ssw0rd@127.0.0.1/efwb3'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MQTT_BROKER_URL = "t-vsm.com"
