@@ -6,12 +6,12 @@ from logger_config import app_logger
 
 def get_warning_info(warning_type):
     warnings = {
-        0: {"type": "낙상", "severity": "높음"},
-        1: {"type": "배터리 용량 부족", "severity": "높음"},
-        2: {"type": "배터리 용량 주의", "severity": "낮음"},
-        3: {"type": "미착용", "severity": "중간"},
-        4: {"type": "심박수 이상", "severity": "높음"},
-        5: {"type": "수신 감도 낮음", "severity": "경고"}
+        0: {"type": "낙상", "severity": "위험"},
+        1: {"type": "배터리 용량 부족", "severity": "경고"},
+        2: {"type": "배터리 용량 주의", "severity": "알림"},
+        3: {"type": "미착용", "severity": "알림"},
+        4: {"type": "심박수 이상", "severity": "위험"},
+        5: {"type": "수신 감도 낮음", "severity": "알림"}
     }
     return warnings.get(warning_type, {"type": "알 수 없음", "severity": "알 수 없음"})
 
@@ -64,7 +64,7 @@ def send_warning_sms(dev_name, warning_type, value):
         return True
         
     except Exception as e:
-        print(f"SMS 전송 실패: {str(e)}")
+        app_logger.info(f"SMS 전송 실패: {str(e)}")
         return False
 
 # MQTT handler에서 사용 예시
