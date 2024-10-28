@@ -5,10 +5,11 @@ from backend.db.table.table_band import *
 from backend.db.service.query import *
 from backend.api.crawling import *
 from threading import Lock
+from backend.sms.send_sms import send_warning_sms
 from logger_config import app_logger
 
 
-mqtt_thread = None
+mqtt_thread = None 
 gw_thread = None
 event_thread = None
 
@@ -258,83 +259,124 @@ def handle_sync_data(mqtt_data, extAddress):
       insertUsersBands(1, band.id)
 
 
-def handle_gateway_state(panid):
-  print("handle_gateway_state", panid)
-  try:
-    dev = selectGatewayPid(panid['panid'])
-    if dev is not None:
-      if dev.ip != panid['ip']:
-        updateGatewaysIP(dev.id, panid['ip'])
-      if dev.connect_state == 0:
-        updateGatewaysConnect(dev.id, True)
-      else:
-        updateGatewaysConnectCheck(dev.id)
-    else:
-      insertGateway(panid)
-      dev = selectGatewayPid(panid['panid'])
-      d = datetime.datetime.now(timezone('Asia/Seoul'))
-      urldate = str(d.year)+"."+str(d.month) + \
-        "."+str(d.day)+"."+str(d.hour)
-      trtemp, atemp = getAirpressure(urldate)
-      if trtemp != 0:
-        updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
-      socketio.emit('gateway_connect', panid, namespace='/receiver')
-  except:
-      pass
+# def handle_gateway_state(panid):
+#   print("handle_gateway_state", panid)
+#   try:
+#     dev = selectGatewayPid(panid['panid'])
+#     if dev is not None:
+#       if dev.ip != panid['ip']:
+#         updateGatewaysIP(dev.id, panid['ip'])
+#       if dev.connect_state == 0:
+#         updateGatewaysConnect(dev.id, True)
+#       else:
+#         updateGatewaysConnectCheck(dev.id)
+#     else:
+#       insertGateway(panid)
+#       dev = selectGatewayPid(panid['panid'])
+#       d = datetime.datetime.now(timezone('Asia/Seoul'))
+#       urldate = str(d.year)+"."+str(d.month) + \
+#         "."+str(d.day)+"."+str(d.hour)
+#       trtemp, atemp = getAirpressure(urldate)
+#       if trtemp != 0:
+#         updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
+#       socketio.emit('gateway_connect', panid, namespace='/receiver')
+#   except:
+#       pass
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-
+  print("handle mqtt msg start")
   global mqtt_thread, gw_thread, event_thread, num, thread_lock
   
   if message.topic == '/efwb/post/sync':
     num += 1
     with thread_lock:
-      if mqtt_thread is None: 
-        mqtt_data = json.loads(message.payload.decode())
-          
-        extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-          
-        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-          
+      try: 
+        if mqtt_thread is None: 
+          mqtt_data = json.loads(message.payload.decode())
+            
+          extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+            
+          mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+            
+      except json.JSONDecodeError as e:
+        logging.error(f"JSON Decode Error in sync message: {str(e)}")
+        logging.debug(f"Problematic payload: {message.payload}")
+      except (KeyError, ValueError) as e:
+        logging.error(f"Data processing error in sync message: {str(e)}")
+      except Exception as e:
+        logging.error(f"Unexpected error in sync message: {str(e)}")
+      finally:
         mqtt_thread = None
             
               
   elif message.topic == '/DT/eHG4/GPS/Location':
     with thread_lock:
       if mqtt_thread is None: 
-        # print(mqtt_data)
-        mqtt_data = json.loads(message.payload.decode())
+        try:
+          mqtt_data = json.loads(message.payload.decode())
             
-        extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-        
-        mqtt_thread = socketio.start_background_task(handle_gps_data(mqtt_data, extAddress))
+          extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+          
+          mqtt_thread = socketio.start_background_task(handle_gps_data(mqtt_data, extAddress))
 
-        mqtt_thread = None
+        except json.JSONDecodeError as e:
+          logging.error(f"JSON Decode Error in sync message: {str(e)}")
+          logging.debug(f"Problematic payload: {message.payload}")
+        except (KeyError, ValueError) as e:
+          logging.error(f"Data processing error in sync message: {str(e)}")
+        except Exception as e:
+          logging.error(f"Unexpected error in sync message: {str(e)}")
+        finally:
+          mqtt_thread = None
               
   elif message.topic == '/efwb/post/connectcheck':
     with thread_lock:
-      if gw_thread is None:
-        gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+      try: 
+        if gw_thread is None:
+          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+      except json.JSONDecodeError as e:
+        logging.error(f"JSON Decode Error in connectcheck message: {str(e)}")
+      except Exception as e:
+        logging.error(f"Error in connectcheck message: {str(e)}")
+      finally:
         gw_thread = None
 
   elif message.topic == '/efwb/post/async':
     with thread_lock:
       if event_thread is None:
+        
         event_data = json.loads(message.payload.decode())
+        
         extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
         
         dev = db.session.query(Bands).filter_by(bid=extAddress).first()
-        
-        if dev is not None:
-          insertEvent(
-            dev.id, event_data['type'], event_data['value'])
-          
-          event_socket = {
-            "type": event_data['type'],
-            "value": event_data['value'],
-            "bid": dev.bid,
-            "name": dev.name
-          }
-          socketio.emit('efwbasync', event_socket,namespace='/receiver')
-        event_thread = None
+        try: 
+          if dev is not None:
+            insertEvent(
+              dev.id, event_data['type'], event_data['value'])
+            
+            send_warning_sms(
+              dev_name=dev.name,
+              warning_type=event_data['type'],
+              value=event_data['value']
+            )
+            app_logger.info("Next warning.")
+            
+            event_socket = {
+              "type": event_data['type'],
+              "value": event_data['value'],
+              "bid": dev.bid,
+              "name": dev.name
+            }
+            socketio.emit('efwbasync', event_socket,namespace='/receiver')
+            app_logger.debug(f"sync data = {event_socket}")
+            app_logger.info(f"Successfully processed and emitted warning data for band: {extAddress}")
+        except json.JSONDecodeError as e:
+          logging.error(f"JSON Decode Error in async message: {str(e)}")
+        except (KeyError, ValueError) as e:
+          logging.error(f"Data processing error in async message: {str(e)}")
+        except Exception as e:
+          logging.error(f"Unexpected error in async message: {str(e)}")
+        finally:
+          event_thread = None
