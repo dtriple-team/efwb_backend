@@ -5,11 +5,11 @@ from backend.db.table.table_band import *
 from backend.db.service.query import *
 from backend.api.crawling import *
 from threading import Lock
-from backend.sms.send_sms import send_warning_sms
 from logger_config import app_logger
+from datetime import timedelta
 
 
-mqtt_thread = None 
+mqtt_thread = None
 gw_thread = None
 event_thread = None
 
@@ -46,21 +46,23 @@ def handle_gps_data(mqtt_data, extAddress):
             return
         
         gps_info = mqtt_data['data'].split(',')
-        if len(gps_info) != 7:
+        if len(gps_info) != 2:
             app_logger.error(f"Invalid GPS data format: {mqtt_data['data']}")
             return
         
-        latitude, longitude, altitude, speed, course, sats, timestamp = gps_info
+        timestamp = datetime.datetime.now(timezone('Asia/Seoul'))
+        # latitude, longitude, altitude, speed, course, sats, timestamp = gps_info
+        garbage_value, latitude, longitude = gps_info
         
         # Create a GPS data object
         gps_data = {
           'bid': extAddress,
           'latitude': float(latitude),
           'longitude': float(longitude),
-          'altitude': float(altitude),
-          'speed': float(speed),
-          'course': float(course),
-          'satellites': int(float(sats)),
+          # 'altitude': float(altitude),
+          # 'speed': float(speed),
+          # 'course': float(course),
+          # 'satellites': int(float(sats)),
           'timestamp': timestamp
         }
         
@@ -129,17 +131,21 @@ def handle_ehg4_data(data, b_id):
 def handle_sync_data(mqtt_data, extAddress):
   dev = db.session.query(Bands).filter_by(bid=extAddress).first()
   if dev is not None:
-      
-    gatewayDev = db.session.query(Gateways.airpressure).\
-      filter(Gateways.pid == mqtt_data['pid']).first()
-    
-    if gatewayDev is not None:
-      sensorDev = db.session.query(WalkRunCount).\
-        filter(WalkRunCount.FK_bid == dev.id).\
-        filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-      db.session.flush()
-
     try:
+      # 밴드 연결 상태 업데이트
+      dev.connect_state = 1  # 1: connected
+      dev.connect_time = datetime.datetime.now(timezone('Asia/Seoul'))
+      db.session.commit()
+      
+      gatewayDev = db.session.query(Gateways.airpressure).\
+        filter(Gateways.pid == mqtt_data['pid']).first()
+      
+      if gatewayDev is not None:
+        sensorDev = db.session.query(WalkRunCount).\
+          filter(WalkRunCount.FK_bid == dev.id).\
+          filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
+        db.session.flush()
+
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
       data = SensorData()
@@ -248,6 +254,8 @@ def handle_sync_data(mqtt_data, extAddress):
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
       
     except Exception as e:
+      db.session.rollback()
+      app_logger.error(f"Error updating band connection status: {str(e)}")
       print("****** error ********")
       print(e)
   else:
@@ -258,125 +266,121 @@ def handle_sync_data(mqtt_data, extAddress):
       insertGatewaysBands(gw.id, band.id)
       insertUsersBands(1, band.id)
 
+def check_disconnected_bands():
+    with app.app_context():
+        try:
+            connected_bands = db.session.query(Bands).filter_by(connect_state=1).all()
+            current_time = datetime.datetime.now(timezone('Asia/Seoul'))
+            
+            for band in connected_bands:
+                # connect_time에 timezone 정보 추가
+                if band.connect_time:
+                    band_connect_time = band.connect_time
+                    if band_connect_time.tzinfo is None:
+                        band_connect_time = timezone('Asia/Seoul').localize(band_connect_time)
+                    
+                    if (current_time - band_connect_time) > timedelta(minutes=1):
+                        band.connect_state = 0
+                        band.disconnect_time = current_time
+                        
+                        disconnect_event = {
+                            "bid": band.bid,
+                            "name": band.name,
+                            "disconnect_time": band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        socketio.emit('band_disconnect', disconnect_event, namespace='/receiver')
+                
+            db.session.commit()
+            app_logger.info("Successfully checked and updated disconnected bands")
+            
+        except Exception as e:
+            db.session.rollback()
+            app_logger.error(f"Error checking disconnected bands: {str(e)}")
 
-# def handle_gateway_state(panid):
-#   print("handle_gateway_state", panid)
-#   try:
-#     dev = selectGatewayPid(panid['panid'])
-#     if dev is not None:
-#       if dev.ip != panid['ip']:
-#         updateGatewaysIP(dev.id, panid['ip'])
-#       if dev.connect_state == 0:
-#         updateGatewaysConnect(dev.id, True)
-#       else:
-#         updateGatewaysConnectCheck(dev.id)
-#     else:
-#       insertGateway(panid)
-#       dev = selectGatewayPid(panid['panid'])
-#       d = datetime.datetime.now(timezone('Asia/Seoul'))
-#       urldate = str(d.year)+"."+str(d.month) + \
-#         "."+str(d.day)+"."+str(d.hour)
-#       trtemp, atemp = getAirpressure(urldate)
-#       if trtemp != 0:
-#         updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
-#       socketio.emit('gateway_connect', panid, namespace='/receiver')
-#   except:
-#       pass
+# 백그라운드 스케줄러 설정
+def start_disconnect_checker():
+    """5분마다 연결 해제 상태를 체크하는 스케줄러 시작"""
+    while True:
+        check_disconnected_bands()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+        socketio.sleep(70)  # 1분 10초
+    
+def handle_gateway_state(panid):
+  print("handle_gateway_state", panid)
+  try:
+    dev = selectGatewayPid(panid['panid'])
+    if dev is not None:
+      if dev.ip != panid['ip']:                                                                                                                                                                                                                                                                                               
+        updateGatewaysIP(dev.id, panid['ip'])
+      if dev.connect_state == 0:
+        updateGatewaysConnect(dev.id, True)
+      else:
+        updateGatewaysConnectCheck(dev.id)
+    else:
+      insertGateway(panid)
+      dev = selectGatewayPid(panid['panid'])
+      d = datetime.datetime.now(timezone('Asia/Seoul'))
+      urldate = str(d.year)+"."+str(d.month) + \
+        "."+str(d.day)+"."+str(d.hour)
+      trtemp, atemp = getAirpressure(urldate)
+      if trtemp != 0:
+        updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
+      socketio.emit('gateway_connect', panid, namespace='/receiver')
+  except:
+      pass
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-  print("handle mqtt msg start")
+
   global mqtt_thread, gw_thread, event_thread, num, thread_lock
   
   if message.topic == '/efwb/post/sync':
     num += 1
     with thread_lock:
-      try: 
-        if mqtt_thread is None: 
-          mqtt_data = json.loads(message.payload.decode())
-            
-          extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-            
-          mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-            
-      except json.JSONDecodeError as e:
-        logging.error(f"JSON Decode Error in sync message: {str(e)}")
-        logging.debug(f"Problematic payload: {message.payload}")
-      except (KeyError, ValueError) as e:
-        logging.error(f"Data processing error in sync message: {str(e)}")
-      except Exception as e:
-        logging.error(f"Unexpected error in sync message: {str(e)}")
-      finally:
+      if mqtt_thread is None: 
+        mqtt_data = json.loads(message.payload.decode())
+          
+        extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+          
+        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
+          
         mqtt_thread = None
             
               
   elif message.topic == '/DT/eHG4/GPS/Location':
     with thread_lock:
       if mqtt_thread is None: 
-        try:
-          mqtt_data = json.loads(message.payload.decode())
+        # print(mqtt_data)
+        mqtt_data = json.loads(message.payload.decode())
             
-          extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-          
-          mqtt_thread = socketio.start_background_task(handle_gps_data(mqtt_data, extAddress))
+        extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+        
+        mqtt_thread = socketio.start_background_task(handle_gps_data(mqtt_data, extAddress))
 
-        except json.JSONDecodeError as e:
-          logging.error(f"JSON Decode Error in sync message: {str(e)}")
-          logging.debug(f"Problematic payload: {message.payload}")
-        except (KeyError, ValueError) as e:
-          logging.error(f"Data processing error in sync message: {str(e)}")
-        except Exception as e:
-          logging.error(f"Unexpected error in sync message: {str(e)}")
-        finally:
-          mqtt_thread = None
+        mqtt_thread = None
               
   elif message.topic == '/efwb/post/connectcheck':
     with thread_lock:
-      try: 
-        if gw_thread is None:
-          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
-      except json.JSONDecodeError as e:
-        logging.error(f"JSON Decode Error in connectcheck message: {str(e)}")
-      except Exception as e:
-        logging.error(f"Error in connectcheck message: {str(e)}")
-      finally:
+      if gw_thread is None:
+        gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
         gw_thread = None
 
   elif message.topic == '/efwb/post/async':
     with thread_lock:
       if event_thread is None:
-        
         event_data = json.loads(message.payload.decode())
-        
         extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
         
         dev = db.session.query(Bands).filter_by(bid=extAddress).first()
-        try: 
-          if dev is not None:
-            insertEvent(
-              dev.id, event_data['type'], event_data['value'])
-            
-            send_warning_sms(
-              dev_name=dev.name,
-              warning_type=event_data['type'],
-              value=event_data['value']
-            )
-            app_logger.info("Next warning.")
-            
-            event_socket = {
-              "type": event_data['type'],
-              "value": event_data['value'],
-              "bid": dev.bid,
-              "name": dev.name
-            }
-            socketio.emit('efwbasync', event_socket,namespace='/receiver')
-            app_logger.debug(f"sync data = {event_socket}")
-            app_logger.info(f"Successfully processed and emitted warning data for band: {extAddress}")
-        except json.JSONDecodeError as e:
-          logging.error(f"JSON Decode Error in async message: {str(e)}")
-        except (KeyError, ValueError) as e:
-          logging.error(f"Data processing error in async message: {str(e)}")
-        except Exception as e:
-          logging.error(f"Unexpected error in async message: {str(e)}")
-        finally:
-          event_thread = None
+        
+        if dev is not None:
+          insertEvent(
+            dev.id, event_data['type'], event_data['value'])
+          
+          event_socket = {
+            "type": event_data['type'],
+            "value": event_data['value'],
+            "bid": dev.bid,
+            "name": dev.name
+          }
+          socketio.emit('efwbasync', event_socket,namespace='/receiver')
+        event_thread = None
