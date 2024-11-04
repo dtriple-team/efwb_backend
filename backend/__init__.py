@@ -52,7 +52,7 @@ socketio = SocketIO(app,
                     cors_allowed_origins="*",
                     ping_timeout=60,
                     ping_interval=25,
-                    ssl_context=None)
+                    )
 
 @app.route("/", methods=["GET"])
 def page_index():
@@ -94,7 +94,7 @@ server = db.session.query(Server).first()
 if server.start == 0 :
     db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
     db.session.commit()
-  
+
 else :
     db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
     db.session.commit()
@@ -104,3 +104,6 @@ else :
     
     # New CHU
     mqtt.subscribe('/DT/eHG4/GPS/Location')
+    
+    
+socketio.start_background_task(start_disconnect_checker)

@@ -1685,3 +1685,74 @@ def get_os_browser_from_useragent(userAgent):
         browser_ver = "Safari"
 
     return os_ver, browser_ver
+
+@app.route('/api/efwb/v1/connection-status', methods=['GET'])
+def get_bands_connection_status():
+    """
+    모든 밴드의 연결 상태를 조회하는 API
+    Returns:
+        - bid
+        - name
+        - connect_state
+        - connect_time
+        - disconnect_time
+    """
+    try:
+        bands = db.session.query(Bands).all()
+        result = []
+        
+        for band in bands:
+            band_status = {
+                'bid': band.bid,
+                'name': band.name,
+                'connect_state': band.connect_state,
+                'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
+                'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
+            }
+            result.append(band_status)
+            
+        return jsonify({
+            'status': 'success',
+            'data': result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
+        }), 500
+
+@app.route('/api/efwb/v1/connection-status/<bid>', methods=['GET'])
+def get_band_connection_status(bid):
+    """
+    특정 밴드의 연결 상태를 조회하는 API
+    Args:
+        bid: 밴드 ID
+    """
+    try:
+        band = db.session.query(Bands).filter_by(bid=bid).first()
+        
+        if not band:
+            return jsonify({
+                'status': 'error',
+                'message': '해당 밴드를 찾을 수 없습니다.'
+            }), 404
+            
+        band_status = {
+            'bid': band.bid,
+            'name': band.name,
+            'connect_state': band.connect_state,
+            'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
+            'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'data': band_status
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
+        }), 500 
