@@ -46,13 +46,13 @@ def handle_gps_data(mqtt_data, extAddress):
             return
         
         gps_info = mqtt_data['data'].split(',')
-        if len(gps_info) != 2:
+        if len(gps_info) != 4:
             app_logger.error(f"Invalid GPS data format: {mqtt_data['data']}")
             return
         
         timestamp = datetime.datetime.now(timezone('Asia/Seoul'))
         # latitude, longitude, altitude, speed, course, sats, timestamp = gps_info
-        garbage_value, latitude, longitude = gps_info
+        base_station_count, latitude, longitude, garbage_value = gps_info
         
         # Create a GPS data object
         gps_data = {
@@ -63,7 +63,7 @@ def handle_gps_data(mqtt_data, extAddress):
           # 'speed': float(speed),
           # 'course': float(course),
           # 'satellites': int(float(sats)),
-          'timestamp': timestamp
+          'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
         }
         
         # Emit the GPS data to the frontend
