@@ -45,26 +45,35 @@ def handle_gps_data(mqtt_data, extAddress):
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
             return
         
+        timestamp = datetime.datetime.now(timezone('Asia/Seoul'))
+        
         gps_info = mqtt_data['data'].split(',')
-        if len(gps_info) != 4:
+        
+        # GPS 데이터 형식에 따라 다르게 처리
+        if len(gps_info) == 4:
+            base_station_count, latitude, longitude, _ = gps_info
+            gps_data = {
+                'bid': extAddress,
+                'base_station_count': int(base_station_count),
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        elif len(gps_info) == 7:
+            latitude, longitude, altitude, speed, course, sats, _ = gps_info
+            gps_data = {
+                'bid': extAddress,
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'altitude': float(altitude),
+                'speed': float(speed),
+                'course': float(course),
+                'satellites': int(float(sats)),
+                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        else:
             app_logger.error(f"Invalid GPS data format: {mqtt_data['data']}")
             return
-        
-        timestamp = datetime.datetime.now(timezone('Asia/Seoul'))
-        # latitude, longitude, altitude, speed, course, sats, timestamp = gps_info
-        base_station_count, latitude, longitude, garbage_value = gps_info
-        
-        # Create a GPS data object
-        gps_data = {
-          'bid': extAddress,
-          'latitude': float(latitude),
-          'longitude': float(longitude),
-          # 'altitude': float(altitude),
-          # 'speed': float(speed),
-          # 'course': float(course),
-          # 'satellites': int(float(sats)),
-          'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        }
         
         # Emit the GPS data to the frontend
         socketio.emit('ehg4_gps', gps_data, namespace='/receiver')
