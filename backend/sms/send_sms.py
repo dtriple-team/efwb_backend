@@ -11,7 +11,8 @@ def get_warning_info(warning_type):
     2: {"type": "배터리 용량 주의", "severity": "알림"},
     3: {"type": "미착용", "severity": "알림"},
     4: {"type": "심박수 이상", "severity": "위험"},
-    5: {"type": "수신 감도 낮음", "severity": "알림"}
+    5: {"type": "수신 감도 낮음", "severity": "알림"},
+    6: {"type": "구조 요청", "severity": "위험"}
   }
   
   if warning_type not in warnings:
