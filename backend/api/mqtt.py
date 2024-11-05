@@ -7,6 +7,7 @@ from backend.api.crawling import *
 from threading import Lock
 from logger_config import app_logger
 from datetime import timedelta
+from backend.sms.send_sms import send_warning_sms
 
 
 mqtt_thread = None
@@ -384,6 +385,12 @@ def handle_mqtt_message(client, userdata, message):
         if dev is not None:
           insertEvent(
             dev.id, event_data['type'], event_data['value'])
+          
+          send_warning_sms(
+              dev_name=dev.name,
+              warning_type=event_data['type'],
+              value=event_data['value']
+            )
           
           event_socket = {
             "type": event_data['type'],

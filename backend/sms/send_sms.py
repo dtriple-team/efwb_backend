@@ -82,7 +82,7 @@ def send_warning_sms(dev_name, warning_type, value):
     send_soap_request(sms_id, password, snd_number, rcv_number, message, option, reserve_date, reserve_time, userdefine, canclemode)
     
     # 로그 기록
-    app_logger.info(f"[{current_time}] SMS 전송: {message}")
+    app_logger.info(f"{rcv_number}에게 [{current_time}] SMS 전송: {message}")
     return True
       
   except Exception as e:
