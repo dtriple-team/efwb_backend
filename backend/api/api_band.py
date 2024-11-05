@@ -1757,3 +1757,35 @@ def get_band_connection_status(bid):
             'status': 'error',
             'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
         }), 500 
+        
+@app.route('/api/efwb/v1/connected-locations', methods=['GET'])
+def get_connected_band_locations():
+    """현재 연결된 밴드들의 위치 정보를 조회"""
+    app_logger.info("연결된 밴드들의 위치 정보 조회 시작")
+    try:
+        connected_bands = db.session.query(Bands).filter(
+            Bands.connect_state == 1
+        ).all()
+        
+        result = []
+        for band in connected_bands:
+            result.append({
+                "id": band.id,
+                "bid": band.bid,
+                "latitude": float(band.latitude) if band.latitude else None,
+                "longitude": float(band.longitude) if band.longitude else None,
+                "name": band.name
+            })
+            
+        app_logger.info(f"총 {len(result)}개의 연결된 밴드 위치 정보 조회 완료")
+        return make_response(jsonify({
+            'status': 'success',
+            'data': result
+        }), 200)
+        
+    except Exception as e:
+        app_logger.error(f"연결된 밴드 위치 조회 중 에러 발생: {str(e)}")
+        return make_response(jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500)

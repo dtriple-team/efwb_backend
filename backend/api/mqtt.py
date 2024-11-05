@@ -7,7 +7,13 @@ from backend.api.crawling import *
 from threading import Lock
 from logger_config import app_logger
 from datetime import timedelta
+from sqlalchemy import text
+from collections import defaultdict
+import time
 
+# 캐시 저장을 위한 전역 변수 추가
+last_event_cache = defaultdict(dict)
+EVENT_COOLDOWN = 0.5  # 중복 처리 방지 시간 (초)
 
 mqtt_thread = None
 gw_thread = None
@@ -74,6 +80,26 @@ def handle_gps_data(mqtt_data, extAddress):
         else:
             app_logger.error(f"Invalid GPS data format: {mqtt_data['data']}")
             return
+          
+        try:
+            # gps_data 확인
+            print(f"GPS 데이터 확인: {gps_data}")
+            
+            # band 조회 결과 확인
+            band = db.session.query(Bands).filter_by(bid=gps_data['bid']).first()
+            print(f"조회된 band: {band.bid if band else 'Not Found'}")
+            
+            if band:
+                print(f"업데이트 전 위치: lat={band.latitude}, lng={band.longitude}")
+                band.latitude = gps_data['latitude']
+                band.longitude = gps_data['longitude']
+                db.session.commit()
+                print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
+            else:
+                print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
+                
+        except Exception as e:
+            print(f"GPS 데이터 DB 업데이트 중 에러 발생: {e}")
         
         # Emit the GPS data to the frontend
         socketio.emit('ehg4_gps', gps_data, namespace='/receiver')
@@ -376,8 +402,24 @@ def handle_mqtt_message(client, userdata, message):
   elif message.topic == '/efwb/post/async':
     with thread_lock:
       if event_thread is None:
+        
         event_data = json.loads(message.payload.decode())
-        extAddress = hex(int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+        
+        extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+       
+        # 중복 체크를 위한 캐시 키 생성
+        cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
+        current_time = time.time()
+        
+        # 최근 처리된 동일 이벤트 확인
+        if cache_key in last_event_cache:
+          last_time = last_event_cache[cache_key]
+          if current_time - last_time < EVENT_COOLDOWN:
+            app_logger.debug(f"Skipping duplicate event: {cache_key}")
+            return
+            
+        # 현재 이벤트 시간 저장
+        last_event_cache[cache_key] = current_time
         
         dev = db.session.query(Bands).filter_by(bid=extAddress).first()
         
