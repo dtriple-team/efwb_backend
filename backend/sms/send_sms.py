@@ -3,6 +3,11 @@ from pytz import timezone
 from backend.sms.soap_request import *
 from logger_config import app_logger
 
+rcv_number = "01089959054"
+
+def set_rcv_number(phone_number):
+  global rcv_number
+  rcv_number = phone_number
 
 def get_warning_info(warning_type):
   warnings = {
@@ -69,7 +74,10 @@ def send_warning_sms(dev_name, warning_type, value):
 
     #문자 전송, 전송 예약시 사용(option 4,5 에서 필수)
     snd_number="0312816900" #발송 번호 ( 발송등록된 번호만 사용 가능)
-    rcv_number="01089959054" #다수에게 발송시, 로 연결하여 입력 ex) 01011112222,01022223333
+   
+    if rcv_number is None:
+      app_logger.warning("수신자 번호가 설정되지 않았습니다.")
+      return False
     
     send_soap_request(sms_id, password, snd_number, rcv_number, message, option, reserve_date, reserve_time, userdefine, canclemode)
     

@@ -18,20 +18,16 @@ import requests
 import hashlib
 print("module [backend.api_band] loaded")
 
-
 count = 0
 work = False
 
-
 def messageReceived(methods=['GET', 'POST']):
     print('message was received!!!')
-
 
 @login_manager.user_loader
 def load_user(id):
     user = DBManager.db.session.query(Users).get(id)
     return user
-
 
 @app.route('/api/efwb/v1/setting', methods=['GET'])
 def init_setting():
@@ -41,7 +37,6 @@ def init_setting():
     mqtt.subscribe('/efwb/post/connectcheck')
 
     return make_response("ok", 200)
-
 
 @app.route('/api/efwb/v1/thread', methods=['GET'])
 def init_thread():
@@ -1756,3 +1751,23 @@ def get_band_connection_status(bid):
             'status': 'error',
             'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
         }), 500 
+        
+@app.route('/api/efwb/v1/register', methods=['POST'])
+def register_phone():
+    try:
+        data = request.get_json()
+        phone_number = data.get('phoneNumber')
+        app_logger.info(f"받은 전화번호: {phone_number}")
+        set_rcv_number(phone_number)  
+        
+        return jsonify({
+            'success': True,
+            'message': '전화번호가 성공적으로 등록되었습니다.',
+            'phoneNumber': phone_number
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 400
