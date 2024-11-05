@@ -312,7 +312,7 @@ def start_disconnect_checker():
     """5분마다 연결 해제 상태를 체크하는 스케줄러 시작"""
     while True:
         check_disconnected_bands()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-        socketio.sleep(70)  # 1분 10초
+        socketio.sleep(150)  # 2분 30초
     
 def handle_gateway_state(panid):
   print("handle_gateway_state", panid)
@@ -386,11 +386,11 @@ def handle_mqtt_message(client, userdata, message):
           insertEvent(
             dev.id, event_data['type'], event_data['value'])
           
-          send_warning_sms(
-              dev_name=dev.name,
-              warning_type=event_data['type'],
-              value=event_data['value']
-            )
+          # send_warning_sms(
+          #     dev_name=dev.name,
+          #     warning_type=event_data['type'],
+          #     value=event_data['value']
+          #   )
           
           event_socket = {
             "type": event_data['type'],
@@ -399,4 +399,8 @@ def handle_mqtt_message(client, userdata, message):
             "name": dev.name
           }
           socketio.emit('efwbasync', event_socket,namespace='/receiver')
+          app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
+          
+        else:
+          app_logger.warning(f"Band not found for extAddress: {extAddress}")
         event_thread = None
