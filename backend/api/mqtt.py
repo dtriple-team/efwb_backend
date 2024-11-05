@@ -386,11 +386,11 @@ def handle_mqtt_message(client, userdata, message):
           insertEvent(
             dev.id, event_data['type'], event_data['value'])
           
-          # send_warning_sms(
-          #     dev_name=dev.name,
-          #     warning_type=event_data['type'],
-          #     value=event_data['value']
-          #   )
+          send_warning_sms(
+              dev_name=dev.name,
+              warning_type=event_data['type'],
+              value=event_data['value']
+            )
           
           event_socket = {
             "type": event_data['type'],
