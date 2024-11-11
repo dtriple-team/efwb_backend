@@ -8,6 +8,7 @@ from threading import Lock
 from logger_config import app_logger
 from datetime import timedelta
 from backend.sms.send_sms import send_warning_sms
+from random import uniform
 
 
 mqtt_thread = None
@@ -51,13 +52,31 @@ def handle_gps_data(mqtt_data, extAddress):
         gps_info = mqtt_data['data'].split(',')
         
         # GPS 데이터 형식에 따라 다르게 처리
+        # if len(gps_info) == 4:
+        #     base_station_count, latitude, longitude, _ = gps_info
+        #     gps_data = {
+        #         'bid': extAddress,
+        #         'base_station_count': int(base_station_count),
+        #         'latitude': float(latitude),
+        #         'longitude': float(longitude),
+        #         'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        #     }
         if len(gps_info) == 4:
             base_station_count, latitude, longitude, _ = gps_info
+            
+            # 기준 좌표
+            base_lat = 35.067786
+            base_lon = 127.751247
+            
+            # 소수점 셋째자리에서 ±0.001 범위의 랜덤값 생성
+            random_lat = base_lat + uniform(-0.001, 0.001)
+            random_lon = base_lon + uniform(-0.001, 0.001)
+            
             gps_data = {
                 'bid': extAddress,
                 'base_station_count': int(base_station_count),
-                'latitude': float(latitude),
-                'longitude': float(longitude),
+                'latitude': round(random_lat, 6),  # 6자리까지 반올림
+                'longitude': round(random_lon, 6),  # 6자리까지 반올림
                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
             }
         elif len(gps_info) == 7:
@@ -313,30 +332,6 @@ def start_disconnect_checker():
     while True:
         check_disconnected_bands()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
         socketio.sleep(150)  # 2분 30초
-    
-def handle_gateway_state(panid):
-  print("handle_gateway_state", panid)
-  try:
-    dev = selectGatewayPid(panid['panid'])
-    if dev is not None:
-      if dev.ip != panid['ip']:                                                                                                                                                                                                                                                                                               
-        updateGatewaysIP(dev.id, panid['ip'])
-      if dev.connect_state == 0:
-        updateGatewaysConnect(dev.id, True)
-      else:
-        updateGatewaysConnectCheck(dev.id)
-    else:
-      insertGateway(panid)
-      dev = selectGatewayPid(panid['panid'])
-      d = datetime.datetime.now(timezone('Asia/Seoul'))
-      urldate = str(d.year)+"."+str(d.month) + \
-        "."+str(d.day)+"."+str(d.hour)
-      trtemp, atemp = getAirpressure(urldate)
-      if trtemp != 0:
-        updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
-      socketio.emit('gateway_connect', panid, namespace='/receiver')
-  except:
-      pass
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
@@ -368,12 +363,6 @@ def handle_mqtt_message(client, userdata, message):
 
         mqtt_thread = None
               
-  elif message.topic == '/efwb/post/connectcheck':
-    with thread_lock:
-      if gw_thread is None:
-        gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
-        gw_thread = None
-
   elif message.topic == '/efwb/post/async':
     with thread_lock:
       if event_thread is None:
