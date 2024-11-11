@@ -56,8 +56,13 @@ def send_warning_sms(dev_name, warning_type, value):
     current_time = datetime.now(timezone('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')
     
     # SMS 전송 로직
-    sms_id = "stscs"  
-    password = "rhrorakswhr"  
+    # 환경변수는 서버 환경변수에서 가져옵니다
+    sms_id = os.environ.get('SMS_ID')
+    password = os.environ.get('SMS_PASSWORD')
+    
+    if not sms_id or not password:
+        app_logger.error("SMS 인증정보가 환경변수에 설정되지 않았습니다")
+        return False
 
     #문자 전송 예약시에 사용(option 5 에서 필수)
     reserve_date="20241008"# YYYYMMDD 형식
