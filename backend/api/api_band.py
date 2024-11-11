@@ -1324,38 +1324,57 @@ def sensordata_activity_oneday_post_api():
 
 @app.route('/api/efwb/v1/events', methods=["POST"])
 def events_post_api():
-
     data = json.loads(request.data)
     params = ['bid', 'days', 'uid']
 
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
+            
     json_data = []
     dev = []
+    
+    # Events와 Bands 테이블을 조인하여 밴드 이름도 함께 조회
     if len(data['days']) == 0:  # 전체 이벤트에서
-        if data['uid'] != -1:  # uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-            dev = selectBandsEventsUser(data['uid'], data['bid'])
+        if data['uid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == UsersBands.FK_bid).\
+                filter(UsersBands.FK_uid == data['uid']).all()
 
-        elif data['bid'] != -1:  # bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-            dev = selectBandsEventsBands(data['bid'])
+        elif data['bid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == data['bid']).all()
 
-        else:  # uid bid 모두 정해져있지 않다 모든 전체 이벤트를 가져오겠다.
-            dev = selectBandsEvents()
+        else:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).all()
 
     else:  # 정해진 날짜에서
-        if data['uid'] != -1:  # uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-            dev = selectBandsEventsUserDate(
-                data['uid'], data['bid'], data['days'])
+        if data['uid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == UsersBands.FK_bid).\
+                filter(UsersBands.FK_uid == data['uid']).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-        elif data['bid'] != -1:  # bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-            dev = selectBandsEventsBandDate(data['bid'], data['days'])
+        elif data['bid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == data['bid']).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-        else:  # uid bid 모두 정해져있지 않다 모든 그 기간안의 이벤트를 가져오겠다.
-            dev = selectBandsEventsDate(data['days'])
+        else:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-    for i in dev:
-        json_data.append(i.serialize())
+    for event, band_name in dev:
+        event_data = event.serialize()
+        event_data['band_name'] = band_name  # 밴드 이름 추가
+        json_data.append(event_data)
+        
     result = {
         "result": "OK",
         "data": json_data
@@ -1757,3 +1776,35 @@ def get_band_connection_status(bid):
             'status': 'error',
             'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
         }), 500 
+        
+@app.route('/api/efwb/v1/connected-locations', methods=['GET'])
+def get_connected_band_locations():
+    """현재 연결된 밴드들의 위치 정보를 조회"""
+    app_logger.info("연결된 밴드들의 위치 정보 조회 시작")
+    try:
+        connected_bands = db.session.query(Bands).filter(
+            Bands.connect_state == 1
+        ).all()
+        
+        result = []
+        for band in connected_bands:
+            result.append({
+                "id": band.id,
+                "bid": band.bid,
+                "latitude": float(band.latitude) if band.latitude else None,
+                "longitude": float(band.longitude) if band.longitude else None,
+                "name": band.name
+            })
+            
+        app_logger.info(f"총 {len(result)}개의 연결된 밴드 위치 정보 조회 완료")
+        return make_response(jsonify({
+            'status': 'success',
+            'data': result
+        }), 200)
+        
+    except Exception as e:
+        app_logger.error(f"연결된 밴드 위치 조회 중 에러 발생: {str(e)}")
+        return make_response(jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500)
