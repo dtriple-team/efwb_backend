@@ -1,23 +1,28 @@
-Jinja2==3.0.3
-itsdangerous==2.0.1
-Werkzeug==2.0.3
-Flask==1.1.1
-Flask-Migrate==2.5.2
-Flask-Restless==0.17.0
-Flask-RESTful==0.3.7
-Flask-Script==2.0.6
-Flask-SQLAlchemy==2.4.0
-Flask-Cors==3.0.8
-SQLAlchemy==1.3.6
-python-dateutil==2.8.0
-requests==2.20.0
-Flask-Mqtt==1.1.1
-flask-socketio==5.0.1
-beautifulsoup4==4.10.0
-bs4==0.0.1
-Flask-Login==0.5.0
-mysqlclient==2.1.0
-pytz==2021.3
-gevent==21.1.2
-gevent-websocket==0.10.1
-greenlet==1.1.0
+# Flask 및 관련 패키지
+Flask>=2.0.0
+Flask-CORS>=3.0.10
+Flask-SQLAlchemy>=2.5.1
+Flask-SocketIO>=5.1.1
+Flask-Restless>=0.17.0
+Flask-MQTT>=1.1.1
+
+# 데이터베이스
+SQLAlchemy>=1.4.0
+PyMySQL>=1.0.2
+
+# 웹 크롤링 및 파싱
+requests>=2.26.0
+beautifulsoup4>=4.9.3
+urllib3>=1.26.7
+
+# 시간대 처리
+pytz>=2021.3
+
+# XML 처리
+lxml>=4.9.0
+
+# 로깅
+python-json-logger>=2.0.2
+
+# 기타 유틸리티
+python-dateutil>=2.8.2
