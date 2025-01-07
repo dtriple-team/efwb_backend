@@ -1,28 +1,22 @@
-# Flask 및 관련 패키지
-Flask>=2.0.0
-Flask-CORS>=3.0.10
-Flask-SQLAlchemy>=2.5.1
-Flask-SocketIO>=5.1.1
-Flask-Restless>=0.17.0
-Flask-MQTT>=1.1.1
+Jinja2==3.1.5
+itsdangerous==2.2.0
+Werkzeug==2.0.3
+Flask==1.1.1
+Flask-CORS==3.0.10
+Flask-Login==0.5.0
+Flask-Migrate==4.0.4
+Flask-MQTT==1.2.1
+Flask-RESTful==0.3.9
+Flask-Restless==0.17.0
+Flask-SocketIO==5.5.1
+flask-sqlalchemy==2.5.1
+Flask-Script==2.0.6
 
-# 데이터베이스
-SQLAlchemy>=1.4.0
-PyMySQL>=1.0.2
-
-# 웹 크롤링 및 파싱
-requests>=2.26.0
-beautifulsoup4>=4.9.3
-urllib3>=1.26.7
-
-# 시간대 처리
-pytz>=2021.3
-
-# XML 처리
-lxml>=4.9.0
-
-# 로깅
-python-json-logger>=2.0.2
-
-# 기타 유틸리티
-python-dateutil>=2.8.2
+sqlalchemy==1.4.46
+python-dateutil==2.9.0
+requests==2.32.3
+beautifulsoup4==4.12.3
+mysqlclient==2.1.0
+pytz==2022.1
+gevent==22.10.2
+greenlet==3.1.1
