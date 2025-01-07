@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+import uuid
 
 class DevelopmentConfig():
     BIND_PORT = 8084
@@ -9,10 +9,13 @@ class DevelopmentConfig():
     MQTT_BROKER_URL = "t-vsm.com"
     MQTT_BROKER_PORT = 18831
 
+from urllib.parse import quote_plus
 
+password = quote_plus('p@ssw0rd')
 class ProductionConfig():
-    BIND_PORT = 8083
-    SQLALCHEMY_DATABASE_URI = 'mysql://dbadmin:p@ssw0rd@127.0.0.1/efwb3'
+    BIND_PORT = 5000
+    SQLALCHEMY_DATABASE_URI = f'mysql://dbadmin:{password}@127.0.0.1/efwb3'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MQTT_BROKER_URL = "t-vsm.com"
+    MQTT_BROKER_URL = '3.37.65.94'
     MQTT_BROKER_PORT = 18831
+    MQTT_CLIENT_ID = 'admin_app_' + str(uuid.uuid4()) 

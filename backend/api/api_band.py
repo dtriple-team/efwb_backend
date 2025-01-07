@@ -479,7 +479,7 @@ def users_samegroup_get_api(id):
         "result": "OK",
         "data": {
             "userlist": userlist,
-            "gid": gid
+            "gid": gid.FK_gid if gid else None
         }
     }
     return make_response(jsonify(result), 200)

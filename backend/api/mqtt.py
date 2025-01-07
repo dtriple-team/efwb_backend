@@ -10,6 +10,8 @@ from datetime import timedelta
 from sqlalchemy import text
 from collections import defaultdict
 import time
+import sys
+sys.setrecursionlimit(10000)  # 재귀 제한 증가
 
 # 캐시 저장을 위한 전역 변수 추가
 last_event_cache = defaultdict(dict)
@@ -102,7 +104,7 @@ def handle_gps_data(mqtt_data, extAddress):
             print(f"GPS 데이터 DB 업데이트 중 에러 발생: {e}")
         
         # Emit the GPS data to the frontend
-        socketio.emit('ehg4_gps', gps_data, namespace='/receiver')
+        socketio.emit('ehg4_gps', gps_data, namespace='/admin')
         app_logger.debug(f"GPS Data : {gps_data}")
         app_logger.info(f"Successfully processed and emitted GPS data for band: {extAddress}")
         
@@ -152,7 +154,7 @@ def handle_ehg4_data(data, b_id):
     app_logger.info(f"Successfully saved sensor data to database for band: {data['bid']}")
     
     # 실시간 데이터 전송
-    socketio.emit('ehg4_data', data, namespace='/receiver')
+    socketio.emit('ehg4_data', data, namespace='/admin')
     app_logger.info(f"Successfully emitted real-time data for band: {data['bid']}")
       
   except SQLAlchemyError as e:
@@ -284,13 +286,15 @@ def handle_sync_data(mqtt_data, extAddress):
       db.session.commit()
       db.session.flush()
       
-      socketio.emit('efwbsync', mqtt_data, namespace='/receiver')
-      app_logger.debug(f"sync data = {mqtt_data}")
+      # Emit the sync data to the frontend
+      app_logger.info(f"Emitting sync data: {mqtt_data} to namespace '/admin'")
+      socketio.emit('efwbsync', mqtt_data, namespace='/admin')
+      # app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
       
     except Exception as e:
       db.session.rollback()
-      app_logger.error(f"Error updating band connection status: {str(e)}")
+      app_logger.error(f"Error up dating band connection status: {str(e)}")
       print("****** error ********")
       print(e)
   else:
@@ -323,7 +327,7 @@ def check_disconnected_bands():
                             "name": band.name,
                             "disconnect_time": band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S")
                         }
-                        socketio.emit('band_disconnect', disconnect_event, namespace='/receiver')
+                        socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
             db.session.commit()
             app_logger.info("Successfully checked and updated disconnected bands")
@@ -359,83 +363,87 @@ def handle_gateway_state(panid):
       trtemp, atemp = getAirpressure(urldate)
       if trtemp != 0:
         updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
-      socketio.emit('gateway_connect', panid, namespace='/receiver')
+      socketio.emit('gateway_connect', panid, namespace='/admin')
   except:
       pass
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
+  try:
+    global mqtt_thread, gw_thread, event_thread, num, thread_lock
 
-  global mqtt_thread, gw_thread, event_thread, num, thread_lock
-  
-  if message.topic == '/efwb/post/sync':
-    num += 1
-    with thread_lock:
-      if mqtt_thread is None: 
-        mqtt_data = json.loads(message.payload.decode())
-          
-        extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-          
-        mqtt_thread = socketio.start_background_task(handle_sync_data(mqtt_data, extAddress))
-          
-        mqtt_thread = None
-            
+    if message.topic == '/efwb/post/sync':
+        with thread_lock:
+            if mqtt_thread is None:
+                mqtt_data = json.loads(message.payload.decode())
+                extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                
+                # 비동기 처리를 위해 background_task 사용
+                mqtt_thread = socketio.start_background_task(
+                    target=handle_sync_data,
+                    mqtt_data=mqtt_data,
+                    extAddress=extAddress
+                )
+                mqtt_thread = None
+                
+    elif message.topic == '/DT/eHG4/GPS/Location':
+        with thread_lock:
+            if mqtt_thread is None:
+                mqtt_data = json.loads(message.payload.decode())
+                extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                
+                mqtt_thread = socketio.start_background_task(
+                    target=handle_gps_data,
+                    mqtt_data=mqtt_data,
+                    extAddress=extAddress
+                )
+                mqtt_thread = None
               
-  elif message.topic == '/DT/eHG4/GPS/Location':
-    with thread_lock:
-      if mqtt_thread is None: 
-        # print(mqtt_data)
-        mqtt_data = json.loads(message.payload.decode())
-            
-        extAddress = hex( int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-        
-        mqtt_thread = socketio.start_background_task(handle_gps_data(mqtt_data, extAddress))
+    elif message.topic == '/efwb/post/connectcheck':
+      with thread_lock:
+        if gw_thread is None:
+          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+          gw_thread = None
 
-        mqtt_thread = None
+    elif message.topic == '/efwb/post/async':
+      with thread_lock:
+        if event_thread is None:
+          
+          event_data = json.loads(message.payload.decode())
+          
+          extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+        
+          # 중복 체크를 위한 캐시 키 생성
+          cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
+          current_time = time.time()
+          
+          # 최근 처리된 동일 이벤트 확인
+          if cache_key in last_event_cache:
+            last_time = last_event_cache[cache_key]
+            if current_time - last_time < EVENT_COOLDOWN:
+              app_logger.debug(f"Skipping duplicate event: {cache_key}")
+              return
               
-  elif message.topic == '/efwb/post/connectcheck':
-    with thread_lock:
-      if gw_thread is None:
-        gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
-        gw_thread = None
-
-  elif message.topic == '/efwb/post/async':
-    with thread_lock:
-      if event_thread is None:
-        
-        event_data = json.loads(message.payload.decode())
-        
-        extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
-       
-        # 중복 체크를 위한 캐시 키 생성
-        cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
-        current_time = time.time()
-        
-        # 최근 처리된 동일 이벤트 확인
-        if cache_key in last_event_cache:
-          last_time = last_event_cache[cache_key]
-          if current_time - last_time < EVENT_COOLDOWN:
-            app_logger.debug(f"Skipping duplicate event: {cache_key}")
-            return
+          # 현재 이벤트 시간 저장
+          last_event_cache[cache_key] = current_time
+          
+          dev = db.session.query(Bands).filter_by(bid=extAddress).first()
+          
+          if dev is not None:
+            insertEvent(
+              dev.id, event_data['type'], event_data['value'])
             
-        # 현재 이벤트 시간 저장
-        last_event_cache[cache_key] = current_time
-        
-        dev = db.session.query(Bands).filter_by(bid=extAddress).first()
-        
-        if dev is not None:
-          insertEvent(
-            dev.id, event_data['type'], event_data['value'])
-          
-          event_socket = {
-            "type": event_data['type'],
-            "value": event_data['value'],
-            "bid": dev.bid,
-            "name": dev.name
-          }
-          socketio.emit('efwbasync', event_socket,namespace='/receiver')
-          app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
-          
-        else:
-          app_logger.warning(f"Band not found for extAddress: {extAddress}")
-        event_thread = None
+            event_socket = {
+              "type": event_data['type'],
+              "value": event_data['value'],
+              "bid": dev.bid,
+              "name": dev.name
+            }
+            socketio.emit('efwbasync', event_socket,namespace='/admin')
+            app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
+            
+          else:
+            app_logger.warning(f"Band not found for extAddress: {extAddress}")
+          event_thread = None
+  except Exception as e:
+    app_logger.error(f"Error in MQTT message handler: {str(e)}", exc_info=True)
