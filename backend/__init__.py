@@ -10,12 +10,12 @@ from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
-
+from flask import send_from_directory
 
 app = Flask(__name__
             , template_folder=os.getcwd()+'/efwb-frontend/dist'
             , static_folder=os.getcwd()+'/efwb-frontend/dist/static'
-            , static_url_path='/static')
+            , static_url_path='/client/static')  # /static에서 /client/static으로 변경
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"},
@@ -50,42 +50,56 @@ manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 # socket init
 socketio = SocketIO(app,
                     cors_allowed_origins="*",
+                    async_mode='gevent',
                     ping_timeout=60,
                     ping_interval=25,
+                    # logger=True,          # 로깅 활성화
+                    # engineio_logger=True  # Engine.IO 로깅 활성화
                     )
 
-@app.route("/", methods=["GET"])
+@app.route("/client/", methods=["GET"])
 def page_index():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/band/", methods=["GET"])
+
+@app.route("/client/band/", methods=["GET"])
 def page_band():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/band/detail/", methods=["GET"])
+
+@app.route("/client/band/detail/", methods=["GET"])
 def page_band_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/gateway/", methods=["GET"])
+
+@app.route("/client/gateway/", methods=["GET"])
 def page_gateway():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/gateway/detail/", methods=["GET"])
+
+@app.route("/client/gateway/detail/", methods=["GET"])
 def page_gateway_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/user/", methods=["GET"])
+
+@app.route("/client/user/", methods=["GET"])
 def page_user():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/user/detail/", methods=["GET"])
+
+@app.route("/client/user/detail/", methods=["GET"])
 def page_user_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/log/", methods=["GET"])
+
+@app.route("/client/log/", methods=["GET"])
 def page_log():
     resp = make_response(render_template("index.html"))
     return resp
+
+@app.route("/client/<path:path>")
+def client_static(path):
+    return send_from_directory('/home/ubuntu/client/efwb_client/efwb-frontend/dist/static', path)
 
 from backend.api.api_create import *
 from backend.api.mqtt import *
