@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from backend.db.service.select import *
 from backend.api.mqtt import *
-from backend.api.socket import *
-from backend.api.crawling import *
-from backend.sms.send_sms import set_rcv_number
 from datetime import date, timedelta
 from sqlalchemy.sql.expression import text
 from sqlalchemy import func, case, or_, Interval
+from backend.api.socket import *
+from backend.api.crawling import *
 from backend.db.service.query import *
 from backend.db.table.table_band import *
 from functools import wraps
@@ -19,72 +18,100 @@ import requests
 import hashlib
 print("module [backend.api_band] loaded")
 
+
 count = 0
 work = False
 
+
 def messageReceived(methods=['GET', 'POST']):
-  print('message was received!!!')
+    print('message was received!!!')
+
 
 @login_manager.user_loader
 def load_user(id):
-  user = DBManager.db.session.query(Users).get(id)
-  return user
+    user = DBManager.db.session.query(Users).get(id)
+    return user
+
 
 @app.route('/api/efwb/v1/setting', methods=['GET'])
 def init_setting():
-  mqtt.unsubscribe_all()
-  mqtt.subscribe('/efwb/post/sync')
-  mqtt.subscribe('/efwb/post/async')
-  mqtt.subscribe('/efwb/post/connectcheck')
+    mqtt.unsubscribe_all()
+    mqtt.subscribe('/efwb/post/sync')
+    mqtt.subscribe('/efwb/post/async')
+    mqtt.subscribe('/efwb/post/connectcheck')
 
-  return make_response("ok", 200)
+    return make_response("ok", 200)
+
 
 @app.route('/api/efwb/v1/thread', methods=['GET'])
 def init_thread():
-  # sched.start()
-  return make_response("ok", 200)
+    # sched.start()
+    return make_response("ok", 200)
 
 
 @app.route('/api/efwb/v1/login', methods=['POST'])
 def login_api():
-  print("login api")
-  data = json.loads(request.data)
-  result = ''
+    print("login api")
+    print("1", request.data)
+    data = json.loads(request.data)
+    result = ''
+    if data['username'] is not None and data['password'] is not None:
+        loginuser = db.session.query(Users).filter(
+            Users.username == data["username"]).first()
 
-  if data['username'] is not None and data['password'] is not None:
-    loginuser = db.session.query(Users).filter(
-      Users.username == data["username"]).first()
+        if loginuser is None:
+            result = {'status': False, 'reason': 1}  # ID 없음
+        else:
+            if loginuser.password != password_encoder_512(data["password"]):
+                result = {'status': False, 'reason': 2}  # PW 틀림
+            else:  # Login 성공
+                # 마지막 로그인 시간 업데이트
+                loginuser.last_login_time = datetime.now()
+                loginuser.token = generate_token(data['username'])
+                
+                # 사용자 정보 업데이트
+                db.session.query(Users).filter(Users.username == data["username"])\
+                    .update(dict(last_login_time=loginuser.last_login_time, token=loginuser.token))
 
-    if loginuser is None:
-      result = {'status': False, 'reason': 1}  # ID 없음
-    else:
-      if loginuser.password != password_encoder_512(data["password"]):
-        result = {'status': False, 'reason': 2}  # PW 틀림
+                # 접속 기록 추가
+                new_access_history = AccessHistory()
+                new_access_history.type = 0  # Login
+                user_agent = request.environ.get('HTTP_USER_AGENT')
+                new_access_history.os_ver, new_access_history.browser_ver = get_os_browser_from_useragent(
+                    user_agent)
+                new_access_history.ip_addr = request.environ.get(
+                    'HTTP_X_REAL_IP', request.remote_addr)
+                new_access_history.token = loginuser.token
+                new_access_history.user_id = loginuser.username
+                new_access_history.FK_user_id = loginuser.id
+                db.session.add(new_access_history)
 
-      else:  # Login 성공
-        loginuser.last_login_time = datetime.now()
-        loginuser.token = generate_token(data['username'])
-        db.session.query(Users).filter(Users.username == data["username"])\
-            .update(dict(last_login_time=loginuser.last_login_time, token=loginuser.token))
+                db.session.commit()
+                db.session.flush()
 
-        new_access_history = AccessHistory()
-        new_access_history.type = 0  # Login
-        user_agent = request.environ.get('HTTP_USER_AGENT')
-        new_access_history.os_ver, new_access_history.browser_ver = get_os_browser_from_useragent(
-            user_agent)
-        new_access_history.ip_addr = request.environ.get(
-            'HTTP_X_REAL_IP', request.remote_addr)
-        new_access_history.token = loginuser.token
-        new_access_history.user_id = loginuser.username
-        new_access_history.FK_user_id = loginuser.id
-        db.session.add(new_access_history)
+                # 응답에 전체 사용자 정보 포함
+                user_data = {
+                    'id': loginuser.id,
+                    'uid': loginuser.uid,
+                    'username': loginuser.username,
+                    'name': loginuser.name,
+                    'email': loginuser.email,
+                    'phone': loginuser.phone,
+                    'age': loginuser.age,
+                    'gender': 'M' if loginuser.gender == 1 else 'F',
+                    'permission': loginuser.permission,
+                    'token': loginuser.token,
+                    'created': loginuser.created.strftime("%Y-%m-%d %H:%M:%S") if loginuser.created else None,
+                    'last_login_time': loginuser.last_login_time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+                result = {
+                    'status': True, 
+                    'reason': 0,
+                    'user': user_data
+                }
 
-        db.session.commit()
-        db.session.flush()
-        result = {'status': True, 'reason': 0,
-                  'user': loginuser.serialize()}
-
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route("/api/efwb/v1/logout", methods=["POST"])
@@ -392,16 +419,182 @@ def user_delete_api():
 
 @app.route('/api/efwb/v1/users/<username>', methods=['GET'])
 @token_required
-def username_check_api(username):
-    dev = Users.query.filter(Users.username == username).first()
+def get_user_detail_by_username(username):
+    """사용자 상세 정보 조회 API (username 기준)"""
+    try:
+        # 토큰 검증
+        token = request.headers.get('token')
+        if not token:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'unauthorized',
+                'message': '인증 정보가 없습니다.'
+            }), 401)
 
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
-    result = {
-        "result": "OK",
-        "data": dev.serialize()
-    }
-    return make_response(jsonify(result), 200)
+        # 토큰으로 사용자 확인
+        access_history = AccessHistory.query.filter_by(token=token).first()
+        if not access_history:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'invalid_token',
+                'message': '유효하지 않은 인증 정보입니다.'
+            }), 401)
+
+        # 기존 코드는 그대로 유지
+        user = db.session.query(Users).filter(Users.username == username).first()
+        
+        if user is None:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': '사용자를 찾을 수 없습니다.'
+            }), 404)
+            
+        # 사용자의 그룹 정보 조회 - 기존 쿼리 패턴 활용
+        user_group = db.session.query(Groups)\
+            .filter(Groups.id == UsersGroups.FK_gid)\
+            .filter(UsersGroups.FK_uid == user.id)\
+            .first()
+            
+        # 사용자의 밴드 목록 조회 - 기존 쿼리 패턴 활용
+        bands = db.session.query(Bands)\
+            .filter(Bands.id == UsersBands.FK_bid)\
+            .filter(UsersBands.FK_uid == user.id)\
+            .all()
+            
+        # 응답 데이터 구조화
+        user_data = user.serialize()
+        user_data.update({
+            'email': user.email,
+            'phone': user.phone,
+            'age': user.age,
+            'gender': 'M' if user.gender == 1 else 'F',
+            'created': user.created.strftime("%Y-%m-%d %H:%M:%S") if user.created else None,
+            'last_login_time': user.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_time else None,
+            'group': user_group.serialize() if user_group else None
+        })
+        
+            
+        return make_response(jsonify({
+            'status': True,
+            'data': user_data
+        }), 200)
+        
+    except Exception as e:
+        print(f"Error in get_user_detail_by_username: {str(e)}")
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+
+@app.route('/api/efwb/v1/users/<int:user_id>', methods=['GET'])
+@token_required
+def get_user_detail_by_id(user_id):
+    """사용자 상세 정보 조회 API (user_id 기준)"""
+    try:
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': '사용자를 찾을 수 없습니다.'
+            }), 404)
+            
+        # 사용자의 그룹 정보 조회
+        user_group = db.session.query(Groups).\
+            join(UsersGroups, Groups.id == UsersGroups.FK_gid).\
+            filter(UsersGroups.FK_uid == user_id).first()
+            
+        # 응답 데이터 구조화
+        user_data = user.serialize()
+        user_data.update({
+            'email': user.email,
+            'phone': user.phone,
+            'age': user.age,
+            'gender': 'M' if user.gender == 1 else 'F',
+            'created': user.created.strftime("%Y-%m-%d %H:%M:%S") if user.created else None,
+            'last_login_time': user.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_time else None,
+            'group': user_group.serialize() if user_group else None
+        })
+            
+        # 사용자의 밴드 목록 조회
+        bands = db.session.query(Bands).\
+            join(UsersBands, Bands.id == UsersBands.FK_bid).\
+            filter(UsersBands.FK_uid == user_id).all()
+            
+        band_list = []
+        for idx, band in enumerate(bands, 1):
+            band_data = band.serialize()
+            band_data['num'] = idx  # 번호 추가
+            band_list.append(band_data)
+            
+        user_data['bands'] = band_list
+            
+        return make_response(jsonify({
+            'status': True,
+            'data': user_data
+        }), 200)
+        
+    except Exception as e:
+        print(f"Error in get_user_detail_by_id: {str(e)}")  # 디버깅을 위한 로그
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+
+@app.route('/api/efwb/v1/users/<int:user_id>', methods=['PUT'])
+@token_required
+def update_user(user_id):
+    """사용자 정보 수정 API"""
+    data = json.loads(request.data)
+    
+    try:
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': 'User not found.'
+            }), 404)
+
+        # 수정 가능한 필드들
+        if 'name' in data:
+            user.name = data['name']
+        if 'email' in data:
+            # 이메일 중복 체크
+            existing_email = Users.query.filter(Users.email == data['email'], Users.id != user_id).first()
+            if existing_email:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'duplicate_email',
+                    'message': 'Email already exists.'
+                }), 400)
+            user.email = data['email']
+        if 'phone' in data:
+            user.phone = data['phone']
+        if 'age' in data:
+            user.age = int(data['age'])
+        if 'gender' in data:
+            user.gender = 1 if data['gender'] == 'M' else 2
+
+        db.session.commit()
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': 'User information updated successfully.'
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
 
 
 @app.route('/api/efwb/v1/users/groupinfo/<id>', methods=['GET'])
@@ -589,12 +782,13 @@ def check_band_permission_user():
 def get_users_bandlist():
     data = json.loads(request.data)
     params = ['uid', 'permission']
+    print(data)
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
     dev = []
     bandList = []
-
+    print(data)
     if data['permission'] == 0:
         dev = db.session.query(Bands).all()
     else:
@@ -612,15 +806,15 @@ def get_users_bandlist():
         elif data['permission'] == 2:
             dev = db.session.query(Bands).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).all()
+                filter(UsersBands.FK_uid == data['uid']).all()
 
         elif data['permission'] == 3:
             dev = db.session.query(Bands).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).all()
+                filter(UsersBands.FK_uid == data['uid']).all()
     for b in dev:
         bandList.append(b.serialize())
-
+    
     result = {
         "result": "OK",
         "data": bandList
@@ -1195,580 +1389,798 @@ def sensordata_range_get_api():
 
     day = ['월', '화', '수', '목', '금', '토', '일']
     if data['dataname'] == 'walk_steps':
-      json_data = []
-      valuedata = db.session.query(
-          (func.max(SensorData.walk_steps)-func.min(SensorData.walk_steps)).label('walk_steps'),
-          (func.max(SensorData.run_steps) - func.min(SensorData.run_steps)).label('run_steps'),
-          func.date_format(SensorData.datetime, '%Y-%m-%d %H').label('x')
-      ).filter(SensorData.FK_bid == data['bid'])\
-       .filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days'])))\
-       .group_by(func.date_format(SensorData.datetime, '%Y-%m-%d %H')).all()
-      #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+        json_data = []
+        valuedata = db.session.query((func.max(SensorData.walk_steps)-func.min(SensorData.walk_steps)).label('walk_steps'),
+                                     (func.max(SensorData.run_steps) -
+                                      func.min(SensorData.run_steps)).label('run_steps'),
+                                     func.date_format(SensorData.datetime, '%Y-%m-%d %H').label('x')).\
+            filter(SensorData.FK_bid == data['bid']).\
+            filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+            group_by(func.date_format(SensorData.datetime, '%Y-%m-%d %H')).all()
+        #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
 
-      for d in data['days']:
-        sensordata_list = [[], []]
-        check = False
-        for b in valuedata:
-            if d == b.x[0:10]:
-              check = True
-              sensordata_list[0].append(
-                  {"x": b.x[11:len(b.x)], "y": float(b.walk_steps)})
-              sensordata_list[1].append(
-                  {"x": b.x[11:len(b.x)], "y": float(b.run_steps)})
-        if(check):
-          dayValue = date(int(d[0:4]), int(d[5:7]),
-                          int(d[8:10])).weekday()
-          dateValue = d[5:7]+"월 "+d[8:10]+"일 "+day[dayValue]
-          json_data.append({"date": dateValue,  "data": sensordata_list})
+        for d in data['days']:
+            sensordata_list = [[], []]
+            check = False
+            for b in valuedata:
+                if d == b.x[0:10]:
+                    check = True
+                    sensordata_list[0].append(
+                        {"x": b.x[11:len(b.x)], "y": float(b.walk_steps)})
+                    sensordata_list[1].append(
+                        {"x": b.x[11:len(b.x)], "y": float(b.run_steps)})
+            if(check):
+                dayValue = date(int(d[0:4]), int(d[5:7]),
+                                int(d[8:10])).weekday()
+                dateValue = d[5:7]+"월 "+d[8:10]+"일 "+day[dayValue]
+                json_data.append({"date": dateValue,  "data": sensordata_list})
 
-      result = {
-        "result": "OK",
-        "data": json_data
-      }
-      return make_response(jsonify(result), 200)
+        result = {
+            "result": "OK",
+            "data": json_data
+        }
+        return make_response(jsonify(result), 200)
     else:
-      json_data = []
-      valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'),
-                                    func.date_format(SensorData.datetime, '%Y-%m-%d %H').
-                                    label('x')).filter(SensorData.FK_bid == data['bid']).\
-          filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
-          group_by(func.date_format(SensorData.datetime, '%Y-%m-%d %H')).all()
-      #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
-      for d in data['days']:
-          sensordata_list = []
-          check = False
-          for b in valuedata:
-              if d == b.x[0:10]:
-                  check = True
-                  if data['dataname'] == 'spo2':
-                      sensordata_list.append(
-                          {"x":  b.x[11:len(b.x)], "y": float(b.y/10)})
-                  else:
-                      sensordata_list.append(
-                          {"x":  b.x[11:len(b.x)], "y": float(b.y)})
-          if(check):
-              dayValue = date(int(d[0:4]), int(d[5:7]),
-                              int(d[8:10])).weekday()
-              dateValue = d[5:7]+"월 "+d[8:10]+"일 "+day[dayValue]
-              json_data.append({"date": dateValue,  "data": sensordata_list})
+        json_data = []
+        valuedata = db.session.query(func.avg(getAttribute(data['dataname'], SensorData)).label('y'),
+                                     func.date_format(SensorData.datetime, '%Y-%m-%d %H').
+                                     label('x')).filter(SensorData.FK_bid == data['bid']).\
+            filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+            group_by(func.date_format(SensorData.datetime, '%Y-%m-%d %H')).all()
+        #valuedata = db.session.query(getAttribute(data['dataname'], SensorData).label('y'), SensorData.datetime.label('x')).filter(SensorData.FK_bid == data['bid']).filter(func.date(SensorData.datetime) == i).all()
+        for d in data['days']:
+            sensordata_list = []
+            check = False
+            for b in valuedata:
+                if d == b.x[0:10]:
+                    check = True
+                    if data['dataname'] == 'spo2':
+                        sensordata_list.append(
+                            {"x":  b.x[11:len(b.x)], "y": float(b.y/10)})
+                    else:
+                        sensordata_list.append(
+                            {"x":  b.x[11:len(b.x)], "y": float(b.y)})
+            if(check):
+                dayValue = date(int(d[0:4]), int(d[5:7]),
+                                int(d[8:10])).weekday()
+                dateValue = d[5:7]+"월 "+d[8:10]+"일 "+day[dayValue]
+                json_data.append({"date": dateValue,  "data": sensordata_list})
 
-      result = {
-          "result": "OK",
-          "data": json_data
-      }
-      return make_response(jsonify(result), 200)
+        result = {
+            "result": "OK",
+            "data": json_data
+        }
+        return make_response(jsonify(result), 200)
 
 
 def datetimeBetween(data):
-  if len(data) == 1:
-      return data[0]
-  else:
-      return data[len(data)-1]
+    if len(data) == 1:
+        return data[0]
+    else:
+        return data[len(data)-1]
 
 
 @app.route('/api/efwb/v1/sensordata/fall/sum', methods=['POST'])
 def sensordata_fall_sum_post_api():
-  data = json.loads(request.data)
-  params = ['bid', 'days']
-  for param in params:
-      if param not in data:
-          return make_response(jsonify('Parameters are not enough.'), 400)
-  json_data = []
-  dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'),
-                          func.sum(SensorData.fall_detect).label('fall_detect')).\
-      filter(SensorData.FK_bid == data['bid']).\
-      filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
-      group_by(func.date(SensorData.datetime)).all()
-  for i in dev:
-      json_data.append({
-          'day': i.day,
-          'fall_detect': int(i.fall_detect)
-      })
-  result = {
-      "result": "OK",
-      "data": json_data
-  }
-  return make_response(jsonify(result), 200)
+    data = json.loads(request.data)
+    params = ['bid', 'days']
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    json_data = []
+    dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'),
+                           func.sum(SensorData.fall_detect).label('fall_detect')).\
+        filter(SensorData.FK_bid == data['bid']).\
+        filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+        group_by(func.date(SensorData.datetime)).all()
+    for i in dev:
+        json_data.append({
+            'day': i.day,
+            'fall_detect': int(i.fall_detect)
+        })
+    result = {
+        "result": "OK",
+        "data": json_data
+    }
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/sensordata/activity/oneday', methods=['POST'])
 def sensordata_activity_oneday_post_api():
-  data = json.loads(request.data)
-  params = ['bid', 'days']
-  for param in params:
-      if param not in data:
-          return make_response(jsonify('Parameters are not enough.'), 400)
-  json_data = []
-  dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'),
-                          func.max(SensorData.walk_steps).label('walk_steps'),
-                          func.max(SensorData.run_steps).label('run_steps')).\
-      filter(SensorData.FK_bid == data['bid']).\
-      filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
-      group_by(func.date(SensorData.datetime)).all()
-  for i in dev:
-      json_data.append({
-          'day': i.day,
-          'walk_steps': int(i.walk_steps),
-          'run_steps': int(i.run_steps),
-      })
-  result = {
-      "result": "OK",
-      "data": json_data
-  }
-  return make_response(jsonify(result), 200)
+    data = json.loads(request.data)
+    params = ['bid', 'days']
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    json_data = []
+    dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'),
+                           func.max(SensorData.walk_steps).label('walk_steps'),
+                           func.max(SensorData.run_steps).label('run_steps')).\
+        filter(SensorData.FK_bid == data['bid']).\
+        filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+        group_by(func.date(SensorData.datetime)).all()
+    for i in dev:
+        json_data.append({
+            'day': i.day,
+            'walk_steps': int(i.walk_steps),
+            'run_steps': int(i.run_steps),
+        })
+    result = {
+        "result": "OK",
+        "data": json_data
+    }
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/events', methods=["POST"])
 def events_post_api():
+    data = json.loads(request.data)
+    params = ['bid', 'days', 'uid']
 
-  data = json.loads(request.data)
-  params = ['bid', 'days', 'uid']
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+            
+    json_data = []
+    dev = []
+    
+    # Events와 Bands 테이블을 조인하여 밴드 이름도 함께 조회
+    if len(data['days']) == 0:  # 전체 이벤트에서
+        if data['uid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == UsersBands.FK_bid).\
+                filter(UsersBands.FK_uid == data['uid']).all()
 
-  for param in params:
-      if param not in data:
-          return make_response(jsonify('Parameters are not enough.'), 400)
-  json_data = []
-  dev = []
-  if len(data['days']) == 0:  # 전체 이벤트에서
-      if data['uid'] != -1:  # uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-          dev = selectBandsEventsUser(data['uid'], data['bid'])
+        elif data['bid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == data['bid']).all()
 
-      elif data['bid'] != -1:  # bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-          dev = selectBandsEventsBands(data['bid'])
+        else:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).all()
 
-      else:  # uid bid 모두 정해져있지 않다 모든 전체 이벤트를 가져오겠다.
-          dev = selectBandsEvents()
+    else:  # 정해진 날짜에서
+        if data['uid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == UsersBands.FK_bid).\
+                filter(UsersBands.FK_uid == data['uid']).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-  else:  # 정해진 날짜에서
-      if data['uid'] != -1:  # uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-          dev = selectBandsEventsUserDate(
-              data['uid'], data['bid'], data['days'])
+        elif data['bid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == data['bid']).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-      elif data['bid'] != -1:  # bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-          dev = selectBandsEventsBandDate(data['bid'], data['days'])
+        else:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-      else:  # uid bid 모두 정해져있지 않다 모든 그 기간안의 이벤트를 가져오겠다.
-          dev = selectBandsEventsDate(data['days'])
+    for event, band_name in dev:
+        event_data = event.serialize()
+        event_data['band_name'] = band_name  # 밴드 이름 추가
+        json_data.append(event_data)
+        
+    result = {
+        "result": "OK",
+        "data": json_data
+    }
 
-  for i in dev:
-      json_data.append(i.serialize())
-  result = {
-      "result": "OK",
-      "data": json_data
-  }
-
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/events/fall_detect/all', methods=["POST"])
 def events_all_fall_post_api():
-  data = json.loads(request.data)
-  params = ['uid', 'date', 'format', 'permission']
+    data = json.loads(request.data)
+    params = ['uid', 'date', 'format', 'permission']
 
-  for param in params:
-      if param not in data:
-          return make_response(jsonify('Parameters are not enough.'), 400)
-  json_data = []
-  dev = []
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    json_data = []
+    dev = []
 
-  if data['permission'] == 0:
-      dev = selectFallDetectDate(data['date'], data['format'])
-  elif data['permission'] == 1:
-      dev = selectFallDetectDateStaff(
-          data['uid'], data['date'], data['format'])
-  elif data['permission'] == 2:
-      dev = selectFallDetectDateManager(
-          data['uid'], data['date'], data['format'])
-  elif data['permission'] == 3:
-      dev = selectFallDetectDateUser(
-          data['uid'], data['date'], data['format'])
+    if data['permission'] == 0:
+        dev = selectFallDetectDate(data['date'], data['format'])
+    elif data['permission'] == 1:
+        dev = selectFallDetectDateStaff(
+            data['uid'], data['date'], data['format'])
+    elif data['permission'] == 2:
+        dev = selectFallDetectDateManager(
+            data['uid'], data['date'], data['format'])
+    elif data['permission'] == 3:
+        dev = selectFallDetectDateUser(
+            data['uid'], data['date'], data['format'])
 
-  for d in dev:
-      json_data.append({"x": d.day, "y": int(d.fall)})
-  return make_response(jsonify(json_data), 200)
+    for d in dev:
+        json_data.append({"x": d.day, "y": int(d.fall)})
+    return make_response(jsonify(json_data), 200)
 
 
 @app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
 def events_fall_post_api():
-  data = json.loads(request.data)
-  params = ['bid', 'days']
+    data = json.loads(request.data)
+    params = ['bid', 'days']
 
-  for param in params:
-      if param not in data:
-          return make_response(jsonify('Parameters are not enough.'), 400)
-  json_data = []
-  dev = []
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    json_data = []
+    dev = []
 
-  if len(data['days']) == 0:
-      dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
-                              func.sum(Events.value).label('data')).\
-          distinct(Events.datetime).\
-          filter(Events.FK_bid == data['bid']).\
-          filter(Events.type == 0).\
-          group_by(func.date(Events.datetime)).all()
-  else:
-      dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
-                              func.sum(Events.value).label('data')).\
-          distinct(Events.datetime).\
-          filter(Events.FK_bid == data['bid']).\
-          filter(Events.type == 0).\
-          filter(func.date(Events.datetime).
-                  between(data['days'][0], datetimeBetween(data['days']))).\
-          group_by(func.date(Events.datetime)).all()
+    if len(data['days']) == 0:
+        dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
+                               func.sum(Events.value).label('data')).\
+            distinct(Events.datetime).\
+            filter(Events.FK_bid == data['bid']).\
+            filter(Events.type == 0).\
+            group_by(func.date(Events.datetime)).all()
+    else:
+        dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
+                               func.sum(Events.value).label('data')).\
+            distinct(Events.datetime).\
+            filter(Events.FK_bid == data['bid']).\
+            filter(Events.type == 0).\
+            filter(func.date(Events.datetime).
+                   between(data['days'][0], datetimeBetween(data['days']))).\
+            group_by(func.date(Events.datetime)).all()
 
-  for i in dev:
-      json_data.append({"date": i.date, "data": int(i.data)})
-  result = {
-      "result": "OK",
-      "data": json_data
-  }
+    for i in dev:
+        json_data.append({"date": i.date, "data": int(i.data)})
+    result = {
+        "result": "OK",
+        "data": json_data
+    }
 
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/gatewaylog/add', methods=["POST"])
 @token_required
 def gatewaylog_post_api():
-  data = json.loads(request.data)
-  params = ['pid', 'type']
+    data = json.loads(request.data)
+    params = ['pid', 'type']
 
-  for param in params:
-    if param not in data:
-      return make_response(jsonify('Parameters are not enough.'), 400)
-  gatewaylog = GatewayLog()
-  gatewaylog.FK_pid = data['pid']
-  gatewaylog.type = data['type']
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    gatewaylog = GatewayLog()
+    gatewaylog.FK_pid = data['pid']
+    gatewaylog.type = data['type']
 
-  db.session.add(gatewaylog)
-  db.session.commit()
-  db.session.flush()
-  result = {
-    "result": "OK"
-  }
+    db.session.add(gatewaylog)
+    db.session.commit()
+    db.session.flush()
+    result = {
+        "result": "OK"
+    }
 
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/bandlog/add', methods=["POST"])
 @token_required
 def bandlog_post_api():
-  data = json.loads(request.data)
-  params = ['bid', 'type']
+    data = json.loads(request.data)
+    params = ['bid', 'type']
 
-  for param in params:
-    if param not in data:
-      return make_response(jsonify('Parameters are not enough.'), 400)
-  bandlog = BandLog()
-  bandlog.FK_bid = data['bid']
-  bandlog.type = data['type']
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    bandlog = BandLog()
+    bandlog.FK_bid = data['bid']
+    bandlog.type = data['type']
 
-  db.session.add(bandlog)
-  db.session.commit()
-  db.session.flush()
-  result = {
-    "result": "OK"
-  }
+    db.session.add(bandlog)
+    db.session.commit()
+    db.session.flush()
+    result = {
+        "result": "OK"
+    }
 
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/weather/<where>', methods=["GET"])
 def get_weather_api(where):
-  global work
-  work = True
-  result = getWeather(where)
-  work = False
-  return make_response(jsonify(result), 200)
+    global work
+    work = True
+    result = getWeather(where)
+    work = False
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/nervestim/prescription', methods=["POST"])
 def post_prescription_api():
-  data = json.loads(request.data)
-  params = ['bid', 'frequency', 'strength', 'duration']
+    data = json.loads(request.data)
+    params = ['bid', 'frequency', 'strength', 'duration']
 
-  for param in params:
-    if param not in data:
-      return make_response(jsonify('Parameters are not enough.'), 400)
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
 
-  dev = db.session.query(NerveStimulations).\
-    filter(NerveStimulations.FK_bid == data["bid"]).first()
-  if dev is not None:
-    db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
-      update(dict(status=0, frequency=data["frequency"],
-              strength=data["strength"], duration=data["duration"]))
+    dev = db.session.query(NerveStimulations).\
+        filter(NerveStimulations.FK_bid == data["bid"]).first()
+    if dev is not None:
+        db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
+            update(dict(status=0, frequency=data["frequency"],
+                   strength=data["strength"], duration=data["duration"]))
+        db.session.commit()
+
+    else:
+        nervestim = NerveStimulations()
+        nervestim.FK_bid = data["bid"]
+        nervestim.start_time = datetime.now()
+        nervestim.status = 0
+        nervestim.frequency = data["frequency"]
+        nervestim.strength = data["strength"]
+        nervestim.duration = data["duration"]
+
+        db.session.add(nervestim)
+        db.session.commit()
+    prescription_history = PrescriptionHistory()
+    prescription_history.FK_bid = data["bid"]
+    prescription_history.datetime = datetime.now()
+    prescription_history.frequency = data["frequency"]
+    prescription_history.strength = data["strength"]
+    prescription_history.duration = data["duration"]
+    db.session.add(prescription_history)
     db.session.commit()
-
-  else:
-    nervestim = NerveStimulations()
-    nervestim.FK_bid = data["bid"]
-    nervestim.start_time = datetime.now()
-    nervestim.status = 0
-    nervestim.frequency = data["frequency"]
-    nervestim.strength = data["strength"]
-    nervestim.duration = data["duration"]
-
-    db.session.add(nervestim)
-    db.session.commit()
-  prescription_history = PrescriptionHistory()
-  prescription_history.FK_bid = data["bid"]
-  prescription_history.datetime = datetime.now()
-  prescription_history.frequency = data["frequency"]
-  prescription_history.strength = data["strength"]
-  prescription_history.duration = data["duration"]
-  db.session.add(prescription_history)
-  db.session.commit()
-  return make_response(jsonify({"result": "OK"}), 200)
+    return make_response(jsonify({"result": "OK"}), 200)
 
 
 @app.route('/api/efwb/v1/nervestim', methods=["POST"])
 def post_nervestim_api():
-  data = json.loads(request.data)
-  params = ['bid', 'status', 'frequency', 'strength', 'duration']
-  for param in params:
-    if param not in data:
-      print(param)
-      return make_response(jsonify('Parameters are not enough.'), 400)
-  dev = db.session.query(NerveStimulations).\
-      filter(NerveStimulations.FK_bid == data["bid"]).first()
-  if dev is not None:
-    db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
-      update(dict(status=data["status"], frequency=data["frequency"],
-              strength=data["strength"], duration=data["duration"], start_time=datetime.now()))
-    db.session.commit()
+    data = json.loads(request.data)
+    params = ['bid', 'status', 'frequency', 'strength', 'duration']
+    for param in params:
+        if param not in data:
+            print(param)
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    dev = db.session.query(NerveStimulations).\
+        filter(NerveStimulations.FK_bid == data["bid"]).first()
+    if dev is not None:
+        db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
+            update(dict(status=data["status"], frequency=data["frequency"],
+                   strength=data["strength"], duration=data["duration"], start_time=datetime.now()))
+        db.session.commit()
 
-  else:
-    nervestim = NerveStimulations()
-    nervestim.FK_bid = data["bid"]
-    nervestim.start_time = datetime.now()
-    nervestim.status = data["status"]
-    nervestim.frequency = data["frequency"]
-    nervestim.strength = data["strength"]
-    nervestim.duration = data["duration"]
+    else:
+        nervestim = NerveStimulations()
+        nervestim.FK_bid = data["bid"]
+        nervestim.start_time = datetime.now()
+        nervestim.status = data["status"]
+        nervestim.frequency = data["frequency"]
+        nervestim.strength = data["strength"]
+        nervestim.duration = data["duration"]
 
-    db.session.add(nervestim)
-    db.session.commit()
+        db.session.add(nervestim)
+        db.session.commit()
 
-  return make_response(jsonify({"result": "OK"}), 200)
+    return make_response(jsonify({"result": "OK"}), 200)
 
 
 @app.route('/api/efwb/v1/nervestim/<bid>', methods=["GET"])
 def get_nervestim_bid_api(bid):
-  dev = db.session.query(NerveStimulations).\
-    filter(NerveStimulations.FK_bid == bid).first()
-  result = {
-    "result": "OK",
-    "data": None
-  }
-  if dev is not None:
-      result["data"] = dev.serialize()
+    dev = db.session.query(NerveStimulations).\
+        filter(NerveStimulations.FK_bid == bid).first()
+    result = {
+        "result": "OK",
+        "data": None
+    }
+    if dev is not None:
+        result["data"] = dev.serialize()
 
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/nervestime_history/<bid>', methods=["GET"])
 def get_nervestime_history_bid_api(bid):
-  dev = db.session.query(PrescriptionHistory).\
-      filter(PrescriptionHistory.FK_bid == bid).all()
-  result = {
-    "result": "OK",
-    "data": None
-  }
-  if len(dev) != 0:
-    result["data"] = []
-    for d in dev:
-      result["data"].append(d.serialize())
+    dev = db.session.query(PrescriptionHistory).\
+        filter(PrescriptionHistory.FK_bid == bid).all()
+    result = {
+        "result": "OK",
+        "data": None
+    }
+    if len(dev) != 0:
+        result["data"] = []
+        for d in dev:
+            result["data"].append(d.serialize())
 
-  return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 def addDBList(table, list1, list2, lengthCheck, tableCheck):
-  users_table = table
-  for i in range(len(list2)):
-    if lengthCheck:
-      users_table.FK_uid = list2[i]
-      if tableCheck:
-        users_table.FK_gid = list1[0]
-      else:
-        users_table.FK_bid = list1[0]
+    users_table = table
+    for i in range(len(list2)):
+        if lengthCheck:
+            users_table.FK_uid = list2[i]
+            if tableCheck:
+                users_table.FK_gid = list1[0]
+            else:
+                users_table.FK_bid = list1[0]
 
-    else:
-      users_table = table
-      users_table.FK_uid = list1[0]
-      if tableCheck:
-        users_table.FK_gid = list2[i]
-      else:
-        users_table.FK_bid = list1[0]
+        else:
+            users_table = table
+            users_table.FK_uid = list1[0]
+            if tableCheck:
+                users_table.FK_gid = list2[i]
+            else:
+                users_table.FK_bid = list1[0]
 
-  return users_table
+    return users_table
 
 
 @app.route('/api/efwb/v1/access_history/reload', methods=['POST'])
 def access_history_reload_post_api():
-  print('access_history_reload_post_api')
-  data = json.loads(request.data)
-  result = ''
-  if data['token'] is None:
-    print("token is none")
+    print('access_history_reload_post_api')
+    data = json.loads(request.data)
+    result = ''
+    if data['token'] is None:
+        print("token is none")
 
-  else:
-      accesshistory = AccessHistory.query.filter_by(
-        token=data['token']).first()
-      if accesshistory is None:
-        print("accesshistory in none")
-      else:
-        print("accesshistory exits")
-        result = {'status': True, 'reason': 0,
-              'user': accesshistory.user.serialize()}
-  return make_response(jsonify(result), 200)
+    else:
+        accesshistory = AccessHistory.query.filter_by(
+            token=data['token']).first()
+        if accesshistory is None:
+            print("accesshistory in none")
+        else:
+            print("accesshistory exits")
+            result = {'status': True, 'reason': 0,
+                      'user': accesshistory.user.serialize()}
+    return make_response(jsonify(result), 200)
 
 
 def addDBUserBandList(db, list1, list2, check):
-  for i in range(len(list2)):
-    if check:
-      users_bands = UsersBands()
-      users_bands.FK_uid = list2[i]
-      users_bands.FK_bid = list1[0]
-      db.session.add(users_bands)
-    else:
-      users_bands = UsersBands()
-      users_bands.FK_uid = list1[0]
-      users_bands.FK_bid = list2[i]
-      db.session.add(users_bands)
-  return db
+    for i in range(len(list2)):
+        if check:
+            users_bands = UsersBands()
+            users_bands.FK_uid = list2[i]
+            users_bands.FK_bid = list1[0]
+            db.session.add(users_bands)
+        else:
+            users_bands = UsersBands()
+            users_bands.FK_uid = list1[0]
+            users_bands.FK_bid = list2[i]
+            db.session.add(users_bands)
+    return db
 
 
 def password_encoder_512(password):
-  h = hashlib.sha512()
-  h.update(password.encode('utf-8'))
-  return h.hexdigest()
+    h = hashlib.sha512()
+    h.update(password.encode('utf-8'))
+    return h.hexdigest()
+
+
 
 
 def get_os_browser_from_useragent(userAgent):
-  os_ver = "Unknown"
-  browser_ver = "Unknown"
+    os_ver = "Unknown"
+    browser_ver = "Unknown"
 
-  if userAgent.find("Linux") != -1:
-    os_ver = "Linux"
-  elif userAgent.find("Mac") != -1:
-    os_ver = "MacOS"
-  elif userAgent.find("X11") != -1:
-    os_ver = "UNIX"
-  elif userAgent.find("Win") != -1:
-    os_ver = "Windows"
+    if userAgent.find("Linux") != -1:
+        os_ver = "Linux"
+    elif userAgent.find("Mac") != -1:
+        os_ver = "MacOS"
+    elif userAgent.find("X11") != -1:
+        os_ver = "UNIX"
+    elif userAgent.find("Win") != -1:
+        os_ver = "Windows"
 
-  if userAgent.find("MSIE 6") != -1:
-    browser_ver = "Internet Explorer 6"
-  elif userAgent.find("MSIE 7") != -1:
-    browser_ver = "Internet Explorer 7"
-  elif userAgent.find("MSIE 8") != -1:
-    browser_ver = "Internet Explorer 8"
-  elif userAgent.find("MSIE 9") != -1:
-    browser_ver = "Internet Explorer 9"
-  elif userAgent.find("MSIE 10") != -1:
-    browser_ver = "Internet Explorer 10"
-  elif userAgent.find("Trident") != -1 or userAgent.find("trident") != -1:
-    browser_ver = "Internet Explorer 11"
-  elif userAgent.find("Firefox") != -1:
-    browser_ver = "Firefox"
-  elif userAgent.find("Opera") != -1:
-    browser_ver = "Opera"
-  elif userAgent.find("Edge") != -1 or userAgent.find("edge") != -1 or userAgent.find("Edg") != -1:
-    browser_ver = "Microsoft Edge"
+    if userAgent.find("MSIE 6") != -1:
+        browser_ver = "Internet Explorer 6"
+    elif userAgent.find("MSIE 7") != -1:
+        browser_ver = "Internet Explorer 7"
+    elif userAgent.find("MSIE 8") != -1:
+        browser_ver = "Internet Explorer 8"
+    elif userAgent.find("MSIE 9") != -1:
+        browser_ver = "Internet Explorer 9"
+    elif userAgent.find("MSIE 10") != -1:
+        browser_ver = "Internet Explorer 10"
+    elif userAgent.find("Trident") != -1 or userAgent.find("trident") != -1:
+        browser_ver = "Internet Explorer 11"
+    elif userAgent.find("Firefox") != -1:
+        browser_ver = "Firefox"
+    elif userAgent.find("Opera") != -1:
+        browser_ver = "Opera"
+    elif userAgent.find("Edge") != -1 or userAgent.find("edge") != -1 or userAgent.find("Edg") != -1:
+        browser_ver = "Microsoft Edge"
 
-  elif userAgent.find("Chrome") != -1:
-    browser_ver = "Chrome"
-  elif userAgent.find("Safari") != -1 or userAgent.find("safari") != -1:
-    browser_ver = "Safari"
+    elif userAgent.find("Chrome") != -1:
+        browser_ver = "Chrome"
+    elif userAgent.find("Safari") != -1 or userAgent.find("safari") != -1:
+        browser_ver = "Safari"
 
-  return os_ver, browser_ver
+    return os_ver, browser_ver
+
 
 @app.route('/api/efwb/v1/connection-status', methods=['GET'])
 def get_bands_connection_status():
-  """
-  모든 밴드의 연결 상태를 조회하는 API
-  Returns:
-      - bid
-      - name
-      - connect_state
-      - connect_time
-      - disconnect_time
-  """
-  try:
-      bands = db.session.query(Bands).all()
-      result = []
-      
-      for band in bands:
-        band_status = {
-          'bid': band.bid,
-          'name': band.name,
-          'connect_state': band.connect_state,
-          'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
-          'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
-        }
-        result.append(band_status)
-          
-      return jsonify({
-        'status': 'success',
-        'data': result
-      }), 200
-      
-  except Exception as e:
-    return jsonify({
-      'status': 'error',
-      'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
-    }), 500
+    """
+    모든 밴드의 연결 상태를 조회하는 API
+    Returns:
+        - bid
+        - name
+        - connect_state
+        - connect_time
+        - disconnect_time
+    """
+    try:
+        bands = db.session.query(Bands).all()
+        result = []
+        
+        for band in bands:
+            band_status = {
+                'bid': band.bid,
+                'name': band.name,
+                'connect_state': band.connect_state,
+                'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
+                'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
+            }
+            result.append(band_status)
+            
+        return jsonify({
+            'status': 'success',
+            'data': result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
+        }), 500
 
 @app.route('/api/efwb/v1/connection-status/<bid>', methods=['GET'])
 def get_band_connection_status(bid):
-  """
-  특정 밴드의 연결 상태를 조회하는 API
-  Args:
-      bid: 밴드 ID
-  """
-  try:
-    band = db.session.query(Bands).filter_by(bid=bid).first()
-    
-    if not band:
-      return jsonify({
-        'status': 'error',
-        'message': '해당 밴드를 찾을 수 없습니다.'
-      }), 404
+    """
+    특정 밴드의 연결 상태를 조회하는 API
+    Args:
+        bid: 밴드 ID
+    """
+    try:
+        band = db.session.query(Bands).filter_by(bid=bid).first()
         
-    band_status = {
-      'bid': band.bid,
-      'name': band.name,
-      'connect_state': band.connect_state,
-      'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
-      'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
-    }
+        if not band:
+            return jsonify({
+                'status': 'error',
+                'message': '해당 밴드를 찾을 수 없습니다.'
+            }), 404
+            
+        band_status = {
+            'bid': band.bid,
+            'name': band.name,
+            'connect_state': band.connect_state,
+            'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
+            'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'data': band_status
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
+        }), 500 
+        
+@app.route('/api/efwb/v1/connected-locations', methods=['GET'])
+def get_connected_band_locations():
+    """현재 연결된 밴드들의 위치 정보를 조회"""
+    app_logger.info("연결된 밴드들의 위치 정보 조회 시작")
+    try:
+        connected_bands = db.session.query(Bands).filter(
+            Bands.connect_state == 1
+        ).all()
+        
+        result = []
+        for band in connected_bands:
+            result.append({
+                "id": band.id,
+                "bid": band.bid,
+                "latitude": float(band.latitude) if band.latitude else None,
+                "longitude": float(band.longitude) if band.longitude else None,
+                "name": band.name
+            })
+            
+        app_logger.info(f"총 {len(result)}개의 연결된 밴드 위치 정보 조회 완료")
+        return make_response(jsonify({
+            'status': 'success',
+            'data': result
+        }), 200)
+        
+    except Exception as e:
+        app_logger.error(f"연결된 밴드 위치 조회 중 에러 발생: {str(e)}")
+        return make_response(jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/signup', methods=['POST'])
+def signup_api():
+    """회원가입 API"""
+    data = json.loads(request.data)
     
-    return jsonify({
-      'status': 'success',
-      'data': band_status
-    }), 200
-      
-  except Exception as e:
-    return jsonify({
-      'status': 'error',
-      'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
-    }), 500 
-      
-@app.route('/api/efwb/v1/register', methods=['POST'])
-def register_phone():
-  try:
-    data = request.get_json()
-    phone_number = data.get('phoneNumber')
-    app_logger.info(f"받은 전화번호: {phone_number}")
-    set_rcv_number(phone_number) 
-    
-    return jsonify({
-        'success': True,
-        'message': '전화번호가 성공적으로 등록되었습니다.',
-        'phoneNumber': phone_number
-    }), 200
-      
-  except Exception as e:
-    return jsonify({
-        'success': False,
-        'message': str(e)
-    }), 400
+    try:
+        # 필수 파라미터 체크
+        required_params = ['username', 'password', 'name', 'phone', 'age', 'gender', 'email']
+        for param in required_params:
+            if param not in data:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'missing_parameters',
+                    'message': 'Parameters are not enough.'
+                }), 400)
+
+        # 아이디 중복 체크
+        existing_user = Users.query.filter(Users.username == data['username']).first()
+        if existing_user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'duplicate_username',
+                'message': 'Username already exists.'
+            }), 400)
+            
+        # 이메일 중복 체크 
+        existing_email = Users.query.filter(Users.email == data['email']).first()
+        if existing_email:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'duplicate_email', 
+                'message': 'Email already exists.'
+            }), 400)
+
+        # 새 사용자 생성
+        new_user = Users()
+        new_user.username = data['username']
+        new_user.password = password_encoder_512(data['password'])
+        new_user.name = data['name']
+        new_user.phone = data['phone']
+        new_user.age = int(data['age'])
+        new_user.gender = 1 if data['gender'] == 'M' else 2
+        new_user.email = data['email']
+        new_user.permission = 2  # 일반 권한
+        
+        # uid는 현재 최대 uid + 1로 설정
+        max_uid = db.session.query(func.max(Users.uid)).scalar()
+        new_user.uid = (max_uid or 0) + 1
+
+        # DB에 저장
+        db.session.add(new_user)
+        db.session.flush()  # new_user.id 값을 얻기 위해 flush
+        
+        # general 그룹 찾기 (gid=3000)
+        general_group = Groups.query.filter_by(gid=3000).first()
+        if not general_group:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'group_not_found',
+                'message': 'Default group (dtriple) not found.'
+            }), 500)
+        
+        # UsersGroups 테이블에 연결 정보 추가
+        user_group = UsersGroups()
+        user_group.FK_uid = new_user.id
+        user_group.FK_gid = general_group.id
+        db.session.add(user_group)
+        
+        db.session.commit()
+
+        return make_response(jsonify({
+            'status': True,
+            'message': 'User registered successfully and added to dtriple group.'
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/users/update-profile', methods=['PUT'])
+@token_required
+def update_user_profile():
+    """사용자 프로필 정보 수정 API"""
+    try:
+        # 토큰 검증 및 사용자 확인
+        token = request.headers.get('token')
+        if not token:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'unauthorized',
+                'message': '인증 정보가 없습니다.'
+            }), 401)
+
+        access_history = AccessHistory.query.filter_by(token=token).first()
+        if not access_history:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'invalid_token',
+                'message': '유효하지 않은 인증 정보입니다.'
+            }), 401)
+
+        data = json.loads(request.data)
+        user = Users.query.get(access_history.FK_user_id)
+        
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': '사용자를 찾을 수 없습니다.'
+            }), 404)
+
+        # 수정 가능한 필드들 업데이트
+        if 'name' in data:
+            user.name = data['name']
+        if 'email' in data:
+            # 이메일 중복 체크
+            existing_email = Users.query.filter(
+                Users.email == data['email'], 
+                Users.id != user.id
+            ).first()
+            if existing_email:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'duplicate_email',
+                    'message': '이미 사용 중인 이메일입니다.'
+                }), 400)
+            user.email = data['email']
+        if 'phone' in data:
+            user.phone = data['phone']
+        if 'age' in data:
+            user.age = int(data['age'])
+        if 'gender' in data:
+            user.gender = 1 if data['gender'].upper() == 'M' else 2
+        if 'password' in data and data['password']:
+            # 현재 비밀번호 확인
+            if 'current_password' not in data:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'missing_current_password',
+                    'message': '현재 비밀번호를 입력해주세요.'
+                }), 400)
+                
+            if user.password != password_encoder_512(data['current_password']):
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'invalid_password',
+                    'message': '현재 비밀번호가 일치하지 않습니다.'
+                }), 400)
+                
+            user.password = password_encoder_512(data['password'])
+
+        db.session.commit()
+
+        # 업데이트된 사용자 정보 반환
+        updated_user = {
+            'id': user.id,
+            'username': user.username,
+            'name': user.name,
+            'email': user.email,
+            'phone': user.phone,
+            'age': user.age,
+            'gender': 'M' if user.gender == 1 else 'F',
+            'permission': user.permission,
+            'last_login_time': user.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_time else None
+        }
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': '프로필이 성공적으로 수정되었습니다.',
+            'user': updated_user
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
