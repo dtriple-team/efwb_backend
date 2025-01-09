@@ -782,13 +782,11 @@ def check_band_permission_user():
 def get_users_bandlist():
     data = json.loads(request.data)
     params = ['uid', 'permission']
-    print(data)
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
     dev = []
     bandList = []
-    print(data)
     if data['permission'] == 0:
         dev = db.session.query(Bands).all()
     else:
@@ -2182,5 +2180,127 @@ def update_user_profile():
         return make_response(jsonify({
             'status': False,
             'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/users/<int:user_id>/bands', methods=['POST'])
+@token_required
+def match_band(user_id):
+    """사용자와 밴드 매칭 API"""
+    try:
+        data = json.loads(request.data)
+        
+        # 필수 파라미터 체크
+        required_params = ['name', 'bandId', 'alias']
+        for param in required_params:
+            if param not in data:
+                return make_response(jsonify({
+                    'status': False,
+                    'message': 'Parameters are not enough.'
+                }), 400)
+                
+        # 사용자 존재 확인
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'User not found.'
+            }), 404)
+            
+        # 밴드 존재 확인
+        band = Bands.query.filter_by(bid=data['bandId']).first()
+        if not band:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band not found.'
+            }), 404)
+            
+        # 이미 매칭된 밴드인지 확인
+        existing_match = UsersBands.query.filter_by(
+            FK_uid=user_id,
+            FK_bid=band.id
+        ).first()
+        
+        if existing_match:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band is already matched with this user.'
+            }), 400)
+            
+        # 밴드 정보 업데이트
+        band.name = data['name']
+        band.alias = data['alias']
+        
+        # 사용자-밴드 매칭 생성
+        new_match = UsersBands()
+        new_match.FK_uid = user_id
+        new_match.FK_bid = band.id
+        
+        db.session.add(new_match)
+        db.session.commit()
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': 'Band matched successfully.',
+            'data': {
+                'bandId': band.bid,
+                'name': band.name,
+                'alias': band.alias
+            }
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/users/<int:user_id>/band-matching/<string:band_id>', methods=['DELETE'])
+@token_required
+def unmatch_band(user_id, band_id):
+    """사용자와 밴드 매칭 해제 API"""
+    try:
+        # 사용자 존재 확인
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'User not found.'
+            }), 404)
+            
+        # 밴드 존재 확인
+        band = Bands.query.filter_by(bid=band_id).first()
+        if not band:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band not found.'
+            }), 404)
+            
+        # 매칭 정보 확인
+        match = UsersBands.query.filter_by(
+            FK_uid=user_id,
+            FK_bid=band.id  # band.id는 Bands 테이블의 PK
+        ).first()
+        
+        if not match:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band matching not found.'
+            }), 404)
+            
+        # 매칭 관계만 삭제
+        db.session.delete(match)
+        db.session.commit()
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': 'Band matching removed successfully.'
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
             'message': str(e)
         }), 500)
