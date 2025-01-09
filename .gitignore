@@ -106,3 +106,4 @@ dist
 *.pyc 
 
 server_log.json
+/venv

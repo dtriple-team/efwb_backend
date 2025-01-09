@@ -8,10 +8,13 @@ Flask-RESTful==0.3.7
 Flask-Script==2.0.6
 Flask-SQLAlchemy==2.4.0
 Flask-Cors==3.0.8
+Flask-MQTT==1.1.1
+Flask-SocketIO==5.0.1
+Flask-Login==0.5.0
+
 SQLAlchemy==1.3.6
 python-dateutil==2.8.0
 requests==2.20.0
-Flask-Mqtt==1.1.1
 flask-socketio==5.0.1
 beautifulsoup4==4.10.0
 bs4==0.0.1
