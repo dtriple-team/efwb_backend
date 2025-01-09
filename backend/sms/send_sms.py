@@ -4,8 +4,6 @@ from backend.sms.soap_request import *
 from logger_config import app_logger
 import os
 
-rcv_number = "01000000000"
-
 def set_rcv_number(phone_number):
   global rcv_number
   rcv_number = phone_number
@@ -46,18 +44,15 @@ def should_send_sms(warning_type, value):
   
   return warning_info['severity'] in ['위험', '경고', '알림']
 
-def send_warning_sms(dev_name, warning_type, value):
+def send_warning_sms(dev_name, warning_type, value, rcv_number):
   """경고 SMS 전송 함수"""
   try:
     if not should_send_sms(warning_type, value):
       return False
         
     message = format_warning_message(dev_name, warning_type)
-
     current_time = datetime.now(timezone('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')
     
-    # SMS 전송 로직
-    # 환경변수는 서버 환경변수에서 가져옵니다
     sms_id = 'stscs'
     password = 'rhrorakswhr'
     
@@ -81,13 +76,12 @@ def send_warning_sms(dev_name, warning_type, value):
     #문자 전송, 전송 예약시 사용(option 4,5 에서 필수)
     snd_number="0312816900" #발송 번호 ( 발송등록된 번호만 사용 가능)
    
-    if rcv_number is None:
+    if not rcv_number:
       app_logger.warning("수신자 번호가 설정되지 않았습니다.")
       return False
     
     send_soap_request(sms_id, password, snd_number, rcv_number, message, option, reserve_date, reserve_time, userdefine, canclemode)
     
-    # 로그 기록
     app_logger.info(f"{rcv_number}에게 [{current_time}] SMS 전송: {message}")
     return True
       

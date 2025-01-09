@@ -443,7 +443,6 @@ def handle_mqtt_message(client, userdata, message):
     elif message.topic == '/efwb/post/async':
       with thread_lock:
         if event_thread is None:
-          
           event_data = json.loads(message.payload.decode())
           
           extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
@@ -463,16 +462,26 @@ def handle_mqtt_message(client, userdata, message):
           last_event_cache[cache_key] = current_time
           
           dev = db.session.query(Bands).filter_by(bid=extAddress).first()
-          
+          print(dev)
           if dev is not None:
             insertEvent(
               dev.id, event_data['type'], event_data['value'])
             
-            send_warning_sms(
-              dev_name=dev.name,
-              warning_type=event_data['type'],
-              value=event_data['value']
-            )
+            # users 테이블에서 phone 번호 조회
+            user = db.session.query(Users.phone).\
+              join(UsersBands, Users.id == UsersBands.FK_uid).\
+              filter(UsersBands.FK_bid == dev.id).first()
+            print("user")
+            print(user)
+            if user:
+              send_warning_sms(
+                dev_name=dev.name,
+                warning_type=event_data['type'],
+                value=event_data['value'],
+                rcv_number=user.phone  # 조회한 전화번호 전달
+              )
+            else:
+              app_logger.warning(f"No user found for band: {dev.bid}")
             
             event_socket = {
               "type": event_data['type'],
