@@ -2,8 +2,9 @@ from datetime import datetime
 from pytz import timezone
 from backend.sms.soap_request import *
 from logger_config import app_logger
+import os
 
-rcv_number = "01089959054"
+rcv_number = "01000000000"
 
 def set_rcv_number(phone_number):
   global rcv_number
@@ -57,8 +58,8 @@ def send_warning_sms(dev_name, warning_type, value):
     
     # SMS 전송 로직
     # 환경변수는 서버 환경변수에서 가져옵니다
-    sms_id = os.environ.get('SMS_ID')
-    password = os.environ.get('SMS_PASSWORD')
+    sms_id = 'stscs'
+    password = 'rhrorakswhr'
     
     if not sms_id or not password:
         app_logger.error("SMS 인증정보가 환경변수에 설정되지 않았습니다")
