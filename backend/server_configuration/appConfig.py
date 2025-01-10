@@ -3,12 +3,13 @@
 import uuid
 
 class DevelopmentConfig():
-    BIND_PORT = 8084
-    SQLALCHEMY_DATABASE_URI = 'mysql://root:p@ssw0rd@127.0.0.1/efwb2'
+    BIND_PORT = 8080
+    SQLALCHEMY_DATABASE_URI = 'mysql://root:1234@127.0.0.1:3307/efwb3'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MQTT_BROKER_URL = "t-vsm.com"
+    MQTT_BROKER_URL = "3.37.65.94"
     MQTT_BROKER_PORT = 18831
 
+    
 from urllib.parse import quote_plus
 
 password = quote_plus('p@ssw0rd')
