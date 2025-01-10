@@ -105,3 +105,4 @@ typings/
 *.pyc 
 
 server_log.json
+/venv
