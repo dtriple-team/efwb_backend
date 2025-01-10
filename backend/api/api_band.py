@@ -64,6 +64,10 @@ def login_api():
         else:
             if loginuser.password != password_encoder_512(data["password"]):
                 result = {'status': False, 'reason': 2}  # PW 틀림
+            
+            # 추가된 조건: permission이 0이 아닌 경우 로그인 실패
+            elif loginuser.permission != 0:
+                result = {'status': False, 'reason': 3}  # 권한 없음
 
             else:  # Login 성공
                 loginuser.last_login_time = datetime.now()
