@@ -806,12 +806,12 @@ def get_users_bandlist():
         elif data['permission'] == 2:
             dev = db.session.query(Bands).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).all()
+                filter(UsersBands.FK_uid == data['uid']).all()
 
         elif data['permission'] == 3:
             dev = db.session.query(Bands).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).all()
+                filter(UsersBands.FK_uid == data['uid']).all()
     for b in dev:
         bandList.append(b.serialize())
 
