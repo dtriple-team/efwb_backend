@@ -2304,3 +2304,84 @@ def unmatch_band(user_id, band_id):
             'status': False,
             'message': str(e)
         }), 500)
+
+@app.route('/api/efwb/v1/bands/sensor-data/<bid>', methods=['GET'])
+@token_required
+def get_band_sensor_data(bid):
+    """특정 밴드의 최신 센서 데이터를 조회하는 API"""
+    try:
+        # 먼저 Band 테이블에서 bid로 band의 id를 조회
+        band = db.session.query(Bands).filter(Bands.bid == bid).first()
+        
+        if not band:
+            return make_response(jsonify({
+                'status': False,
+                'message': '밴드를 찾을 수 없습니다.',
+                'data': {
+                    'battery_level': '-',
+                    'hrConfidence': '-',
+                    'spo2Confidence': '-',
+                    'hr': '-',
+                    'spo2': '-',
+                    'activity': '-',
+                    'walk_steps': '-',
+                    'run_steps': '-',
+                    'latitude': None,
+                    'longitude': None
+                }
+            }), 404)
+            
+        # band.id를 사용하여 최신 센서 데이터 조회
+        latest_sensor_data = db.session.query(SensorData)\
+            .filter(SensorData.FK_bid == band.id)\
+            .order_by(SensorData.datetime.desc())\
+            .first()
+            
+        if not latest_sensor_data:
+            return make_response(jsonify({
+                'status': False,
+                'message': '센서 데이터가 없습니다.',
+                'data': {
+                    'battery_level': '-',
+                    'hrConfidence': '-',
+                    'spo2Confidence': '-',
+                    'hr': '-',
+                    'spo2': '-',
+                    'activity': '-',
+                    'walk_steps': '-',
+                    'run_steps': '-',
+                    'latitude': float(band.latitude) if band.latitude else None,
+                    'longitude': float(band.longitude) if band.longitude else None
+                }
+            }), 404)
+            
+        # 응답 데이터 구성
+        sensor_data = {
+            'battery_level': latest_sensor_data.battery_level if latest_sensor_data.battery_level is not None else '-',
+            'hrConfidence': latest_sensor_data.hrConfidence if latest_sensor_data.hrConfidence is not None else '-',
+            'spo2Confidence': latest_sensor_data.spo2Confidence if latest_sensor_data.spo2Confidence is not None else '-',
+            'hr': latest_sensor_data.hr if latest_sensor_data.hr is not None else '-',
+            'spo2': latest_sensor_data.spo2 if latest_sensor_data.spo2 is not None else '-',
+            'motionFlag': latest_sensor_data.motionFlag if latest_sensor_data.motionFlag is not None else '-',
+            'scdState': latest_sensor_data.scdState if latest_sensor_data.scdState is not None else '-',
+            'activity': latest_sensor_data.activity if latest_sensor_data.activity is not None else '-',
+            'walk_steps': latest_sensor_data.walk_steps if latest_sensor_data.walk_steps is not None else '-',
+            'run_steps': latest_sensor_data.run_steps if latest_sensor_data.run_steps is not None else '-',
+            'h': latest_sensor_data.h if latest_sensor_data.h is not None else '-',
+            'latitude': float(band.latitude) if band.latitude else None,
+            'longitude': float(band.longitude) if band.longitude else None
+        }
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': '센서 데이터 조회 성공',
+            'data': sensor_data
+        }), 200)
+        
+    except Exception as e:
+        app_logger.error(f"센서 데이터 조회 중 에러 발생: {str(e)}")
+        return make_response(jsonify({
+            'status': False,
+            'message': '센서 데이터 조회 중 오류가 발생했습니다.',
+            'error': str(e)
+        }), 500)
