@@ -138,11 +138,12 @@ class Bands(db.Model):
         'connect_time', db.DateTime, nullable=True, comment='마지막 연결 시간')
     connect_state = db.Column(
         'connect_state', db.Integer, default=0, comment='밴드 상태 0:disconnected, 1:connected')
-    latitude = db.Column('latitude', db.DECIMAL(10, 8), nullable=True, comment='위도')
-    longitude = db.Column('longitude', db.DECIMAL(11, 8), nullable=True, comment='경도')
+    latitude = db.Column('latitude', db.Float, comment='위도')
+    longitude = db.Column('longitude', db.Float, comment='경도')
 
     def serialize(self):
         resultJSON = {
+            # property (a)
             "id": self.id,
             "bid": self.bid,
             "created": self.created,
@@ -153,8 +154,8 @@ class Bands(db.Model):
             "disconnect_time": self.disconnect_time,
             "connect_time": self.connect_time,
             "connect_state": self.connect_state,
-            "latitude": float(self.latitude) if self.latitude else None,
-            "longitude": float(self.longitude) if self.longitude else None
+            "latitude": self.latitude,
+            "longitude": self.longitude
         }
         return resultJSON
 
