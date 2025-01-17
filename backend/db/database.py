@@ -15,7 +15,14 @@ class DBManager:
 
     @staticmethod
     def init(app):
-        # print "-- DBManager init()"
+        # 데이터베이스 연결 풀 설정 추가
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_size': 20,  # 기본 연결 풀 크기
+            'max_overflow': 20,  # 추가로 허용할 연결 수
+            'pool_timeout': 60,  # 연결 대기 시간 (초)
+            'pool_recycle': 1800,  # 연결 재사용 시간 (30분)
+        }
+        
         db = SQLAlchemy(app)
         DBManager.db = db
 
