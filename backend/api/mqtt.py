@@ -93,10 +93,10 @@ def handle_gps_data(mqtt_data, extAddress):
             
             if band:
                 print(f"업데이트 전 위치: lat={band.latitude}, lng={band.longitude}")
-                # band.latitude = gps_data['latitude']
-                # band.longitude = gps_data['longitude']
-                # db.session.commit()
-                # db.session.flush()
+                band.latitude = gps_data['latitude']
+                band.longitude = gps_data['longitude']
+                db.session.commit()
+                db.session.flush()
                 print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
             else:
                 print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
@@ -150,8 +150,8 @@ def handle_ehg4_data(data, b_id):
     )
     # print(sensor_data)
       
-    # db.session.add(sensor_data)
-    # db.session.commit()
+    db.session.add(sensor_data)
+    db.session.commit()
     app_logger.info(f"Successfully saved sensor data to database for band: {data['bid']}")
     
     # 실시간 데이터 전송
@@ -159,7 +159,7 @@ def handle_ehg4_data(data, b_id):
     app_logger.info(f"Successfully emitted real-time data for band: {data['bid']}")
       
   except SQLAlchemyError as e:
-    # db.session.rollback()
+    db.session.rollback()
     app_logger.error(f"Database error while saving sensor data for band {data['bid']}: {str(e)}")
   except Exception as e:
     app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
@@ -173,7 +173,7 @@ def handle_sync_data(mqtt_data, extAddress):
       # 밴드 연결 상태 업데이트
       dev.connect_state = 1  # 1: connected
       dev.connect_time = datetime.datetime.now(timezone('Asia/Seoul'))
-      # db.session.commit()
+      db.session.commit()
       
       gatewayDev = db.session.query(Gateways.airpressure).\
         filter(Gateways.pid == mqtt_data['pid']).first()
@@ -182,7 +182,7 @@ def handle_sync_data(mqtt_data, extAddress):
         sensorDev = db.session.query(WalkRunCount).\
           filter(WalkRunCount.FK_bid == dev.id).\
           filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-        # db.session.flush()
+        db.session.flush()
 
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
@@ -261,40 +261,32 @@ def handle_sync_data(mqtt_data, extAddress):
                       run_steps=walkRunCount.run_steps,
                       temp_run_steps=walkRunCount.temp_run_steps,
                       datetime=walkRunCount.datetime))
-        # db.session.commit()
-        # db.session.flush()
+        db.session.commit()
+        db.session.flush()
       else:
-        # db.session.add(walkRunCount)
-        # db.session.commit()
-        # db.session.flush()
+        db.session.add(walkRunCount)
+        db.session.commit()
+        db.session.flush()
         data.x = bandData['x']
         data.y = bandData['y']
         data.z = bandData['z']
         data.t = bandData['t']
         data.h = bandData['h']
-      # if gatewayDev is not None:
-      #     if mqtt_data['bandData']['h'] != 0:
-      #         mqtt_data['bandData']['h'] = getAltitude(
-      #             mqtt_data['bandData']['h'], gatewayDev.airpressure)
-      #         data.h = mqtt_data['bandData']['h']
-      #     else:
-      #         data.h = mqtt_data['bandData']['h']
-      # else:
-      #     data.h = mqtt_data['bandData']['h']
+
       data.rssi = mqtt_data['rssi']
       data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
-      # db.session.add(data)
-      # db.session.commit()
-      # db.session.flush()
+      db.session.add(data)
+      db.session.commit()
+      db.session.flush()
       
       # Emit the sync data to the frontend
       app_logger.info(f"Emitting sync data: {mqtt_data} to namespace '/admin'")
       socketio.emit('efwbsync', mqtt_data, namespace='/admin')
-      # app_logger.debug(f"sync data = {mqtt_data}")
+      app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
       
     except Exception as e:
-      # db.session.rollback()
+      db.session.rollback()
       app_logger.error(f"Error up dating band connection status: {str(e)}")
       print("****** error ********")
       print(e)
@@ -330,12 +322,12 @@ def check_disconnected_bands():
                         }
                         socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
-            # db.session.commit()
-            # db.session.flush()
+            db.session.commit()
+            db.session.flush()
             app_logger.info("Successfully checked and updated disconnected bands")
             
         except Exception as e:
-            # db.session.rollback()
+            db.session.rollback()
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
 
 # 백그라운드 스케줄러 설정
@@ -381,11 +373,11 @@ def handle_mqtt_message(client, userdata, message):
                 extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
                 
                 # 비동기 처리를 위해 background_task 사용
-                mqtt_thread = socketio.start_background_task(
-                    target=handle_sync_data,
-                    mqtt_data=mqtt_data,
-                    extAddress=extAddress
-                )
+                # mqtt_thread = socketio.start_background_task(
+                #     target=handle_sync_data,
+                #     mqtt_data=mqtt_data,
+                #     extAddress=extAddress
+                # )
                 mqtt_thread = None
                 
     elif message.topic == '/DT/eHG4/GPS/Location':
@@ -394,11 +386,11 @@ def handle_mqtt_message(client, userdata, message):
                 mqtt_data = json.loads(message.payload.decode())
                 extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
                 
-                mqtt_thread = socketio.start_background_task(
-                    target=handle_gps_data,
-                    mqtt_data=mqtt_data,
-                    extAddress=extAddress
-                )
+                # mqtt_thread = socketio.start_background_task(
+                #     target=handle_gps_data,
+                #     mqtt_data=mqtt_data,
+                #     extAddress=extAddress
+                # )
                 mqtt_thread = None
               
     elif message.topic == '/efwb/post/connectcheck':
@@ -429,23 +421,23 @@ def handle_mqtt_message(client, userdata, message):
           # 현재 이벤트 시간 저장
           last_event_cache[cache_key] = current_time
           
-          dev = db.session.query(Bands).filter_by(bid=extAddress).first()
+          # dev = db.session.query(Bands).filter_by(bid=extAddress).first()
           
-          if dev is not None:
+          # if dev is not None:
             # insertEvent(
             #   dev.id, event_data['type'], event_data['value'])
             
-            event_socket = {
-              "type": event_data['type'],
-              "value": event_data['value'],
-              "bid": dev.bid,
-              "name": dev.name
-            }
-            socketio.emit('efwbasync', event_socket,namespace='/admin')
-            app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
+            # event_socket = {
+            #   "type": event_data['type'],
+            #   "value": event_data['value'],
+            #   "bid": dev.bid,
+            #   "name": dev.name
+            # }
+            # socketio.emit('efwbasync', event_socket,namespace='/admin')
+            # app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
             
-          else:
-            app_logger.warning(f"Band not found for extAddress: {extAddress}")
+          # else:
+          #   app_logger.warning(f"Band not found for extAddress: {extAddress}")
           event_thread = None
   except Exception as e:
     app_logger.error(f"Error in MQTT message handler: {str(e)}", exc_info=True)
