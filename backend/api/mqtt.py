@@ -379,11 +379,11 @@ def handle_mqtt_message(client, userdata, message):
                 extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
                 
                 # 비동기 처리를 위해 background_task 사용
-                mqtt_thread = socketio.start_background_task(
-                    target=handle_sync_data,
-                    mqtt_data=mqtt_data,
-                    extAddress=extAddress
-                )
+                # mqtt_thread = socketio.start_background_task(
+                #     target=handle_sync_data,
+                #     mqtt_data=mqtt_data,
+                #     extAddress=extAddress
+                # )
                 mqtt_thread = None
                 
     elif message.topic == '/DT/eHG4/GPS/Location':
@@ -392,17 +392,17 @@ def handle_mqtt_message(client, userdata, message):
                 mqtt_data = json.loads(message.payload.decode())
                 extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
                 
-                mqtt_thread = socketio.start_background_task(
-                    target=handle_gps_data,
-                    mqtt_data=mqtt_data,
-                    extAddress=extAddress
-                )
+                # mqtt_thread = socketio.start_background_task(
+                #     target=handle_gps_data,
+                #     mqtt_data=mqtt_data,
+                #     extAddress=extAddress
+                # )
                 mqtt_thread = None
               
     elif message.topic == '/efwb/post/connectcheck':
       with thread_lock:
         if gw_thread is None:
-          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+          # gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
           gw_thread = None
 
     elif message.topic == '/efwb/post/async':
@@ -430,8 +430,8 @@ def handle_mqtt_message(client, userdata, message):
           dev = db.session.query(Bands).filter_by(bid=extAddress).first()
           
           if dev is not None:
-            insertEvent(
-              dev.id, event_data['type'], event_data['value'])
+            # insertEvent(
+            #   dev.id, event_data['type'], event_data['value'])
             
             event_socket = {
               "type": event_data['type'],
