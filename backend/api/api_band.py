@@ -755,16 +755,26 @@ def check_band_permission_user():
                 filter(UsersGroups.FK_gid == group.id).first()
 
         elif data['permission'] == 2:
+            group = selectSameGroupOfUser(data['uid'])
+            if group is None:
+                return make_response(jsonify('Group is not Found.'), 404)
+
             dev = db.session.query(Bands).\
                 filter(Bands.bid == data['bid']).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).first()
+                filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
+                filter(UsersGroups.FK_gid == group.id).first()
 
         elif data['permission'] == 3:
+            group = selectSameGroupOfUser(data['uid'])
+            if group is None:
+                return make_response(jsonify('Group is not Found.'), 404)
+
             dev = db.session.query(Bands).\
                 filter(Bands.bid == data['bid']).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).first()
+                filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
+                filter(UsersGroups.FK_gid == group.id).first()
 
     if dev is None:
         result = {
