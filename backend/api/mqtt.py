@@ -93,9 +93,10 @@ def handle_gps_data(mqtt_data, extAddress):
             
             if band:
                 print(f"업데이트 전 위치: lat={band.latitude}, lng={band.longitude}")
-                band.latitude = gps_data['latitude']
-                band.longitude = gps_data['longitude']
-                db.session.commit()
+                # band.latitude = gps_data['latitude']
+                # band.longitude = gps_data['longitude']
+                # db.session.commit()
+                # db.session.flush()
                 print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
             else:
                 print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
@@ -149,8 +150,8 @@ def handle_ehg4_data(data, b_id):
     )
     # print(sensor_data)
       
-    db.session.add(sensor_data)
-    db.session.commit()
+    # db.session.add(sensor_data)
+    # db.session.commit()
     app_logger.info(f"Successfully saved sensor data to database for band: {data['bid']}")
     
     # 실시간 데이터 전송
@@ -158,7 +159,7 @@ def handle_ehg4_data(data, b_id):
     app_logger.info(f"Successfully emitted real-time data for band: {data['bid']}")
       
   except SQLAlchemyError as e:
-    db.session.rollback()
+    # db.session.rollback()
     app_logger.error(f"Database error while saving sensor data for band {data['bid']}: {str(e)}")
   except Exception as e:
     app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
@@ -172,7 +173,7 @@ def handle_sync_data(mqtt_data, extAddress):
       # 밴드 연결 상태 업데이트
       dev.connect_state = 1  # 1: connected
       dev.connect_time = datetime.datetime.now(timezone('Asia/Seoul'))
-      db.session.commit()
+      # db.session.commit()
       
       gatewayDev = db.session.query(Gateways.airpressure).\
         filter(Gateways.pid == mqtt_data['pid']).first()
@@ -181,7 +182,7 @@ def handle_sync_data(mqtt_data, extAddress):
         sensorDev = db.session.query(WalkRunCount).\
           filter(WalkRunCount.FK_bid == dev.id).\
           filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-        db.session.flush()
+        # db.session.flush()
 
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
@@ -260,17 +261,17 @@ def handle_sync_data(mqtt_data, extAddress):
                       run_steps=walkRunCount.run_steps,
                       temp_run_steps=walkRunCount.temp_run_steps,
                       datetime=walkRunCount.datetime))
-        db.session.commit()
-        db.session.flush()
+        # db.session.commit()
+        # db.session.flush()
       else:
-        db.session.add(walkRunCount)
-        db.session.commit()
-        db.session.flush()
-      data.x = bandData['x']
-      data.y = bandData['y']
-      data.z = bandData['z']
-      data.t = bandData['t']
-      data.h = bandData['h']
+        # db.session.add(walkRunCount)
+        # db.session.commit()
+        # db.session.flush()
+        data.x = bandData['x']
+        data.y = bandData['y']
+        data.z = bandData['z']
+        data.t = bandData['t']
+        data.h = bandData['h']
       # if gatewayDev is not None:
       #     if mqtt_data['bandData']['h'] != 0:
       #         mqtt_data['bandData']['h'] = getAltitude(
@@ -282,9 +283,9 @@ def handle_sync_data(mqtt_data, extAddress):
       #     data.h = mqtt_data['bandData']['h']
       data.rssi = mqtt_data['rssi']
       data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
-      db.session.add(data)
-      db.session.commit()
-      db.session.flush()
+      # db.session.add(data)
+      # db.session.commit()
+      # db.session.flush()
       
       # Emit the sync data to the frontend
       app_logger.info(f"Emitting sync data: {mqtt_data} to namespace '/admin'")
@@ -293,7 +294,7 @@ def handle_sync_data(mqtt_data, extAddress):
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
       
     except Exception as e:
-      db.session.rollback()
+      # db.session.rollback()
       app_logger.error(f"Error up dating band connection status: {str(e)}")
       print("****** error ********")
       print(e)
@@ -329,11 +330,12 @@ def check_disconnected_bands():
                         }
                         socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
-            db.session.commit()
+            # db.session.commit()
+            # db.session.flush()
             app_logger.info("Successfully checked and updated disconnected bands")
             
         except Exception as e:
-            db.session.rollback()
+            # db.session.rollback()
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
 
 # 백그라운드 스케줄러 설정
