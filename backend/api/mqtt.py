@@ -104,7 +104,6 @@ def handle_gps_data(mqtt_data, extAddress):
         
         # Emit the GPS data to the frontend
         socketio.emit('ehg4_gps', gps_data, namespace='/client')
-        socketio.emit('ehg4_gps', gps_data, namespace='/admin')
         app_logger.debug(f"GPS Data : {gps_data}")
         app_logger.info(f"Successfully processed and emitted GPS data for band: {extAddress}")
         
@@ -155,7 +154,6 @@ def handle_ehg4_data(data, b_id):
     
     # 실시간 데이터 전송
     socketio.emit('ehg4_data', data, namespace='/client')
-    socketio.emit('ehg4_data', data, namespace='/admin')
     app_logger.info(f"Successfully emitted real-time data for band: {data['bid']}")
       
   except SQLAlchemyError as e:
@@ -288,7 +286,6 @@ def handle_sync_data(mqtt_data, extAddress):
       db.session.flush()
       
       socketio.emit('efwbsync', mqtt_data, namespace='/client')
-      socketio.emit('efwbsync', mqtt_data, namespace='/admin')
       app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
       
@@ -328,7 +325,6 @@ def check_disconnected_bands():
                             "disconnect_time": band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S")
                         }
                         socketio.emit('band_disconnect', disconnect_event, namespace='/client')
-                        socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
             db.session.commit()
             app_logger.info("Successfully checked and updated disconnected bands")
@@ -367,7 +363,6 @@ def check_disconnected_bands():
                             "disconnect_time": band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S")
                         }
                         socketio.emit('band_disconnect', disconnect_event, namespace='/client')
-                        socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
             db.session.commit()
             app_logger.info("Successfully checked and updated disconnected bands")
@@ -495,7 +490,6 @@ def handle_mqtt_message(client, userdata, message):
               "name": dev.name
             }
             socketio.emit('efwbasync', event_socket,namespace='/client')
-            socketio.emit('efwbasync', event_socket,namespace='/admin')
             app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
             
           else:
