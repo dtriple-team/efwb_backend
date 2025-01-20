@@ -381,11 +381,11 @@ def handle_mqtt_message(client, userdata, message):
                 extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
                 
                 # 비동기 처리를 위해 background_task 사용
-                # mqtt_thread = socketio.start_background_task(
-                #     target=handle_sync_data,
-                #     mqtt_data=mqtt_data,
-                #     extAddress=extAddress
-                # )
+                mqtt_thread = socketio.start_background_task(
+                    target=handle_sync_data,
+                    mqtt_data=mqtt_data,
+                    extAddress=extAddress
+                )
                 mqtt_thread = None
                 
     elif message.topic == '/DT/eHG4/GPS/Location':
@@ -394,11 +394,11 @@ def handle_mqtt_message(client, userdata, message):
                 mqtt_data = json.loads(message.payload.decode())
                 extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
                 
-                # mqtt_thread = socketio.start_background_task(
-                #     target=handle_gps_data,
-                #     mqtt_data=mqtt_data,
-                #     extAddress=extAddress
-                # )
+                mqtt_thread = socketio.start_background_task(
+                    target=handle_gps_data,
+                    mqtt_data=mqtt_data,
+                    extAddress=extAddress
+                )
                 mqtt_thread = None
               
     elif message.topic == '/efwb/post/connectcheck':
