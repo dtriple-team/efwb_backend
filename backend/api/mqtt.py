@@ -59,16 +59,28 @@ def handle_gps_data(mqtt_data, extAddress):
         
         # GPS 데이터 형식에 따라 다르게 처리
         if len(gps_info) == 4:
-            base_station_count, latitude, longitude, _ = gps_info
+            latitude, longitude, altitude, speed = gps_info
             gps_data = {
                 'bid': extAddress,
-                'base_station_count': int(base_station_count),
                 'latitude': float(latitude),
                 'longitude': float(longitude),
+                'altitude': float(altitude),
+                'speed': float(speed),
+                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        elif len(gps_info) == 5:
+            latitude, longitude, altitude, speed, course = gps_info
+            gps_data = {
+                'bid': extAddress,
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'altitude': float(altitude),
+                'speed': float(speed),
+                'course': float(course),
                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
             }
         elif len(gps_info) == 6:
-            latitude, longitude, altitude, speed, course, sats, _ = gps_info
+            latitude, longitude, altitude, speed, course, sats = gps_info
             gps_data = {
                 'bid': extAddress,
                 'latitude': float(latitude),
