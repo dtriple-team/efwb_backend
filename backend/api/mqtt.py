@@ -67,7 +67,7 @@ def handle_gps_data(mqtt_data, extAddress):
                 'longitude': float(longitude),
                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
             }
-        elif len(gps_info) == 7:
+        elif len(gps_info) == 6:
             latitude, longitude, altitude, speed, course, sats, _ = gps_info
             gps_data = {
                 'bid': extAddress,
