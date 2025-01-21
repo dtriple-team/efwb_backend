@@ -68,22 +68,43 @@ def handle_gps_data(mqtt_data, extAddress):
         #         'longitude': float(longitude),
         #         'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
         #     }
+        # if len(gps_info) == 4:
+        #     base_station_count, latitude, longitude, _ = gps_info
+            
+        #     # 기준 좌표
+        #     base_lat = 35.067786
+        #     base_lon = 127.751247
+            
+        #     # 소수점 셋째자리에서 ±0.001 범위의 랜덤값 생성
+        #     random_lat = base_lat + uniform(-0.001, 0.001)
+        #     random_lon = base_lon + uniform(-0.001, 0.001)
+            
+        #     gps_data = {
+        #         'bid': extAddress,
+        #         'base_station_count': int(base_station_count),
+        #         'latitude': round(random_lat, 6),  # 6자리까지 반올림
+        #         'longitude': round(random_lon, 6),  # 6자리까지 반올림
+        #         'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        #     }
         if len(gps_info) == 4:
-            base_station_count, latitude, longitude, _ = gps_info
-            
-            # 기준 좌표
-            base_lat = 35.067786
-            base_lon = 127.751247
-            
-            # 소수점 셋째자리에서 ±0.001 범위의 랜덤값 생성
-            random_lat = base_lat + uniform(-0.001, 0.001)
-            random_lon = base_lon + uniform(-0.001, 0.001)
-            
+            latitude, longitude, altitude, speed, = gps_info
             gps_data = {
                 'bid': extAddress,
-                'base_station_count': int(base_station_count),
-                'latitude': round(random_lat, 6),  # 6자리까지 반올림
-                'longitude': round(random_lon, 6),  # 6자리까지 반올림
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'altitude': float(altitude),
+                'speed': float(speed),
+                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        elif len(gps_info) == 5:
+            latitude, longitude, altitude, speed, course = gps_info
+            gps_data = {
+                'bid': extAddress,
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'altitude': float(altitude),
+                'speed': float(speed),
+                'course': float(course),
                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
             }
         elif len(gps_info) == 6:
