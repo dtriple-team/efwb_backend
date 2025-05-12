@@ -294,7 +294,18 @@ def handle_sync_data(mqtt_data, extAddress):
       socketio.emit('efwbsync', mqtt_data, namespace='/admin')
       # app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
-      
+
+      topic = "/DT/test_eHG4/Status/BandSet"
+      temperature = int(float(WeatherState.tempor.replace("°", "")) * 100)
+      humidity = int(WeatherState.humidity.replace("%", ""))
+      message = f"#XMQTTSUBMSG : {extAddress},{temperature},{humidity}"
+      try:
+        mqtt.publish(topic, message)
+        app_logger.info(f"MQTT message sent to {topic}: {message}")
+
+      except Exception as e:
+        app_logger.error(f"Failed to publish MQTT message: {e}")
+
     except Exception as e:
       db.session.rollback()
       app_logger.error(f"Error up dating band connection status: {str(e)}")

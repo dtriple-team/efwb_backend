@@ -16,6 +16,8 @@ from flask import make_response, jsonify, request, json
 from backend import app, login_manager
 import requests
 import hashlib
+import time
+
 print("module [backend.api_band] loaded")
 
 
@@ -1695,13 +1697,28 @@ def bandlog_post_api():
     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/weather/<where>', methods=["GET"])
-def get_weather_api(where):
+@app.route('/api/efwb/v1/weather', methods=["GET"])
+def get_weather_api():
     global work
+
+    # 최대 20번 재시도 (0.5초 간격, 총 10초 대기)
+    retry_count = 0
+    while WeatherState.location is None and retry_count < 20:
+        time.sleep(0.5)
+        retry_count += 1
+
+    # 20번 재시도 후에도 WeatherState.location이 None이면 서울시로 설정
+    if WeatherState.location is None:
+        WeatherState.location = "서울시"
+
     work = True
-    result = getWeather(where)
-    work = False
-    return make_response(jsonify(result), 200)
+    try:
+        result = getWeather(WeatherState.location)
+        return make_response(jsonify(result), 200)
+    except Exception as e:
+        return make_response(jsonify({"error": str(e)}), 500)
+    finally:
+        work = False
 
 
 @app.route('/api/efwb/v1/nervestim/prescription', methods=["POST"])
@@ -1995,7 +2012,10 @@ def get_connected_band_locations():
                 "longitude": float(band.longitude) if band.longitude else None,
                 "name": band.name
             })
-            
+            weather = getWeatherFromCoords(band.latitude, band.longitude)
+            app_logger.info(
+                f"Band '{band.name}' (lat: {band.latitude}, lng: {band.longitude})의 날씨 정보: {weather}"
+        )
         app_logger.info(f"총 {len(result)}개의 연결된 밴드 위치 정보 조회 완료")
         return make_response(jsonify({
             'status': 'success',
