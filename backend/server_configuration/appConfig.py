@@ -8,7 +8,7 @@ class DevelopmentConfig():
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MQTT_BROKER_URL = "3.37.65.94"
     MQTT_BROKER_PORT = 18831
-
+    MQTT_CLEAN_SESSION = False
     
 from urllib.parse import quote_plus
 
@@ -19,4 +19,5 @@ class ProductionConfig():
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MQTT_BROKER_URL = '3.37.65.94'
     MQTT_BROKER_PORT = 18831
-    MQTT_CLIENT_ID = 'admin_app_' + str(uuid.uuid4()) 
+    MQTT_CLIENT_ID = 'admin_app_' + str(uuid.uuid4())
+    MQTT_CLEAN_SESSION = False
