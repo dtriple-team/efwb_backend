@@ -72,15 +72,15 @@ def admin_band_detail():
     resp = make_response(render_template("index.html"))
     return resp
 
-@app.route("/admin/gateway/", methods=["GET"])
-def admin_gateway():
-    resp = make_response(render_template("index.html"))
-    return resp
+# @app.route("/admin/gateway/", methods=["GET"])
+# def admin_gateway():
+#     resp = make_response(render_template("index.html"))
+#     return resp
 
-@app.route("/admin/gateway/detail/", methods=["GET"])
-def admin_gateway_detail():
-    resp = make_response(render_template("index.html"))
-    return resp
+# @app.route("/admin/gateway/detail/", methods=["GET"])
+# def admin_gateway_detail():
+#     resp = make_response(render_template("index.html"))
+#     return resp
 
 @app.route("/admin/user/", methods=["GET"])
 def admin_user():

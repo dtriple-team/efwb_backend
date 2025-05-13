@@ -142,17 +142,17 @@ class DBManager:
         DBManager.db.session.add(users_groups)
         DBManager.db.session.commit()
 
-    def insert_dummy_gateways():
-        print("insert_dummy_gateways")
-        from backend.db.table.table_band import Gateways
-        gateways = Gateways()
-        gateways.pid = "0xA020"
-        gateways.alias = "dtriple"
-        gateways.ip = "192.168.0.105"
-        gateways.location = "울산"
-        gateways.airpressure = 1018
-        DBManager.db.session.add(gateways)
-        DBManager.db.session.commit()
+    # def insert_dummy_gateways():
+    #     print("insert_dummy_gateways")
+    #     from backend.db.table.table_band import Gateways
+    #     gateways = Gateways()
+    #     gateways.pid = "0xA020"
+    #     gateways.alias = "dtriple"
+    #     gateways.ip = "192.168.0.105"
+    #     gateways.location = "울산"
+    #     gateways.airpressure = 1018
+    #     DBManager.db.session.add(gateways)
+    #     DBManager.db.session.commit()
 
     def insert_dummy_bands():
         print("insert_dummy_bands")
@@ -249,68 +249,68 @@ class DBManager:
 
         DBManager.db.session.commit()
 
-    def insert_dummy_users_gateways():
-        print("insert_dummy_users_gateways")
-        from backend.db.table.table_band import UsersGateways
-        users_gateways = UsersGateways()
-        users_gateways.FK_pid = 1
-        users_gateways.FK_uid = 1
-        DBManager.db.session.add(users_gateways)
-        DBManager.db.session.commit()
+    # def insert_dummy_users_gateways():
+    #     print("insert_dummy_users_gateways")
+    #     from backend.db.table.table_band import UsersGateways
+    #     users_gateways = UsersGateways()
+    #     users_gateways.FK_pid = 1
+    #     users_gateways.FK_uid = 1
+    #     DBManager.db.session.add(users_gateways)
+    #     DBManager.db.session.commit()
 
-    def insert_dummy_gateways_bands():
-        print("insert_dummy_gateways_bands")
-        from backend.db.table.table_band import GatewaysBands
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 1
-        DBManager.db.session.add(gateways_bands)
+    # def insert_dummy_gateways_bands():
+    #     print("insert_dummy_gateways_bands")
+    #     from backend.db.table.table_band import GatewaysBands
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 1
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 2
-        DBManager.db.session.add(gateways_bands)
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 3
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 2
+    #     DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 3
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 4
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 4
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 5
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 5
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 6
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 6
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 7
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 7
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 8
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 8
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 9
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 9
+    #     DBManager.db.session.add(gateways_bands)
 
-        gateways_bands = GatewaysBands()
-        gateways_bands.FK_pid = 1
-        gateways_bands.FK_bid = 10
-        DBManager.db.session.add(gateways_bands)
+    #     gateways_bands = GatewaysBands()
+    #     gateways_bands.FK_pid = 1
+    #     gateways_bands.FK_bid = 10
+    #     DBManager.db.session.add(gateways_bands)
 
-        DBManager.db.session.commit()
+    #     DBManager.db.session.commit()
 
     def insert_dummy_users_bands():
         print("insert_dummy_users_bands")
@@ -335,12 +335,12 @@ class DBManager:
         from backend.db.table.table_band import SensorData
         data = SensorData()
         data.FK_bid = 1
-        data.start_byte = 1
-        data.sample_count = 1
-        data.fall_detect = 1
+        # data.start_byte = 1
+        # data.sample_count = 1
+        # data.fall_detect = 1
         data.battery_level = 1
-        data.hrConfidence = 1
-        data.spo2Confidence = 1
+        # data.hrConfidence = 1
+        # data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
 
@@ -350,9 +350,9 @@ class DBManager:
         data.walk_steps = 50
         data.run_steps = 50
 
-        data.x = 80
-        data.y = 80
-        data.z = 80
+        # data.x = 80
+        # data.y = 80
+        # data.z = 80
         data.t = 80
         data.h = 80
 
@@ -362,12 +362,12 @@ class DBManager:
 
         data = SensorData()
         data.FK_bid = 1
-        data.start_byte = 1
-        data.sample_count = 1
-        data.fall_detect = 1
+        # data.start_byte = 1
+        # data.sample_count = 1
+        # data.fall_detect = 1
         data.battery_level = 1
-        data.hrConfidence = 1
-        data.spo2Confidence = 1
+        # data.hrConfidence = 1
+        # data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
 
@@ -377,9 +377,9 @@ class DBManager:
         data.walk_steps = 50
         data.run_steps = 50
 
-        data.x = 80
-        data.y = 80
-        data.z = 80
+        # data.x = 80
+        # data.y = 80
+        # data.z = 80
         data.t = 80
         data.h = 80
 
@@ -389,12 +389,12 @@ class DBManager:
         data = SensorData()
         data.datetime = '2021-08-18 1:00'
         data.FK_bid = 1
-        data.start_byte = 1
-        data.sample_count = 1
-        data.fall_detect = 1
+        # data.start_byte = 1
+        # data.sample_count = 1
+        # data.fall_detect = 1
         data.battery_level = 1
-        data.hrConfidence = 1
-        data.spo2Confidence = 1
+        # data.hrConfidence = 1
+        # data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
 
@@ -404,9 +404,9 @@ class DBManager:
         data.walk_steps = 50
         data.run_steps = 50
 
-        data.x = 80
-        data.y = 80
-        data.z = 80
+        # data.x = 80
+        # data.y = 80
+        # data.z = 80
         data.t = 80
         data.h = 80
 
@@ -416,12 +416,12 @@ class DBManager:
         data = SensorData()
         data.datetime = '2021-08-18 1:30'
         data.FK_bid = 1
-        data.start_byte = 1
-        data.sample_count = 1
-        data.fall_detect = 1
+        # data.start_byte = 1
+        # data.sample_count = 1
+        # data.fall_detect = 1
         data.battery_level = 1
-        data.hrConfidence = 1
-        data.spo2Confidence = 1
+        # data.hrConfidence = 1
+        # data.spo2Confidence = 1
         data.hr = 75
         data.spo2 = 50
 
@@ -431,9 +431,9 @@ class DBManager:
         data.walk_steps = 50
         data.run_steps = 50
 
-        data.x = 80
-        data.y = 80
-        data.z = 80
+        # data.x = 80
+        # data.y = 80
+        # data.z = 80
         data.t = 80
         data.h = 80
 
@@ -443,12 +443,12 @@ class DBManager:
         data = SensorData()
         data.datetime = '2021-08-18 2:00'
         data.FK_bid = 1
-        data.start_byte = 1
-        data.sample_count = 1
-        data.fall_detect = 1
+        # data.start_byte = 1
+        # data.sample_count = 1
+        # data.fall_detect = 1
         data.battery_level = 1
-        data.hrConfidence = 1
-        data.spo2Confidence = 1
+        # data.hrConfidence = 1
+        # data.spo2Confidence = 1
         data.hr = 50
         data.spo2 = 50
 
@@ -458,9 +458,9 @@ class DBManager:
         data.walk_steps = 50
         data.run_steps = 50
 
-        data.x = 80
-        data.y = 80
-        data.z = 80
+        # data.x = 80
+        # data.y = 80
+        # data.z = 80
         data.t = 80
         data.h = 80
 
@@ -548,15 +548,15 @@ class DBManager:
         DBManager.db.session.add(walkRunCount)
         DBManager.db.session.commit()
 
-    @staticmethod
-    def insert_dummy_example():
-        from backend.db.service.query import insertUsers, insertUsersGateways, insertUsersBands, insertGatewaysBands, insertUsersGroups
-        insertUsersBands(1, 21)
-        insertUsersBands(1, 22)
+    # @staticmethod
+    # def insert_dummy_example():
+    #     from backend.db.service.query import insertUsers, insertUsersGateways, insertUsersBands, insertGatewaysBands, insertUsersGroups
+    #     insertUsersBands(1, 21)
+    #     insertUsersBands(1, 22)
 
-    @staticmethod
-    def insert_dummy_name():
-        from backend.db.service.query import updateBandNameAlias, updateGatewayAlias
-        updateBandNameAlias(21, "BPA", "BPA")
-        updateBandNameAlias(22, "BPA", "BPA")
-        updateGatewayAlias(3, "BPA")
+    # @staticmethod
+    # def insert_dummy_name():
+    #     from backend.db.service.query import updateBandNameAlias, updateGatewayAlias
+    #     updateBandNameAlias(21, "BPA", "BPA")
+    #     updateBandNameAlias(22, "BPA", "BPA")
+    #     updateGatewayAlias(3, "BPA")

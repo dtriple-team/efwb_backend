@@ -25,18 +25,18 @@ def handle_gwcheck(data):
 def socket_emit(topic, message):
     socketio.emit(topic, message, namespace='/admin')
 
-def setGatewayLog(gid, gpid, check):
-  print("[method] setGatewayLog")
-  updateGatewaysConnect(gid, check)
-  insertGatewaysLog(gid, check)
-  if check == False:
-    dev =  selectBandsConnectGateway(gid)
-    for b in dev:
-      insertConnectBandLog(b.id, 0)
-      updateConnectBands(b.id, 0)
-    gateway={
-      "panid": gpid,
-      "bandnum": 0,
-      "connectstate": False
-    }
-    socket_emit('gateway_connect', gateway)
+# def setGatewayLog(gid, gpid, check):
+#   print("[method] setGatewayLog")
+#   updateGatewaysConnect(gid, check)
+#   insertGatewaysLog(gid, check)
+#   if check == False:
+#     dev =  selectBandsConnectGateway(gid)
+#     for b in dev:
+#       insertConnectBandLog(b.id, 0)
+#       updateConnectBands(b.id, 0)
+#     gateway={
+#       "panid": gpid,
+#       "bandnum": 0,
+#       "connectstate": False
+#     }
+#     socket_emit('gateway_connect', gateway)

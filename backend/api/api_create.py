@@ -30,18 +30,18 @@ manager.create_api(Bands, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', '
     'POST': [check_token],
     'PATCH': [check_token]
 })
-manager.create_api(UsersGateways, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
-    'GET_SINGLE': [check_token],
-    'GET_MANY': [check_token],
-    'POST': [check_token],
-    'PATCH': [check_token]
-})
-manager.create_api(GatewaysBands, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
-    'GET_SINGLE': [check_token],
-    'GET_MANY': [check_token],
-    'POST': [check_token],
-    'PATCH': [check_token]
-})
+# manager.create_api(UsersGateways, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
+#     'GET_SINGLE': [check_token],
+#     'GET_MANY': [check_token],
+#     'POST': [check_token],
+#     'PATCH': [check_token]
+# })
+# manager.create_api(GatewaysBands, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
+#     'GET_SINGLE': [check_token],
+#     'GET_MANY': [check_token],
+#     'POST': [check_token],
+#     'PATCH': [check_token]
+# })
 manager.create_api(SensorData, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST']
                    )
 manager.create_api(Events, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
@@ -50,12 +50,12 @@ manager.create_api(Events, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 
     'POST': [check_token],
     'PATCH': [check_token]
 })
-manager.create_api(GatewayLog, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
-    'GET_SINGLE': [check_token],
-    'GET_MANY': [check_token],
-    'POST': [check_token],
-    'PATCH': [check_token]
-})
+# manager.create_api(GatewayLog, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
+#     'GET_SINGLE': [check_token],
+#     'GET_MANY': [check_token],
+#     'POST': [check_token],
+#     'PATCH': [check_token]
+# })
 manager.create_api(BandLog, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
     'GET_SINGLE': [check_token],
     'GET_MANY': [check_token],
@@ -63,23 +63,23 @@ manager.create_api(BandLog, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE',
     'PATCH': [check_token]
 })
 
-manager.create_api(NerveStimulations, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
-    'GET_SINGLE': [check_token],
-    'GET_MANY': [check_token],
-    'POST': [check_token],
-    'PATCH': [check_token]
-})
+# manager.create_api(NerveStimulations, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
+#     'GET_SINGLE': [check_token],
+#     'GET_MANY': [check_token],
+#     'POST': [check_token],
+#     'PATCH': [check_token]
+# })
 
-manager.create_api(PrescriptionHistory, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
-    'GET_SINGLE': [check_token],
-    'GET_MANY': [check_token],
-    'POST': [check_token],
-    'PATCH': [check_token]
-})
+# manager.create_api(PrescriptionHistory, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
+#     'GET_SINGLE': [check_token],
+#     'GET_MANY': [check_token],
+#     'POST': [check_token],
+#     'PATCH': [check_token]
+# })
 
-manager.create_api(NerveStimulationHistory, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
-    'GET_SINGLE': [check_token],
-    'GET_MANY': [check_token],
-    'POST': [check_token],
-    'PATCH': [check_token]
-})
+# manager.create_api(NerveStimulationHistory, url_prefix='/api/efwb/v1', methods=['GET', 'DELETE', 'PATCH', 'POST'], preprocessors={
+#     'GET_SINGLE': [check_token],
+#     'GET_MANY': [check_token],
+#     'POST': [check_token],
+#     'PATCH': [check_token]
+# })

@@ -160,62 +160,62 @@ class Bands(db.Model):
         return resultJSON
 
 
-class Gateways(db.Model):
-    __tablename__ = 'gateways'
-    id = db.Column('id', db.Integer, primary_key=True)
-    pid = db.Column('pid', db.String(12), comment='게이트웨이 팬 아이디')
-    alias = db.Column('alias', db.String(20), comment='게이트웨이 별칭')
-    created = db.Column('created', db.DateTime, default=datetime.datetime.now(
-        timezone('Asia/Seoul')), comment="생성 시간")
-    ip = db.Column('ip', db.String(20), comment='아이피 주소')
-    location = db.Column('location', db.String(12), comment='위치')
-    airpressure = db.Column('airpressure', db.Float, comment="고도")
-    disconnect_time = db.Column('disconnect_time', db.DateTime,  default=datetime.datetime.now(
-        timezone('Asia/Seoul')), comment='마지막 연결 종료 시간')
-    connect_time = db.Column('connect_time', db.DateTime,   default=datetime.datetime.now(
-        timezone('Asia/Seoul')), comment='마지막 연결 시간')
-    connect_check_time = db.Column('connect_check_time', db.DateTime,   default=datetime.datetime.now(
-        timezone('Asia/Seoul')), comment='연결 체크 시간')
-    connect_state = db.Column(
-        'connect_state', db.Integer,  default=0, comment='연결 상태')
+# class Gateways(db.Model):
+#     __tablename__ = 'gateways'
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     pid = db.Column('pid', db.String(12), comment='게이트웨이 팬 아이디')
+#     alias = db.Column('alias', db.String(20), comment='게이트웨이 별칭')
+#     created = db.Column('created', db.DateTime, default=datetime.datetime.now(
+#         timezone('Asia/Seoul')), comment="생성 시간")
+#     ip = db.Column('ip', db.String(20), comment='아이피 주소')
+#     location = db.Column('location', db.String(12), comment='위치')
+#     airpressure = db.Column('airpressure', db.Float, comment="고도")
+#     disconnect_time = db.Column('disconnect_time', db.DateTime,  default=datetime.datetime.now(
+#         timezone('Asia/Seoul')), comment='마지막 연결 종료 시간')
+#     connect_time = db.Column('connect_time', db.DateTime,   default=datetime.datetime.now(
+#         timezone('Asia/Seoul')), comment='마지막 연결 시간')
+#     connect_check_time = db.Column('connect_check_time', db.DateTime,   default=datetime.datetime.now(
+#         timezone('Asia/Seoul')), comment='연결 체크 시간')
+#     connect_state = db.Column(
+#         'connect_state', db.Integer,  default=0, comment='연결 상태')
 
-    def serialize(self):
-        resultJSON = {
-            # property (a)
-            "id": self.id,
-            "pid": self.pid,
-            "alias": self.alias,
-            "created": self.created,
-            "ip": self.ip,
-            "location": self.location,
-            "airpressure": self.airpressure,
-            "disconnect_time": self.disconnect_time,
-            "connect_time": self.connect_time,
-            "connect_state": self.connect_state
-        }
-        return resultJSON
+#     def serialize(self):
+#         resultJSON = {
+#             # property (a)
+#             "id": self.id,
+#             "pid": self.pid,
+#             "alias": self.alias,
+#             "created": self.created,
+#             "ip": self.ip,
+#             "location": self.location,
+#             "airpressure": self.airpressure,
+#             "disconnect_time": self.disconnect_time,
+#             "connect_time": self.connect_time,
+#             "connect_state": self.connect_state
+#         }
+#         return resultJSON
 
 
-class GatewayLog(db.Model):
-    __tablename__ = 'gatewaylog'
-    id = db.Column('id', db.Integer, primary_key=True)
-    FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(
-        Gateways.id, ondelete='CASCADE'))
-    gateway = db.relationship('Gateways')
-    type = db.Column('type', db.Integer,
-                     comment="0 : disconnect 1 : ping connect 2 : server connect 3 : server disconect")
-    datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now(
-        timezone('Asia/Seoul')), comment='시간')
+# class GatewayLog(db.Model):
+#     __tablename__ = 'gatewaylog'
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(
+#         Gateways.id, ondelete='CASCADE'))
+#     gateway = db.relationship('Gateways')
+#     type = db.Column('type', db.Integer,
+#                      comment="0 : disconnect 1 : ping connect 2 : server connect 3 : server disconect")
+#     datetime = db.Column('datetime', db.DateTime, default=datetime.datetime.now(
+#         timezone('Asia/Seoul')), comment='시간')
 
-    def serialize(self):
-        resultJSON = {
-            "id": self.id,
-            "pid": self.FK_pid,
-            "gateway": self.gateway,
-            "type": self.type,
-            "datetime": self.datetime
-        }
-        return resultJSON
+#     def serialize(self):
+#         resultJSON = {
+#             "id": self.id,
+#             "pid": self.FK_pid,
+#             "gateway": self.gateway,
+#             "type": self.type,
+#             "datetime": self.datetime
+#         }
+#         return resultJSON
 
 
 class BandLog(db.Model):
@@ -232,53 +232,53 @@ class BandLog(db.Model):
         resultJSON = {
             "id": self.id,
             "pid": self.FK_bid,
-            "gateway": self.band,
+            # "gateway": self.band,
             "type": self.type,
             "datetime": self.datetime
         }
         return resultJSON
 
 
-class UsersGateways(db.Model):
-    __tablename__ = 'usersgateways'
+# class UsersGateways(db.Model):
+#     __tablename__ = 'usersgateways'
 
-    id = db.Column('id', db.Integer, primary_key=True)
-    FK_uid = db.Column('FK_uid', db.Integer, db.ForeignKey(
-        Users.id, ondelete='CASCADE'))
-    user = db.relationship('Users')
-    FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(
-        Gateways.id, ondelete='CASCADE'))
-    gateway = db.relationship('Gateways')
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     FK_uid = db.Column('FK_uid', db.Integer, db.ForeignKey(
+#         Users.id, ondelete='CASCADE'))
+#     user = db.relationship('Users')
+#     FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(
+#         Gateways.id, ondelete='CASCADE'))
+#     gateway = db.relationship('Gateways')
 
-    def serialize(self):
-        resultJSON = {
-            # property (a)
-            "id": self.id,
-            "uid": self.FK_uid,
-            "pid": self.FK_pid
-        }
-        return resultJSON
+#     def serialize(self):
+#         resultJSON = {
+#             # property (a)
+#             "id": self.id,
+#             "uid": self.FK_uid,
+#             "pid": self.FK_pid
+#         }
+#         return resultJSON
 
 
-class GatewaysBands(db.Model):
-    __tablename__ = 'gatewaysbands'
+# class GatewaysBands(db.Model):
+#     __tablename__ = 'gatewaysbands'
 
-    id = db.Column('id', db.Integer, primary_key=True)
-    FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(
-        Gateways.id, ondelete='CASCADE'))
-    gateway = db.relationship('Gateways')
-    FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(
-        Bands.id, ondelete='CASCADE'))
-    band = db.relationship('Bands')
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     FK_pid = db.Column('FK_pid', db.Integer, db.ForeignKey(
+#         Gateways.id, ondelete='CASCADE'))
+#     gateway = db.relationship('Gateways')
+#     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(
+#         Bands.id, ondelete='CASCADE'))
+#     band = db.relationship('Bands')
 
-    def serialize(self):
-        resultJSON = {
-            # property (a)
-            "id": self.id,
-            "bid": self.FK_bid,
-            "pid": self.FK_pid
-        }
-        return resultJSON
+#     def serialize(self):
+#         resultJSON = {
+#             # property (a)
+#             "id": self.id,
+#             "bid": self.FK_bid,
+#             "pid": self.FK_pid
+#         }
+#         return resultJSON
 
 
 class UsersBands(db.Model):
@@ -310,12 +310,12 @@ class SensorData(db.Model):
         timezone('Asia/Seoul')), comment='datetime')
     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id))
     band = db.relationship('Bands')
-    start_byte = db.Column('start_byte', db.Integer)
-    sample_count = db.Column('sample_count', db.Integer)
-    fall_detect = db.Column('fall_detect', db.Integer)
+    # start_byte = db.Column('start_byte', db.Integer)
+    # sample_count = db.Column('sample_count', db.Integer)
+    # fall_detect = db.Column('fall_detect', db.Integer)
     battery_level = db.Column('battery_level', db.Integer)
-    hrConfidence = db.Column('hrConfidence', db.Integer)
-    spo2Confidence = db.Column('spo2Confidence', db.Integer)
+    # hrConfidence = db.Column('hrConfidence', db.Integer)
+    # spo2Confidence = db.Column('spo2Confidence', db.Integer)
     hr = db.Column('hr', db.Integer, comment='심박수')
     spo2 = db.Column('spo2', db.Integer, comment='산소포화도')
     #spo2state = db.Column('spo2state', db.Integer, comment='산소포화도 측정 상태')
@@ -330,9 +330,9 @@ class SensorData(db.Model):
         'temp_walk_steps', db.Integer, default=0, comment='임시걷기')
     temp_run_steps = db.Column(
         'temp_run_steps', db.Integer, default=0, comment='임시달리기')
-    x = db.Column('x', db.Integer, comment='x')
-    y = db.Column('y', db.Integer, comment='y')
-    z = db.Column('z', db.Integer, comment='z')
+    # x = db.Column('x', db.Integer, comment='x')
+    # y = db.Column('y', db.Integer, comment='y')
+    # z = db.Column('z', db.Integer, comment='z')
     t = db.Column('t', db.Integer, comment='t')
     h = db.Column('h', db.Integer, comment='h')
 
@@ -344,12 +344,12 @@ class SensorData(db.Model):
             "id": self.id,
             "datetime": self.datetime,
             "bid": self.FK_bid,
-            "start_byte": self.start_byte,
-            "sample_count": self.sample_count,
-            "fall_detect": self.fall_detect,
+            # "start_byte": self.start_byte,
+            # "sample_count": self.sample_count,
+            # "fall_detect": self.fall_detect,
             "battery_level": self.battery_level,
-            "hrConfidence": self.hrConfidence,
-            "spo2Confidence": self.spo2Confidence,
+            # "hrConfidence": self.hrConfidence,
+            # "spo2Confidence": self.spo2Confidence,
             "hr": self.hr,
             "spo2": self.spo2,
             "motionFlag": self.motionFlag,
@@ -359,9 +359,9 @@ class SensorData(db.Model):
             "run_steps": self.run_steps,
             "temp_walk_steps": self.walk_steps,
             "temp_run_steps": self.run_steps,
-            "x": self.x,
-            "y": self.y,
-            "z": self.z,
+            # "x": self.x,
+            # "y": self.y,
+            # "z": self.z,
             "h": self.h,
             "t": self.t,
             "h": self.h,
@@ -442,56 +442,56 @@ class Events(db.Model):
         return resultJSON
 
 
-class NerveStimulations(db.Model):
-    __tablename__ = 'nervestimulations'
-    id = db.Column('id', db.Integer, primary_key=True)
-    FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id))
-    status = db.Column('status', db.Integer)  # 0 : off 1 : on
-    start_time = db.Column('start_time', db.DateTime)
-    strength = db.Column('strength', db.Integer)  # 1~20
-    frequency = db.Column('frequency', db.Integer)  # 10~100
-    duration = db.Column('duration', db.Integer)  # min
+# class NerveStimulations(db.Model):
+#     __tablename__ = 'nervestimulations'
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id))
+#     status = db.Column('status', db.Integer)  # 0 : off 1 : on
+#     start_time = db.Column('start_time', db.DateTime)
+#     strength = db.Column('strength', db.Integer)  # 1~20
+#     frequency = db.Column('frequency', db.Integer)  # 10~100
+#     duration = db.Column('duration', db.Integer)  # min
 
-    def serialize(self):
-        resultJSON = {
-            # property (a)
-            "id": self.id,
-            "FK_bid": self.FK_bid,
-            "status": self.status,
-            "start_time": self.start_time,
-            "strength": self.strength,
-            "frequency": self.frequency,
-            "duration": self.duration,
-        }
-        return resultJSON
-
-
-class PrescriptionHistory(db.Model):
-    __tablename__ = 'prescription_history'
-    id = db.Column('id', db.Integer, primary_key=True)
-    FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id))
-    datetime = db.Column('is_start', db.DateTime)
-    strength = db.Column('strength', db.Integer)
-    frequency = db.Column('frequency', db.Integer)
-    duration = db.Column('duration', db.Integer)  # min
-
-    def serialize(self):
-        resultJSON = {
-            # property (a)
-            "id": self.id,
-            "FK_bid": self.FK_bid,
-            "datetime": self.datetime,
-            "strength": self.strength,
-            "frequency": self.frequency,
-            "duration": self.duration,
-        }
-        return resultJSON
+#     def serialize(self):
+#         resultJSON = {
+#             # property (a)
+#             "id": self.id,
+#             "FK_bid": self.FK_bid,
+#             "status": self.status,
+#             "start_time": self.start_time,
+#             "strength": self.strength,
+#             "frequency": self.frequency,
+#             "duration": self.duration,
+#         }
+#         return resultJSON
 
 
-class NerveStimulationHistory(db.Model):
-    __tablename__ = 'nervestimulation_history'
-    id = db.Column('id', db.Integer, primary_key=True)
-    FK_pre_id = db.Column('FK_pre_id', db.Integer,
-                          db.ForeignKey(PrescriptionHistory.id))
-    start_time = db.Column('start_time', db.DateTime)
-    stop_time = db.Column('stop_time', db.DateTime)
+# class PrescriptionHistory(db.Model):
+#     __tablename__ = 'prescription_history'
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     FK_bid = db.Column('FK_bid', db.Integer, db.ForeignKey(Bands.id))
+#     datetime = db.Column('is_start', db.DateTime)
+#     strength = db.Column('strength', db.Integer)
+#     frequency = db.Column('frequency', db.Integer)
+#     duration = db.Column('duration', db.Integer)  # min
+
+#     def serialize(self):
+#         resultJSON = {
+#             # property (a)
+#             "id": self.id,
+#             "FK_bid": self.FK_bid,
+#             "datetime": self.datetime,
+#             "strength": self.strength,
+#             "frequency": self.frequency,
+#             "duration": self.duration,
+#         }
+#         return resultJSON
+
+
+# class NerveStimulationHistory(db.Model):
+#     __tablename__ = 'nervestimulation_history'
+#     id = db.Column('id', db.Integer, primary_key=True)
+#     FK_pre_id = db.Column('FK_pre_id', db.Integer,
+#                           db.ForeignKey(PrescriptionHistory.id))
+#     start_time = db.Column('start_time', db.DateTime)
+#     stop_time = db.Column('stop_time', db.DateTime)

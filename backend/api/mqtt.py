@@ -186,25 +186,25 @@ def handle_sync_data(mqtt_data, extAddress):
       dev.connect_time = datetime.datetime.now(timezone('Asia/Seoul'))
       db.session.commit()
       
-      gatewayDev = db.session.query(Gateways.airpressure).\
-        filter(Gateways.pid == mqtt_data['pid']).first()
+      # gatewayDev = db.session.query(Gateways.airpressure).\
+      #   filter(Gateways.pid == mqtt_data['pid']).first()
       
-      if gatewayDev is not None:
-        sensorDev = db.session.query(WalkRunCount).\
-          filter(WalkRunCount.FK_bid == dev.id).\
-          filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-        db.session.flush()
+      # if gatewayDev is not None:
+      #   sensorDev = db.session.query(WalkRunCount).\
+      #     filter(WalkRunCount.FK_bid == dev.id).\
+      #     filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
+      #   db.session.flush()
 
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
       data = SensorData()
       data.FK_bid = dev.id
-      data.start_byte = bandData['start_byte']
-      data.sample_count = bandData['sample_count']
-      data.fall_detect = bandData['fall_detect']
+      # data.start_byte = bandData['start_byte']
+      # data.sample_count = bandData['sample_count']
+      # data.fall_detect = bandData['fall_detect']
       data.battery_level = bandData['battery_level']
-      data.hrConfidence = bandData['hrConfidence']
-      data.spo2Confidence = bandData['spo2Confidence']
+      # data.hrConfidence = bandData['hrConfidence']
+      # data.spo2Confidence = bandData['spo2Confidence']
       data.hr = bandData['hr']
       data.spo2 = bandData['spo2']
       data.motionFlag = bandData['motionFlag']
@@ -278,9 +278,9 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.add(walkRunCount)
         db.session.commit()
         db.session.flush()
-      data.x = bandData['x']
-      data.y = bandData['y']
-      data.z = bandData['z']
+      # data.x = bandData['x']
+      # data.y = bandData['y']
+      # data.z = bandData['z']
       data.t = bandData['t']
       data.h = bandData['h']
       data.rssi = mqtt_data['rssi']
@@ -314,10 +314,10 @@ def handle_sync_data(mqtt_data, extAddress):
   else:
     insertBandData(extAddress)
     band = selectBandBid(extAddress)
-    gw = selectGatewayPid(mqtt_data['pid'])
-    if band is not None and gw is not None:
-      insertGatewaysBands(gw.id, band.id)
-      insertUsersBands(1, band.id)
+    # gw = selectGatewayPid(mqtt_data['pid'])
+    # if band is not None and gw is not None:
+    #   insertGatewaysBands(gw.id, band.id)
+    #   insertUsersBands(1, band.id)
 
 def check_disconnected_bands():
     with app.app_context():
@@ -357,29 +357,29 @@ def start_disconnect_checker():
         check_disconnected_bands()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
         socketio.sleep(150)  # 2분 30초
     
-def handle_gateway_state(panid):
-  print("handle_gateway_state", panid)
-  try:
-    dev = selectGatewayPid(panid['panid'])
-    if dev is not None:
-      if dev.ip != panid['ip']:                                                                                                                                                                                                                                                                                               
-        updateGatewaysIP(dev.id, panid['ip'])
-      if dev.connect_state == 0:
-        updateGatewaysConnect(dev.id, True)
-      else:
-        updateGatewaysConnectCheck(dev.id)
-    else:
-      insertGateway(panid)
-      dev = selectGatewayPid(panid['panid'])
-      d = datetime.datetime.now(timezone('Asia/Seoul'))
-      urldate = str(d.year)+"."+str(d.month) + \
-        "."+str(d.day)+"."+str(d.hour)
-      trtemp, atemp = getAirpressure(urldate)
-      if trtemp != 0:
-        updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
-      socketio.emit('gateway_connect', panid, namespace='/admin')
-  except:
-      pass
+# def handle_gateway_state(panid):
+#   print("handle_gateway_state", panid)
+#   try:
+#     dev = selectGatewayPid(panid['panid'])
+#     if dev is not None:
+#       if dev.ip != panid['ip']:                                                                                                                                                                                                                                                                                               
+#         updateGatewaysIP(dev.id, panid['ip'])
+#       if dev.connect_state == 0:
+#         updateGatewaysConnect(dev.id, True)
+#       else:
+#         updateGatewaysConnectCheck(dev.id)
+#     else:
+#       insertGateway(panid)
+#       dev = selectGatewayPid(panid['panid'])
+#       d = datetime.datetime.now(timezone('Asia/Seoul'))
+#       urldate = str(d.year)+"."+str(d.month) + \
+#         "."+str(d.day)+"."+str(d.hour)
+#       trtemp, atemp = getAirpressure(urldate)
+#       if trtemp != 0:
+#         updateGatewaysAirpressure(dev.id, searchAirpressure(trtemp, atemp, dev.location))
+#       socketio.emit('gateway_connect', panid, namespace='/admin')
+#   except:
+#       pass
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
@@ -416,7 +416,7 @@ def handle_mqtt_message(client, userdata, message):
     elif message.topic == '/efwb/post/connectcheck':
       with thread_lock:
         if gw_thread is None:
-          gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
+          # gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
           gw_thread = None
 
     elif message.topic == '/efwb/post/async':

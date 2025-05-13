@@ -677,60 +677,60 @@ def users_samegroup_get_api(id):
     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/users/gatewayinfo/<id>', methods=['GET'])
-@token_required
-def user_gatewayinfo_api(id):
-    dev = db.session.query(Gateways).filter(
-        UsersGateways.FK_pid == Gateways.id).filter(UsersGateways.FK_uid == id).all()
-    gatewaylist = []
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
+# @app.route('/api/efwb/v1/users/gatewayinfo/<id>', methods=['GET'])
+# @token_required
+# def user_gatewayinfo_api(id):
+#     dev = db.session.query(Gateways).filter(
+#         UsersGateways.FK_pid == Gateways.id).filter(UsersGateways.FK_uid == id).all()
+#     gatewaylist = []
+#     if dev is None:
+#         return make_response(jsonify('User is not Found.'), 404)
 
-    for b in dev:
-        gatewaylist.append(b.serialize())
+#     for b in dev:
+#         gatewaylist.append(b.serialize())
 
-    result = {
-        "result": "OK",
-        "data": gatewaylist
-    }
-    return make_response(jsonify(result), 200)
-
-
-@app.route('/api/efwb/v1/gateways/bandinfo/<id>', methods=['GET'])
-@token_required
-def gateway_bandinfo_api(id):
-    dev = db.session.query(Bands).\
-        filter(GatewaysBands.FK_bid == Bands.id).\
-        filter(GatewaysBands.FK_pid == id).all()
-    bandlist = []
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
-
-    for b in dev:
-        bandlist.append(b.serialize())
-
-    result = {
-        "result": "OK",
-        "data": bandlist
-    }
-    return make_response(jsonify(result), 200)
+#     result = {
+#         "result": "OK",
+#         "data": gatewaylist
+#     }
+#     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/gatewaysbands/num/<id>', methods=['GET'])
-def gatewaysbands_num_get_api(id):
-    dev = db.session.query(GatewaysBands).\
-        filter(GatewaysBands.FK_pid == id).first()
-    dev = db.session.query(func.count(GatewaysBands.id).label('num')).\
-        filter(GatewaysBands.FK_pid == id).first()
+# @app.route('/api/efwb/v1/gateways/bandinfo/<id>', methods=['GET'])
+# @token_required
+# def gateway_bandinfo_api(id):
+#     dev = db.session.query(Bands).\
+#         filter(GatewaysBands.FK_bid == Bands.id).\
+#         filter(GatewaysBands.FK_pid == id).all()
+#     bandlist = []
+#     if dev is None:
+#         return make_response(jsonify('User is not Found.'), 404)
 
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
+#     for b in dev:
+#         bandlist.append(b.serialize())
 
-    result = {
-        "result": "OK",
-        "data": int(dev.num)
-    }
-    return make_response(jsonify(result), 200)
+#     result = {
+#         "result": "OK",
+#         "data": bandlist
+#     }
+#     return make_response(jsonify(result), 200)
+
+
+# @app.route('/api/efwb/v1/gatewaysbands/num/<id>', methods=['GET'])
+# def gatewaysbands_num_get_api(id):
+#     dev = db.session.query(GatewaysBands).\
+#         filter(GatewaysBands.FK_pid == id).first()
+#     dev = db.session.query(func.count(GatewaysBands.id).label('num')).\
+#         filter(GatewaysBands.FK_pid == id).first()
+
+#     if dev is None:
+#         return make_response(jsonify('User is not Found.'), 404)
+
+#     result = {
+#         "result": "OK",
+#         "data": int(dev.num)
+#     }
+#     return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/bands/permission', methods=['POST'])
@@ -976,41 +976,41 @@ def band_delete_api():
     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/bands/gatewayinfo/<id>', methods=['GET'])
-@token_required
-def band_gatewayinfo_api(id):
-    dev = db.session.query(Gateways).\
-        filter(Gateways.id == GatewaysBands.FK_pid).\
-        filter(GatewaysBands.FK_bid == id).all()
-    gatewaylist = []
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
-    for u in dev:
-        gatewaylist.append(u.serialize())
-    result = {
-        "result": "OK",
-        "data": gatewaylist
-    }
-    return make_response(jsonify(result), 200)
+# @app.route('/api/efwb/v1/bands/gatewayinfo/<id>', methods=['GET'])
+# @token_required
+# def band_gatewayinfo_api(id):
+#     dev = db.session.query(Gateways).\
+#         filter(Gateways.id == GatewaysBands.FK_pid).\
+#         filter(GatewaysBands.FK_bid == id).all()
+#     gatewaylist = []
+#     if dev is None:
+#         return make_response(jsonify('User is not Found.'), 404)
+#     for u in dev:
+#         gatewaylist.append(u.serialize())
+#     result = {
+#         "result": "OK",
+#         "data": gatewaylist
+#     }
+#     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/bands/userinfo/<id>', methods=['GET'])
-@token_required
-def band_userinfo_api(id):
-    dev = db.session.query(Users).\
-        filter(Users.id == UsersGateways.FK_uid).\
-        filter(UsersGateways.FK_pid == GatewaysBands.FK_pid).\
-        filter(GatewaysBands.FK_bid == id).all()
-    userlist = []
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
-    for u in dev:
-        userlist.append(u.serialize())
-    result = {
-        "result": "OK",
-        "data": userlist
-    }
-    return make_response(jsonify(result), 200)
+# @app.route('/api/efwb/v1/bands/userinfo/<id>', methods=['GET'])
+# @token_required
+# def band_userinfo_api(id):
+#     dev = db.session.query(Users).\
+#         filter(Users.id == UsersGateways.FK_uid).\
+#         filter(UsersGateways.FK_pid == GatewaysBands.FK_pid).\
+#         filter(GatewaysBands.FK_bid == id).all()
+#     userlist = []
+#     if dev is None:
+#         return make_response(jsonify('User is not Found.'), 404)
+#     for u in dev:
+#         userlist.append(u.serialize())
+#     result = {
+#         "result": "OK",
+#         "data": userlist
+#     }
+#     return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/usersgroups/add', methods=['POST'])
@@ -1155,154 +1155,154 @@ def users_bands_post_api():
     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/usersgateways/detail', methods=['POST'])
-@token_required
-def users_bands_detail_get_api():
-    data = json.loads(request.data)
-    users_gateways_list = []
-    params = ['pid', 'uid']
+# @app.route('/api/efwb/v1/usersgateways/detail', methods=['POST'])
+# @token_required
+# def users_bands_detail_get_api():
+#     data = json.loads(request.data)
+#     users_gateways_list = []
+#     params = ['pid', 'uid']
 
-    if params[0] in data:
-        dev = UsersGateways.query.filter(
-            UsersGateways.FK_pid == data['pid']).all()
-        if dev is None:
-            return make_response(jsonify('UsersGateways is not found.'), 404)
-        for ub in dev:
-            users_gateways_list.append(ub.serialize())
+#     if params[0] in data:
+#         dev = UsersGateways.query.filter(
+#             UsersGateways.FK_pid == data['pid']).all()
+#         if dev is None:
+#             return make_response(jsonify('UsersGateways is not found.'), 404)
+#         for ub in dev:
+#             users_gateways_list.append(ub.serialize())
 
-    elif params[1] in data:
-        dev = UsersGateways.query.filter(
-            UsersGateways.FK_uid == data['uid']).all()
-        if dev is None:
-            return make_response(jsonify('UsersGateways is not found.'), 404)
-        for ub in dev:
-            users_gateways_list.append(ub.serialize())
+#     elif params[1] in data:
+#         dev = UsersGateways.query.filter(
+#             UsersGateways.FK_uid == data['uid']).all()
+#         if dev is None:
+#             return make_response(jsonify('UsersGateways is not found.'), 404)
+#         for ub in dev:
+#             users_gateways_list.append(ub.serialize())
 
-    else:
-        return make_response(jsonify('Parameters are not enough.'), 400)
+#     else:
+#         return make_response(jsonify('Parameters are not enough.'), 400)
 
-    result = {
-        "result": "OK",
-        "users_gateways": users_gateways_list
-    }
+#     result = {
+#         "result": "OK",
+#         "users_gateways": users_gateways_list
+#     }
 
-    return make_response(jsonify(result), 200)
-
-
-@app.route('/api/efwb/v1/usersgateways/list', methods=['GET'])
-@token_required
-def users_bands_list_get_api():
-    users_gateways = UsersGateways.query.all()
-    users_gateways_list = []
-    for ub in users_gateways:
-        users_gateways_list.append(ub.serialize())
-    result = {
-        "result": "OK",
-        "users": users_gateways_list
-    }
-
-    return make_response(jsonify(result), 200)
+#     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/users/gwlist', methods=['POST'])
-def get_users_gwlist():
-    data = json.loads(request.data)
-    params = ['uid', 'permission']
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
+# @app.route('/api/efwb/v1/usersgateways/list', methods=['GET'])
+# @token_required
+# def users_bands_list_get_api():
+#     users_gateways = UsersGateways.query.all()
+#     users_gateways_list = []
+#     for ub in users_gateways:
+#         users_gateways_list.append(ub.serialize())
+#     result = {
+#         "result": "OK",
+#         "users": users_gateways_list
+#     }
 
-    dev = []
-    gwList = []
-    if data['permission'] == 0:
-        dev = db.session.query(Gateways).all()
-
-    else:
-        if data['permission'] == 1:
-            group = selectSameGroupOfUser(data['uid'])
-            if group is None:
-                return make_response(jsonify('Group is not Found.'), 404)
-            dev = db.session.query(Gateways).distinct(Gateways.id).\
-                filter(Gateways.id == GatewaysBands.FK_pid).\
-                filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
-                filter(UsersGroups.FK_gid == group.id).all()
-
-        elif data['permission'] == 2:
-            dev = db.session.query(Gateways).distinct(Gateways.id).\
-                filter(Gateways.id == GatewaysBands.FK_pid).\
-                filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == data['uid']).all()
-
-        elif data['permission'] == 3:
-            dev = db.session.query(Gateways).distinct(Gateways.id).\
-                filter(Gateways.id == GatewaysBands.FK_pid).\
-                filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == data['uid']).all()
-    for b in dev:
-        gwList.append(b.serialize())
-    result = {
-        "result": "OK",
-        "data": gwList
-    }
-    return make_response(jsonify(result), 200)
+#     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/usersgateways/check', methods=['POST'])
-def users_gateways_check_api():
-    data = json.loads(request.data)
-    params = ['uid', 'pid', 'permission']
-    gateways = None
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
+# @app.route('/api/efwb/v1/users/gwlist', methods=['POST'])
+# def get_users_gwlist():
+#     data = json.loads(request.data)
+#     params = ['uid', 'permission']
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
 
-    if data['permission'] == 1:
-        group = selectSameGroupOfUser(data['uid'])
-        gateways = db.session.query(Gateways.pid).distinct(Gateways.id).\
-            filter(Gateways.pid == data['pid']).\
-            filter(Gateways.id == GatewaysBands.FK_pid).\
-            filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
-            filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
-            filter(UsersGroups.FK_gid == group.id).first()
+#     dev = []
+#     gwList = []
+#     if data['permission'] == 0:
+#         dev = db.session.query(Gateways).all()
 
-    elif data['permission'] == 2:
-        gateways = db.session.query(Gateways.pid).distinct(Gateways.id).\
-            filter(Gateways.pid == data['pid']).\
-            filter(Gateways.id == GatewaysBands.FK_pid).\
-            filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
-            filter(UsersBands.FK_uid == data['uid']).first()
+#     else:
+#         if data['permission'] == 1:
+#             group = selectSameGroupOfUser(data['uid'])
+#             if group is None:
+#                 return make_response(jsonify('Group is not Found.'), 404)
+#             dev = db.session.query(Gateways).distinct(Gateways.id).\
+#                 filter(Gateways.id == GatewaysBands.FK_pid).\
+#                 filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
+#                 filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
+#                 filter(UsersGroups.FK_gid == group.id).all()
 
-    return make_response(jsonify({"data": gateways}), 200)
+#         elif data['permission'] == 2:
+#             dev = db.session.query(Gateways).distinct(Gateways.id).\
+#                 filter(Gateways.id == GatewaysBands.FK_pid).\
+#                 filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
+#                 filter(UsersBands.FK_uid == data['uid']).all()
+
+#         elif data['permission'] == 3:
+#             dev = db.session.query(Gateways).distinct(Gateways.id).\
+#                 filter(Gateways.id == GatewaysBands.FK_pid).\
+#                 filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
+#                 filter(UsersBands.FK_uid == data['uid']).all()
+#     for b in dev:
+#         gwList.append(b.serialize())
+#     result = {
+#         "result": "OK",
+#         "data": gwList
+#     }
+#     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/usersgateways/delete', methods=['DELETE'])
-@token_required
-def users_bands_delete_api():
-    data = json.loads(request.data)
+# @app.route('/api/efwb/v1/usersgateways/check', methods=['POST'])
+# def users_gateways_check_api():
+#     data = json.loads(request.data)
+#     params = ['uid', 'pid', 'permission']
+#     gateways = None
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
 
-    params = ['uids', 'pids']
-    flag = False
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
-    for uid in data['uids']:
-        for pid in data['pids']:
-            usersgateways = UsersGateways.query.filter(
-                UsersGateways.FK_uid == uid).filter(UsersGateways.FK_pid == pid)
-            if usersgateways.all():
-                flag = True
-                usersgateways.delete()
+#     if data['permission'] == 1:
+#         group = selectSameGroupOfUser(data['uid'])
+#         gateways = db.session.query(Gateways.pid).distinct(Gateways.id).\
+#             filter(Gateways.pid == data['pid']).\
+#             filter(Gateways.id == GatewaysBands.FK_pid).\
+#             filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
+#             filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
+#             filter(UsersGroups.FK_gid == group.id).first()
 
-    if flag == False:
-        return make_response(jsonify('UsersGateways is not found.'), 404)
-    db.session.commit()
-    db.session.flush()
-    result = {
-        "result": "OK",
-    }
+#     elif data['permission'] == 2:
+#         gateways = db.session.query(Gateways.pid).distinct(Gateways.id).\
+#             filter(Gateways.pid == data['pid']).\
+#             filter(Gateways.id == GatewaysBands.FK_pid).\
+#             filter(GatewaysBands.FK_bid == UsersBands.FK_bid).\
+#             filter(UsersBands.FK_uid == data['uid']).first()
 
-    return make_response(jsonify(result), 200)
+#     return make_response(jsonify({"data": gateways}), 200)
+
+
+# @app.route('/api/efwb/v1/usersgateways/delete', methods=['DELETE'])
+# @token_required
+# def users_bands_delete_api():
+#     data = json.loads(request.data)
+
+#     params = ['uids', 'pids']
+#     flag = False
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
+#     for uid in data['uids']:
+#         for pid in data['pids']:
+#             usersgateways = UsersGateways.query.filter(
+#                 UsersGateways.FK_uid == uid).filter(UsersGateways.FK_pid == pid)
+#             if usersgateways.all():
+#                 flag = True
+#                 usersgateways.delete()
+
+#     if flag == False:
+#         return make_response(jsonify('UsersGateways is not found.'), 404)
+#     db.session.commit()
+#     db.session.flush()
+#     result = {
+#         "result": "OK",
+#     }
+
+#     return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/sensordata/list', methods=['GET'])
@@ -1472,29 +1472,29 @@ def datetimeBetween(data):
         return data[len(data)-1]
 
 
-@app.route('/api/efwb/v1/sensordata/fall/sum', methods=['POST'])
-def sensordata_fall_sum_post_api():
-    data = json.loads(request.data)
-    params = ['bid', 'days']
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
-    json_data = []
-    dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'),
-                           func.sum(SensorData.fall_detect).label('fall_detect')).\
-        filter(SensorData.FK_bid == data['bid']).\
-        filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
-        group_by(func.date(SensorData.datetime)).all()
-    for i in dev:
-        json_data.append({
-            'day': i.day,
-            'fall_detect': int(i.fall_detect)
-        })
-    result = {
-        "result": "OK",
-        "data": json_data
-    }
-    return make_response(jsonify(result), 200)
+# @app.route('/api/efwb/v1/sensordata/fall/sum', methods=['POST'])
+# def sensordata_fall_sum_post_api():
+#     data = json.loads(request.data)
+#     params = ['bid', 'days']
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
+#     json_data = []
+#     dev = db.session.query(func.date_format(SensorData.datetime, "%Y-%m-%d").label('day'),
+#                            func.sum(SensorData.fall_detect).label('fall_detect')).\
+#         filter(SensorData.FK_bid == data['bid']).\
+#         filter(func.date(SensorData.datetime).between(data['days'][0], datetimeBetween(data['days']))).\
+#         group_by(func.date(SensorData.datetime)).all()
+#     for i in dev:
+#         json_data.append({
+#             'day': i.day,
+#             'fall_detect': int(i.fall_detect)
+#         })
+#     result = {
+#         "result": "OK",
+#         "data": json_data
+#     }
+#     return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/sensordata/activity/oneday', methods=['POST'])
@@ -1585,93 +1585,93 @@ def events_post_api():
     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/events/fall_detect/all', methods=["POST"])
-def events_all_fall_post_api():
-    data = json.loads(request.data)
-    params = ['uid', 'date', 'format', 'permission']
+# @app.route('/api/efwb/v1/events/fall_detect/all', methods=["POST"])
+# def events_all_fall_post_api():
+#     data = json.loads(request.data)
+#     params = ['uid', 'date', 'format', 'permission']
 
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
-    json_data = []
-    dev = []
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
+#     json_data = []
+#     dev = []
 
-    if data['permission'] == 0:
-        dev = selectFallDetectDate(data['date'], data['format'])
-    elif data['permission'] == 1:
-        dev = selectFallDetectDateStaff(
-            data['uid'], data['date'], data['format'])
-    elif data['permission'] == 2:
-        dev = selectFallDetectDateManager(
-            data['uid'], data['date'], data['format'])
-    elif data['permission'] == 3:
-        dev = selectFallDetectDateUser(
-            data['uid'], data['date'], data['format'])
+#     if data['permission'] == 0:
+#         dev = selectFallDetectDate(data['date'], data['format'])
+#     elif data['permission'] == 1:
+#         dev = selectFallDetectDateStaff(
+#             data['uid'], data['date'], data['format'])
+#     elif data['permission'] == 2:
+#         dev = selectFallDetectDateManager(
+#             data['uid'], data['date'], data['format'])
+#     elif data['permission'] == 3:
+#         dev = selectFallDetectDateUser(
+#             data['uid'], data['date'], data['format'])
 
-    for d in dev:
-        json_data.append({"x": d.day, "y": int(d.fall)})
-    return make_response(jsonify(json_data), 200)
-
-
-@app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
-def events_fall_post_api():
-    data = json.loads(request.data)
-    params = ['bid', 'days']
-
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
-    json_data = []
-    dev = []
-
-    if len(data['days']) == 0:
-        dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
-                               func.sum(Events.value).label('data')).\
-            distinct(Events.datetime).\
-            filter(Events.FK_bid == data['bid']).\
-            filter(Events.type == 0).\
-            group_by(func.date(Events.datetime)).all()
-    else:
-        dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
-                               func.sum(Events.value).label('data')).\
-            distinct(Events.datetime).\
-            filter(Events.FK_bid == data['bid']).\
-            filter(Events.type == 0).\
-            filter(func.date(Events.datetime).
-                   between(data['days'][0], datetimeBetween(data['days']))).\
-            group_by(func.date(Events.datetime)).all()
-
-    for i in dev:
-        json_data.append({"date": i.date, "data": int(i.data)})
-    result = {
-        "result": "OK",
-        "data": json_data
-    }
-
-    return make_response(jsonify(result), 200)
+#     for d in dev:
+#         json_data.append({"x": d.day, "y": int(d.fall)})
+#     return make_response(jsonify(json_data), 200)
 
 
-@app.route('/api/efwb/v1/gatewaylog/add', methods=["POST"])
-@token_required
-def gatewaylog_post_api():
-    data = json.loads(request.data)
-    params = ['pid', 'type']
+# @app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
+# def events_fall_post_api():
+#     data = json.loads(request.data)
+#     params = ['bid', 'days']
 
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
-    gatewaylog = GatewayLog()
-    gatewaylog.FK_pid = data['pid']
-    gatewaylog.type = data['type']
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
+#     json_data = []
+#     dev = []
 
-    db.session.add(gatewaylog)
-    db.session.commit()
-    db.session.flush()
-    result = {
-        "result": "OK"
-    }
+#     if len(data['days']) == 0:
+#         dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
+#                                func.sum(Events.value).label('data')).\
+#             distinct(Events.datetime).\
+#             filter(Events.FK_bid == data['bid']).\
+#             filter(Events.type == 0).\
+#             group_by(func.date(Events.datetime)).all()
+#     else:
+#         dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
+#                                func.sum(Events.value).label('data')).\
+#             distinct(Events.datetime).\
+#             filter(Events.FK_bid == data['bid']).\
+#             filter(Events.type == 0).\
+#             filter(func.date(Events.datetime).
+#                    between(data['days'][0], datetimeBetween(data['days']))).\
+#             group_by(func.date(Events.datetime)).all()
 
-    return make_response(jsonify(result), 200)
+#     for i in dev:
+#         json_data.append({"date": i.date, "data": int(i.data)})
+#     result = {
+#         "result": "OK",
+#         "data": json_data
+#     }
+
+#     return make_response(jsonify(result), 200)
+
+
+# @app.route('/api/efwb/v1/gatewaylog/add', methods=["POST"])
+# @token_required
+# def gatewaylog_post_api():
+#     data = json.loads(request.data)
+#     params = ['pid', 'type']
+
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
+#     gatewaylog = GatewayLog()
+#     gatewaylog.FK_pid = data['pid']
+#     gatewaylog.type = data['type']
+
+#     db.session.add(gatewaylog)
+#     db.session.commit()
+#     db.session.flush()
+#     result = {
+#         "result": "OK"
+#     }
+
+#     return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/bandlog/add', methods=["POST"])
@@ -1721,104 +1721,104 @@ def get_weather_api():
         work = False
 
 
-@app.route('/api/efwb/v1/nervestim/prescription', methods=["POST"])
-def post_prescription_api():
-    data = json.loads(request.data)
-    params = ['bid', 'frequency', 'strength', 'duration']
+# @app.route('/api/efwb/v1/nervestim/prescription', methods=["POST"])
+# def post_prescription_api():
+#     data = json.loads(request.data)
+#     params = ['bid', 'frequency', 'strength', 'duration']
 
-    for param in params:
-        if param not in data:
-            return make_response(jsonify('Parameters are not enough.'), 400)
+#     for param in params:
+#         if param not in data:
+#             return make_response(jsonify('Parameters are not enough.'), 400)
 
-    dev = db.session.query(NerveStimulations).\
-        filter(NerveStimulations.FK_bid == data["bid"]).first()
-    if dev is not None:
-        db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
-            update(dict(status=0, frequency=data["frequency"],
-                   strength=data["strength"], duration=data["duration"]))
-        db.session.commit()
+#     dev = db.session.query(NerveStimulations).\
+#         filter(NerveStimulations.FK_bid == data["bid"]).first()
+#     if dev is not None:
+#         db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
+#             update(dict(status=0, frequency=data["frequency"],
+#                    strength=data["strength"], duration=data["duration"]))
+#         db.session.commit()
 
-    else:
-        nervestim = NerveStimulations()
-        nervestim.FK_bid = data["bid"]
-        nervestim.start_time = datetime.now()
-        nervestim.status = 0
-        nervestim.frequency = data["frequency"]
-        nervestim.strength = data["strength"]
-        nervestim.duration = data["duration"]
+#     else:
+#         nervestim = NerveStimulations()
+#         nervestim.FK_bid = data["bid"]
+#         nervestim.start_time = datetime.now()
+#         nervestim.status = 0
+#         nervestim.frequency = data["frequency"]
+#         nervestim.strength = data["strength"]
+#         nervestim.duration = data["duration"]
 
-        db.session.add(nervestim)
-        db.session.commit()
-    prescription_history = PrescriptionHistory()
-    prescription_history.FK_bid = data["bid"]
-    prescription_history.datetime = datetime.now()
-    prescription_history.frequency = data["frequency"]
-    prescription_history.strength = data["strength"]
-    prescription_history.duration = data["duration"]
-    db.session.add(prescription_history)
-    db.session.commit()
-    return make_response(jsonify({"result": "OK"}), 200)
-
-
-@app.route('/api/efwb/v1/nervestim', methods=["POST"])
-def post_nervestim_api():
-    data = json.loads(request.data)
-    params = ['bid', 'status', 'frequency', 'strength', 'duration']
-    for param in params:
-        if param not in data:
-            print(param)
-            return make_response(jsonify('Parameters are not enough.'), 400)
-    dev = db.session.query(NerveStimulations).\
-        filter(NerveStimulations.FK_bid == data["bid"]).first()
-    if dev is not None:
-        db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
-            update(dict(status=data["status"], frequency=data["frequency"],
-                   strength=data["strength"], duration=data["duration"], start_time=datetime.now()))
-        db.session.commit()
-
-    else:
-        nervestim = NerveStimulations()
-        nervestim.FK_bid = data["bid"]
-        nervestim.start_time = datetime.now()
-        nervestim.status = data["status"]
-        nervestim.frequency = data["frequency"]
-        nervestim.strength = data["strength"]
-        nervestim.duration = data["duration"]
-
-        db.session.add(nervestim)
-        db.session.commit()
-
-    return make_response(jsonify({"result": "OK"}), 200)
+#         db.session.add(nervestim)
+#         db.session.commit()
+#     prescription_history = PrescriptionHistory()
+#     prescription_history.FK_bid = data["bid"]
+#     prescription_history.datetime = datetime.now()
+#     prescription_history.frequency = data["frequency"]
+#     prescription_history.strength = data["strength"]
+#     prescription_history.duration = data["duration"]
+#     db.session.add(prescription_history)
+#     db.session.commit()
+#     return make_response(jsonify({"result": "OK"}), 200)
 
 
-@app.route('/api/efwb/v1/nervestim/<bid>', methods=["GET"])
-def get_nervestim_bid_api(bid):
-    dev = db.session.query(NerveStimulations).\
-        filter(NerveStimulations.FK_bid == bid).first()
-    result = {
-        "result": "OK",
-        "data": None
-    }
-    if dev is not None:
-        result["data"] = dev.serialize()
+# @app.route('/api/efwb/v1/nervestim', methods=["POST"])
+# def post_nervestim_api():
+#     data = json.loads(request.data)
+#     params = ['bid', 'status', 'frequency', 'strength', 'duration']
+#     for param in params:
+#         if param not in data:
+#             print(param)
+#             return make_response(jsonify('Parameters are not enough.'), 400)
+#     dev = db.session.query(NerveStimulations).\
+#         filter(NerveStimulations.FK_bid == data["bid"]).first()
+#     if dev is not None:
+#         db.session.query(NerveStimulations).filter_by(FK_bid=data["bid"]).\
+#             update(dict(status=data["status"], frequency=data["frequency"],
+#                    strength=data["strength"], duration=data["duration"], start_time=datetime.now()))
+#         db.session.commit()
 
-    return make_response(jsonify(result), 200)
+#     else:
+#         nervestim = NerveStimulations()
+#         nervestim.FK_bid = data["bid"]
+#         nervestim.start_time = datetime.now()
+#         nervestim.status = data["status"]
+#         nervestim.frequency = data["frequency"]
+#         nervestim.strength = data["strength"]
+#         nervestim.duration = data["duration"]
+
+#         db.session.add(nervestim)
+#         db.session.commit()
+
+#     return make_response(jsonify({"result": "OK"}), 200)
 
 
-@app.route('/api/efwb/v1/nervestime_history/<bid>', methods=["GET"])
-def get_nervestime_history_bid_api(bid):
-    dev = db.session.query(PrescriptionHistory).\
-        filter(PrescriptionHistory.FK_bid == bid).all()
-    result = {
-        "result": "OK",
-        "data": None
-    }
-    if len(dev) != 0:
-        result["data"] = []
-        for d in dev:
-            result["data"].append(d.serialize())
+# @app.route('/api/efwb/v1/nervestim/<bid>', methods=["GET"])
+# def get_nervestim_bid_api(bid):
+#     dev = db.session.query(NerveStimulations).\
+#         filter(NerveStimulations.FK_bid == bid).first()
+#     result = {
+#         "result": "OK",
+#         "data": None
+#     }
+#     if dev is not None:
+#         result["data"] = dev.serialize()
 
-    return make_response(jsonify(result), 200)
+#     return make_response(jsonify(result), 200)
+
+
+# @app.route('/api/efwb/v1/nervestime_history/<bid>', methods=["GET"])
+# def get_nervestime_history_bid_api(bid):
+#     dev = db.session.query(PrescriptionHistory).\
+#         filter(PrescriptionHistory.FK_bid == bid).all()
+#     result = {
+#         "result": "OK",
+#         "data": None
+#     }
+#     if len(dev) != 0:
+#         result["data"] = []
+#         for d in dev:
+#             result["data"].append(d.serialize())
+
+#     return make_response(jsonify(result), 200)
 
 
 def addDBList(table, list1, list2, lengthCheck, tableCheck):
@@ -2349,8 +2349,8 @@ def get_band_sensor_data(bid):
                 'message': '밴드를 찾을 수 없습니다.',
                 'data': {
                     'battery_level': '-',
-                    'hrConfidence': '-',
-                    'spo2Confidence': '-',
+                    # 'hrConfidence': '-',
+                    # 'spo2Confidence': '-',
                     'hr': '-',
                     'spo2': '-',
                     'activity': '-',
@@ -2373,8 +2373,8 @@ def get_band_sensor_data(bid):
                 'message': '센서 데이터가 없습니다.',
                 'data': {
                     'battery_level': '-',
-                    'hrConfidence': '-',
-                    'spo2Confidence': '-',
+                    # 'hrConfidence': '-',
+                    # 'spo2Confidence': '-',
                     'hr': '-',
                     'spo2': '-',
                     'activity': '-',
@@ -2388,8 +2388,8 @@ def get_band_sensor_data(bid):
         # 응답 데이터 구성
         sensor_data = {
             'battery_level': latest_sensor_data.battery_level if latest_sensor_data.battery_level is not None else '-',
-            'hrConfidence': latest_sensor_data.hrConfidence if latest_sensor_data.hrConfidence is not None else '-',
-            'spo2Confidence': latest_sensor_data.spo2Confidence if latest_sensor_data.spo2Confidence is not None else '-',
+            # 'hrConfidence': latest_sensor_data.hrConfidence if latest_sensor_data.hrConfidence is not None else '-',
+            # 'spo2Confidence': latest_sensor_data.spo2Confidence if latest_sensor_data.spo2Confidence is not None else '-',
             'hr': latest_sensor_data.hr if latest_sensor_data.hr is not None else '-',
             'spo2': latest_sensor_data.spo2 if latest_sensor_data.spo2 is not None else '-',
             'motionFlag': latest_sensor_data.motionFlag if latest_sensor_data.motionFlag is not None else '-',
