@@ -120,3 +120,4 @@ else :
     mqtt.subscribe('/DT/eHG4/GPS/Location')
     
 socketio.start_background_task(start_disconnect_checker)
+socketio.start_background_task(start_mqtt_publish_checker)

@@ -384,6 +384,16 @@ def start_disconnect_checker():
 #   except:
 #       pass
 
+
+def start_mqtt_publish_checker():
+    """1분마다 기상특보가 있는지 체크하는 스케줄러 시작"""
+    from backend.api.api_band import get_connected_band_locations
+    with app.app_context():
+        while True:
+            data = get_connected_band_locations()
+            #print(data)
+            socketio.sleep(60)
+
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   try:
