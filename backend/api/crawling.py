@@ -364,17 +364,22 @@ def get_warn_weather(location, lat, lng):
                 "폭염": 12
             }
             
-            active_warnings = set()  # 활성화된 경보 번호를 저장할 set
+            active_warnings = set()  # 활성화된 경보 번호와 수준을 저장할 set
             
             for item in items:
                 if item.get('t1'):
-                    warn_text = item['t1'].split()[0]  # "강풍주의보" -> "강풍"
-                    
-                    # 경보 텍스트에서 기본 타입 추출
-                    for warn_type in warn_type_to_number.keys():
-                        if warn_type in warn_text:
-                            active_warnings.add(warn_type_to_number[warn_type])
-                            break
+                    warn_parts = item['t1'].split()  # ["강풍주의보", "발표"]
+                    if len(warn_parts) >= 1:
+                        warn_text = warn_parts[0]  # "강풍주의보"
+                        
+                        # 경보 수준 추출 ("주의보" 또는 "경보")
+                        warn_level = "경보" if "경보" in warn_text else "주의보"
+                        
+                        # 경보 타입 추출 및 번호 매핑
+                        for warn_type in warn_type_to_number.keys():
+                            if warn_type in warn_text:
+                                active_warnings.add((warn_type_to_number[warn_type], warn_level))
+                                break
             
             return list(active_warnings)  # set을 list로 변환하여 반환
         
