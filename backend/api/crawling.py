@@ -215,6 +215,8 @@ def get_weather(location, lat, lng):
         }
         WeatherState.tempor = weather_data.get('T1H', '정보 없음'),
         WeatherState.humidity = weather_data.get('REH', '정보 없음')
+        warn_weather = get_warn_weather(location, lat, lng)
+        print("기상 특보 정보:", warn_weather)
 
         return result
 
@@ -271,9 +273,9 @@ def get_warn_weather(location, lat, lng):
         data = response.json()
         address = data.get('address', {})
         
-        # 도/시 정보 추출
+        # 도 정보 추출
         region = None
-        for key in ['state', 'city']:
+        for key in ['province']:
             if key in address:
                 region = address[key]
                 break
