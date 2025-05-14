@@ -299,8 +299,8 @@ def handle_sync_data(mqtt_data, extAddress):
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
 
       topic = "/DT/test_eHG4/Status/BandSet"
-      temperature = int(float(WeatherState.tempor.replace("°", "")) * 100)
-      humidity = int(WeatherState.humidity.replace("%", ""))
+      temperature = int(float(WeatherState.tempor) * 100)
+      humidity = int(WeatherState.humidity)
       message = f"#XMQTTSUBMSG : {extAddress},{temperature},{humidity}"
       try:
         mqtt.publish(topic, message)
