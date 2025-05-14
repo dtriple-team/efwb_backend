@@ -349,47 +349,40 @@ def get_warn_weather(location, lat, lng):
 
             # 정상 데이터 처리
             items = result['response']['body'].get('items', {}).get('item', [])
-            warnings = []
-            for item in items:
-                # 특보 정보 파싱
-                warn_type = ""
-                status = ""
-                
-                # t1에서 특보 종류와 상태 추출 (예: "강풍주의보 발표")
-                if item.get('t1'):
-                    warn_parts = item['t1'].split()
-                    if len(warn_parts) >= 2:
-                        warn_type = warn_parts[0]  # 강풍주의보
-                        status = warn_parts[1]     # 발표
-                
-                # 상세 정보 구성
-                detail = {
-                    "area": item.get('t2', '').replace('(1) ', ''),  # 지역 정보
-                    "datetime": item.get('t3', '').replace('(1) ', ''),  # 발표 시각
-                    "forecast": item.get('t4', '').replace('(1) ', '').strip(),  # 예보 내용
-                    "current_status": item.get('t6', '').replace('o ', ''),  # 현재 상태
-                }
-                
-                warning = {
-                    "type": warn_type,
-                    "status": status,
-                    "time": str(item.get('tmFc', '')),
-                    "seq": item.get('tmSeq', ''),
-                    "detail": detail
-                }
-                warnings.append(warning)
             
-            return {
-                "region": region,
-                "warnings": warnings,
-                "message": "정상 처리되었습니다." if warnings else "현재 발효 중인 기상특보가 없습니다."
+            # 경보 타입을 번호로 매핑하는 딕셔너리
+            warn_type_to_number = {
+                "강풍": 1,
+                "호우": 2,
+                "한파": 3,
+                "건조": 4,
+                "폭풍해일": 5,
+                "풍랑": 6,
+                "태풍": 7,
+                "대설": 8,
+                "황사": 9,
+                "폭염": 12
             }
+            
+            active_warnings = set()  # 활성화된 경보 번호를 저장할 set
+            
+            for item in items:
+                if item.get('t1'):
+                    warn_text = item['t1'].split()[0]  # "강풍주의보" -> "강풍"
+                    
+                    # 경보 텍스트에서 기본 타입 추출
+                    for warn_type in warn_type_to_number.keys():
+                        if warn_type in warn_text:
+                            active_warnings.add(warn_type_to_number[warn_type])
+                            break
+            
+            return list(active_warnings)  # set을 list로 변환하여 반환
         
         return {"error": "기상특보 데이터 형식 오류"}
 
     except Exception as e:
         print(f"기상특보 조회 중 오류 발생: {e}")
-        return {"error": f"기상특보 조회 실패: {str(e)}"}
+        return []
 
 # def getWeather(location):
 #     try:
