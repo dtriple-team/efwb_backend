@@ -311,6 +311,8 @@ def handle_sync_data(mqtt_data, extAddress):
       app_logger.error(f"Error up dating band connection status: {str(e)}")
       print("****** error ********")
       print(e)
+    finally:
+        db.session.remove()
   else:
     insertBandData(extAddress)
     band = selectBandBid(extAddress)
@@ -390,8 +392,12 @@ def handle_mqtt_message(client, userdata, message):
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
-                extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-                
+                #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'),
+                    16
+                )
                 # 비동기 처리를 위해 background_task 사용
                 mqtt_thread = socketio.start_background_task(
                     target=handle_sync_data,
@@ -404,8 +410,12 @@ def handle_mqtt_message(client, userdata, message):
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
-                extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-                
+                #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'),
+                    16
+                )
                 mqtt_thread = socketio.start_background_task(
                     target=handle_gps_data,
                     mqtt_data=mqtt_data,
@@ -425,7 +435,12 @@ def handle_mqtt_message(client, userdata, message):
           
           event_data = json.loads(message.payload.decode())
           
-          extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+          #extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+          extAddress = int(
+              format(event_data['extAddress']['high'], 'x') +
+              format(event_data['extAddress']['low'], 'x'),
+              16
+          )
         
           # 중복 체크를 위한 캐시 키 생성
           cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
