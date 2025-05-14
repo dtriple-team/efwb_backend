@@ -53,7 +53,7 @@ def handle_gps_data(mqtt_data, extAddress):
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
             return
         
-        timestamp = datetime.datetime.now(timezone('Asia/Seoul'))
+        timestamp = datetime.now(timezone('Asia/Seoul'))
         
         gps_info = mqtt_data['data'].split(',')
         
@@ -186,7 +186,7 @@ def handle_sync_data(mqtt_data, extAddress):
     try:
       # 밴드 연결 상태 업데이트
       dev.connect_state = 1  # 1: connected
-      dev.connect_time = datetime.datetime.now(timezone('Asia/Seoul'))
+      dev.connect_time = datetime.now(timezone('Asia/Seoul'))
       db.session.commit()
       
       # gatewayDev = db.session.query(Gateways.airpressure).\
@@ -195,7 +195,7 @@ def handle_sync_data(mqtt_data, extAddress):
       # if gatewayDev is not None:
       sensorDev = db.session.query(WalkRunCount).\
         filter(WalkRunCount.FK_bid == dev.id).\
-        filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
+        filter(func.date(WalkRunCount.datetime) == func.date(datetime.now(timezone('Asia/Seoul')))).first()
       db.session.flush()
 
       mqtt_data['extAddress']['high'] = extAddress
@@ -263,7 +263,7 @@ def handle_sync_data(mqtt_data, extAddress):
 
       walkRunCount.run_steps = mqtt_data['bandData']['run_steps']
       walkRunCount.temp_run_steps = temp_walk_steps
-      walkRunCount.datetime = datetime.datetime.now(
+      walkRunCount.datetime = datetime.now(
           timezone('Asia/Seoul'))
       sensorDev = db.session.query(WalkRunCount).\
           filter(WalkRunCount.FK_bid == dev.id).first()
@@ -287,7 +287,7 @@ def handle_sync_data(mqtt_data, extAddress):
       data.t = bandData['t']
       data.h = bandData['h']
       data.rssi = mqtt_data['rssi']
-      data.datetime = datetime.datetime.now(timezone('Asia/Seoul'))
+      data.datetime = datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
       db.session.commit()
       db.session.flush()
@@ -326,7 +326,7 @@ def check_disconnected_bands():
     with app.app_context():
         try:
             connected_bands = db.session.query(Bands).filter_by(connect_state=1).all()
-            current_time = datetime.datetime.now(timezone('Asia/Seoul'))
+            current_time = datetime.now(timezone('Asia/Seoul'))
             
             for band in connected_bands:
                 # connect_time에 timezone 정보 추가
@@ -374,7 +374,7 @@ def start_disconnect_checker():
 #     else:
 #       insertGateway(panid)
 #       dev = selectGatewayPid(panid['panid'])
-#       d = datetime.datetime.now(timezone('Asia/Seoul'))
+#       d = datetime.now(timezone('Asia/Seoul'))
 #       urldate = str(d.year)+"."+str(d.month) + \
 #         "."+str(d.day)+"."+str(d.hour)
 #       trtemp, atemp = getAirpressure(urldate)

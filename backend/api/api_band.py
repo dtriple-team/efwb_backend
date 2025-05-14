@@ -1713,7 +1713,7 @@ def get_weather_api():
 
     work = True
     try:
-        result = getWeather(WeatherState.location)
+        result = getWeather(WeatherState.location, 36.10871500, 128.38469500)
         return make_response(jsonify(result), 200)
     except Exception as e:
         return make_response(jsonify({"error": str(e)}), 500)

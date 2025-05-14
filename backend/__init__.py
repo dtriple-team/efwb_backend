@@ -114,7 +114,7 @@ else :
     db.session.commit()
     mqtt.subscribe('/efwb/post/sync')
     mqtt.subscribe('/efwb/post/async')
-    mqtt.subscribe('/efwb/post/connectcheck')
+    #mqtt.subscribe('/efwb/post/connectcheck')
     
     # New CHU
     mqtt.subscribe('/DT/eHG4/GPS/Location')
