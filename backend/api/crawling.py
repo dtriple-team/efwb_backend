@@ -132,6 +132,7 @@ def get_fcst_base_datetime(now):
     base_time_str = base_time.strftime("%H%M")
     return base_date, base_time_str
 
+# 단기 / 초단기 예보 수신
 def get_weather(location, lat, lng):
     nx, ny = latlon_to_xy(lat, lng)
     now = datetime.now(ZoneInfo("Asia/Seoul"))
@@ -220,7 +221,174 @@ def get_weather(location, lat, lng):
     except Exception as e:
         print(f"날씨 데이터 처리 중 오류 발생: {e}")
         return None
+
+# 주의보, 경고, 체감온도      
+def get_warn_weather(location, lat, lng):
+    # 현재 시간 정보 설정
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    base_date = now.strftime("%Y%m%d")
+    
+    # 지역에 따른 stnId 매핑
+    REGION_TO_STNID = {
+        "서울특별시": "109",
+        "서울": "109",
+        "인천": "109",
+        "경기도": "109",
+        "부산": "159",
+        "부산광역시": "159",
+        "울산": "159",
+        "울산광역시": "159",
+        "경상남도": "159",
+        "대구": "143",
+        "대구광역시": "143",
+        "경상북도": "143",
+        "광주": "156",
+        "광주광역시": "156",
+        "전라남도": "156",
+        "전라북도": "146",
+        "대전": "133",
+        "대전광역시": "133",
+        "세종특별시": "133",
+        "세종": "133",
+        "충청남도": "133",
+        "충청북도": "131",
+        "강원도": "105",
+        "제주도": "184",
+        "제주특별자치도": "184"
+    }
+
+    # 위도/경도로 지역 정보 가져오기
+    url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
+    headers = {
+        "User-Agent": "yourapp/1.0 (your@email.com)"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            return {"error": "지역 정보 조회 실패"}
+
+        data = response.json()
+        address = data.get('address', {})
         
+        # 도/시 정보 추출
+        region = None
+        for key in ['state', 'city']:
+            if key in address:
+                region = address[key]
+                break
+
+        if not region:
+            return {"error": "지역 정보 추출 실패"}
+
+        # stnId 찾기
+        stnId = REGION_TO_STNID.get(region, "108")  # 기본값은 전국(108)
+
+        # 기상특보 API 호출
+        warn_url = 'http://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnMsg'
+        api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="
+        
+        params = {
+            'serviceKey': api_key,
+            'pageNo': '1',
+            'numOfRows': '10',
+            'dataType': 'JSON',
+            'stnId': stnId,
+            'fromTmFc': base_date,
+            'toTmFc': base_date
+        }
+
+        response = requests.get(warn_url, params=params)
+        
+        if response.status_code != 200:
+            return {"error": "기상특보 조회 실패"}
+
+        result = response.json()
+        
+        # 응답 코드 확인
+        if 'response' in result:
+            header = result['response'].get('header', {})
+            result_code = header.get('resultCode')
+            result_msg = header.get('resultMsg')
+
+            # 에러 코드에 따른 처리
+            if result_code != '00':  # 정상 코드가 아닌 경우
+                error_messages = {
+                    '01': "어플리케이션 에러",
+                    '02': "데이터베이스 에러",
+                    '03': "데이터 없음",
+                    '04': "HTTP 에러",
+                    '05': "서비스 연결 실패",
+                    '10': "잘못된 요청 파라미터",
+                    '11': "필수 요청 파라미터 누락",
+                    '12': "해당 오픈API 서비스 없음",
+                    '20': "서비스 접근 거부",
+                    '21': "일시적으로 사용할 수 없는 서비스 키",
+                    '22': "서비스 요청제한횟수 초과",
+                    '30': "등록되지 않은 서비스키",
+                    '31': "기한만료된 서비스키",
+                    '32': "등록되지 않은 IP",
+                    '33': "서명되지 않은 호출",
+                    '99': "기타 에러"
+                }
+                error_msg = error_messages.get(result_code, "알 수 없는 에러")
+                return {
+                    "error": f"기상청 API 오류 ({result_code}): {error_msg}",
+                    "detail": result_msg
+                }
+
+            # 정상 응답이지만 데이터가 없는 경우
+            if 'body' not in result['response'] or not result['response']['body'].get('items'):
+                return {
+                    "region": region,
+                    "warnings": [],
+                    "message": "현재 발효 중인 기상특보가 없습니다."
+                }
+
+            # 정상 데이터 처리
+            items = result['response']['body'].get('items', {}).get('item', [])
+            warnings = []
+            for item in items:
+                # 특보 정보 파싱
+                warn_type = ""
+                status = ""
+                
+                # t1에서 특보 종류와 상태 추출 (예: "강풍주의보 발표")
+                if item.get('t1'):
+                    warn_parts = item['t1'].split()
+                    if len(warn_parts) >= 2:
+                        warn_type = warn_parts[0]  # 강풍주의보
+                        status = warn_parts[1]     # 발표
+                
+                # 상세 정보 구성
+                detail = {
+                    "area": item.get('t2', '').replace('(1) ', ''),  # 지역 정보
+                    "datetime": item.get('t3', '').replace('(1) ', ''),  # 발표 시각
+                    "forecast": item.get('t4', '').replace('(1) ', '').strip(),  # 예보 내용
+                    "current_status": item.get('t6', '').replace('o ', ''),  # 현재 상태
+                }
+                
+                warning = {
+                    "type": warn_type,
+                    "status": status,
+                    "time": str(item.get('tmFc', '')),
+                    "seq": item.get('tmSeq', ''),
+                    "detail": detail
+                }
+                warnings.append(warning)
+            
+            return {
+                "region": region,
+                "warnings": warnings,
+                "message": "정상 처리되었습니다." if warnings else "현재 발효 중인 기상특보가 없습니다."
+            }
+        
+        return {"error": "기상특보 데이터 형식 오류"}
+
+    except Exception as e:
+        print(f"기상특보 조회 중 오류 발생: {e}")
+        return {"error": f"기상특보 조회 실패: {str(e)}"}
+
 # def getWeather(location):
 #     try:
 #         html = requests.get(
