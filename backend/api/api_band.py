@@ -1585,70 +1585,70 @@ def events_post_api():
     return make_response(jsonify(result), 200)
 
 
-# @app.route('/api/efwb/v1/events/fall_detect/all', methods=["POST"])
-# def events_all_fall_post_api():
-#     data = json.loads(request.data)
-#     params = ['uid', 'date', 'format', 'permission']
+@app.route('/api/efwb/v1/events/fall_detect/all', methods=["POST"])
+def events_all_fall_post_api():
+    data = json.loads(request.data)
+    params = ['uid', 'date', 'format', 'permission']
 
-#     for param in params:
-#         if param not in data:
-#             return make_response(jsonify('Parameters are not enough.'), 400)
-#     json_data = []
-#     dev = []
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    json_data = []
+    dev = []
 
-#     if data['permission'] == 0:
-#         dev = selectFallDetectDate(data['date'], data['format'])
-#     elif data['permission'] == 1:
-#         dev = selectFallDetectDateStaff(
-#             data['uid'], data['date'], data['format'])
-#     elif data['permission'] == 2:
-#         dev = selectFallDetectDateManager(
-#             data['uid'], data['date'], data['format'])
-#     elif data['permission'] == 3:
-#         dev = selectFallDetectDateUser(
-#             data['uid'], data['date'], data['format'])
+    if data['permission'] == 0:
+        dev = selectFallDetectDate(data['date'], data['format'])
+    elif data['permission'] == 1:
+        dev = selectFallDetectDateStaff(
+            data['uid'], data['date'], data['format'])
+    elif data['permission'] == 2:
+        dev = selectFallDetectDateManager(
+            data['uid'], data['date'], data['format'])
+    elif data['permission'] == 3:
+        dev = selectFallDetectDateUser(
+            data['uid'], data['date'], data['format'])
 
-#     for d in dev:
-#         json_data.append({"x": d.day, "y": int(d.fall)})
-#     return make_response(jsonify(json_data), 200)
+    for d in dev:
+        json_data.append({"x": d.day, "y": int(d.fall)})
+    return make_response(jsonify(json_data), 200)
 
 
-# @app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
-# def events_fall_post_api():
-#     data = json.loads(request.data)
-#     params = ['bid', 'days']
+@app.route('/api/efwb/v1/events/fall_detect', methods=["POST"])
+def events_fall_post_api():
+    data = json.loads(request.data)
+    params = ['bid', 'days']
 
-#     for param in params:
-#         if param not in data:
-#             return make_response(jsonify('Parameters are not enough.'), 400)
-#     json_data = []
-#     dev = []
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+    json_data = []
+    dev = []
 
-#     if len(data['days']) == 0:
-#         dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
-#                                func.sum(Events.value).label('data')).\
-#             distinct(Events.datetime).\
-#             filter(Events.FK_bid == data['bid']).\
-#             filter(Events.type == 0).\
-#             group_by(func.date(Events.datetime)).all()
-#     else:
-#         dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
-#                                func.sum(Events.value).label('data')).\
-#             distinct(Events.datetime).\
-#             filter(Events.FK_bid == data['bid']).\
-#             filter(Events.type == 0).\
-#             filter(func.date(Events.datetime).
-#                    between(data['days'][0], datetimeBetween(data['days']))).\
-#             group_by(func.date(Events.datetime)).all()
+    if len(data['days']) == 0:
+        dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
+                               func.sum(Events.value).label('data')).\
+            distinct(Events.datetime).\
+            filter(Events.FK_bid == data['bid']).\
+            filter(Events.type == 0).\
+            group_by(func.date(Events.datetime)).all()
+    else:
+        dev = db.session.query(func.date_format(Events.datetime, '%Y-%m-%d').label('date'),
+                               func.sum(Events.value).label('data')).\
+            distinct(Events.datetime).\
+            filter(Events.FK_bid == data['bid']).\
+            filter(Events.type == 0).\
+            filter(func.date(Events.datetime).
+                   between(data['days'][0], datetimeBetween(data['days']))).\
+            group_by(func.date(Events.datetime)).all()
 
-#     for i in dev:
-#         json_data.append({"date": i.date, "data": int(i.data)})
-#     result = {
-#         "result": "OK",
-#         "data": json_data
-#     }
+    for i in dev:
+        json_data.append({"date": i.date, "data": int(i.data)})
+    result = {
+        "result": "OK",
+        "data": json_data
+    }
 
-#     return make_response(jsonify(result), 200)
+    return make_response(jsonify(result), 200)
 
 
 # @app.route('/api/efwb/v1/gatewaylog/add', methods=["POST"])

@@ -178,6 +178,9 @@ def handle_ehg4_data(data, b_id):
 
 
 def handle_sync_data(mqtt_data, extAddress):
+
+  app_logger.info(f"handle_sync_data called with extAddress={extAddress}")
+
   dev = db.session.query(Bands).filter_by(bid=extAddress).first()
   if dev is not None:
     try:
@@ -190,21 +193,21 @@ def handle_sync_data(mqtt_data, extAddress):
       #   filter(Gateways.pid == mqtt_data['pid']).first()
       
       # if gatewayDev is not None:
-      #   sensorDev = db.session.query(WalkRunCount).\
-      #     filter(WalkRunCount.FK_bid == dev.id).\
-      #     filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
-      #   db.session.flush()
+      sensorDev = db.session.query(WalkRunCount).\
+        filter(WalkRunCount.FK_bid == dev.id).\
+        filter(func.date(WalkRunCount.datetime) == func.date(datetime.datetime.now(timezone('Asia/Seoul')))).first()
+      db.session.flush()
 
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
       data = SensorData()
       data.FK_bid = dev.id
-      # data.start_byte = bandData['start_byte']
-      # data.sample_count = bandData['sample_count']
-      # data.fall_detect = bandData['fall_detect']
+      data.start_byte = bandData['start_byte']
+      data.sample_count = bandData['sample_count']
+      data.fall_detect = bandData['fall_detect']
       data.battery_level = bandData['battery_level']
-      # data.hrConfidence = bandData['hrConfidence']
-      # data.spo2Confidence = bandData['spo2Confidence']
+      data.hrConfidence = bandData['hrConfidence']
+      data.spo2Confidence = bandData['spo2Confidence']
       data.hr = bandData['hr']
       data.spo2 = bandData['spo2']
       data.motionFlag = bandData['motionFlag']
@@ -278,9 +281,9 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.add(walkRunCount)
         db.session.commit()
         db.session.flush()
-      # data.x = bandData['x']
-      # data.y = bandData['y']
-      # data.z = bandData['z']
+      data.x = bandData['x']
+      data.y = bandData['y']
+      data.z = bandData['z']
       data.t = bandData['t']
       data.h = bandData['h']
       data.rssi = mqtt_data['rssi']
@@ -390,8 +393,12 @@ def handle_mqtt_message(client, userdata, message):
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
-                extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-                
+                #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'),
+                    16
+                )
                 # 비동기 처리를 위해 background_task 사용
                 mqtt_thread = socketio.start_background_task(
                     target=handle_sync_data,
@@ -404,8 +411,12 @@ def handle_mqtt_message(client, userdata, message):
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
-                extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-                
+                #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'),
+                    16
+                )
                 mqtt_thread = socketio.start_background_task(
                     target=handle_gps_data,
                     mqtt_data=mqtt_data,
@@ -425,8 +436,12 @@ def handle_mqtt_message(client, userdata, message):
           
           event_data = json.loads(message.payload.decode())
           
-          extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
-        
+          #extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
+          extAddress = int(
+              format(event_data['extAddress']['high'], 'x') +
+              format(event_data['extAddress']['low'], 'x'),
+              16
+          )
           # 중복 체크를 위한 캐시 키 생성
           cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
           current_time = time.time()
