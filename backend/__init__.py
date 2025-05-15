@@ -120,4 +120,4 @@ else :
     db.session.commit()
     
 socketio.start_background_task(start_disconnect_checker)
-socketio.start_background_task(start_mqtt_publish_checker)
+socketio.start_background_task(start_weather_warning_mqtt_publish_checker)
