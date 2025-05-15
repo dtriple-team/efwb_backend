@@ -12,6 +12,9 @@ class WeatherState:
     location = None
     tempor = None
     humidity = None
+    warn_types = None
+    warn_levels = None
+    warn_send_flag = None
     
 
 def getAirpressure(date) :
@@ -243,7 +246,7 @@ def get_warn_weather(location, lat, lng):
         "경상남도": "159",
         "대구": "143",
         "대구광역시": "143",
-        "경상북도": "143",
+        "경상북도": "108",  # 143 -. 108 전국 테스트
         "광주": "156",
         "광주광역시": "156",
         "전라남도": "156",
@@ -352,7 +355,7 @@ def get_warn_weather(location, lat, lng):
             
             # 경보 타입을 번호로 매핑하는 딕셔너리
             warn_type_to_number = {
-                "강풍": 1,
+                "강풍": 3,#1 테스트용
                 "호우": 2,
                 "한파": 3,
                 "건조": 4,
@@ -363,30 +366,47 @@ def get_warn_weather(location, lat, lng):
                 "황사": 9,
                 "폭염": 12
             }
+
+            # 경보 수준 → 숫자 매핑
+            warn_level_to_number = {
+                "주의보": 0,
+                "경보": 1
+            }
             
-            active_warnings = set()  # 활성화된 경보 번호와 수준을 저장할 set
-            
+            active_warnings = set() # 활성화된 경보 번호와 수준을 저장할 set
+
             for item in items:
                 if item.get('t1'):
-                    warn_parts = item['t1'].split()  # ["강풍주의보", "발표"]
+                    warn_parts = item['t1'].split()
                     if len(warn_parts) >= 1:
-                        warn_text = warn_parts[0]  # "강풍주의보"
-                        
-                        # 경보 수준 추출 ("주의보" 또는 "경보")
-                        warn_level = "경보" if "경보" in warn_text else "주의보"
-                        
-                        # 경보 타입 추출 및 번호 매핑
-                        for warn_type in warn_type_to_number.keys():
+                        warn_text = warn_parts[0]
+
+                        # 경보 수준 텍스트 추출 및 숫자 매핑
+                        level_str = "경보" if "경보" in warn_text else "주의보"
+                        warn_level = warn_level_to_number[level_str]
+
+                        # 경보 타입 매핑
+                        for warn_type in warn_type_to_number:
                             if warn_type in warn_text:
-                                active_warnings.add((warn_type_to_number[warn_type], warn_level))
+                                warn_number = warn_type_to_number[warn_type]
+                                active_warnings.add((warn_number, warn_level))
+                                WeatherState.warn_types = warn_number
+                                WeatherState.warn_levels = warn_level
+
+                                WeatherState.warn_send_flag = 1
+
+
                                 break
-            
-            return list(active_warnings)  # set을 list로 변환하여 반환
+
+            # set을 list로 변환하여 반환
+            return list(active_warnings)
+
         
         return {"error": "기상특보 데이터 형식 오류"}
 
     except Exception as e:
         print(f"기상특보 조회 중 오류 발생: {e}")
+        WeatherState.warn_send_flag = 0
         return []
 
 # def getWeather(location):

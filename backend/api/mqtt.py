@@ -301,7 +301,7 @@ def handle_sync_data(mqtt_data, extAddress):
       topic = "/DT/test_eHG4/Status/BandSet"
       temperature = int(float(WeatherState.tempor[0]) * 100) if isinstance(WeatherState.tempor, tuple) else int(float(WeatherState.tempor) * 100)
       humidity = int(float(WeatherState.humidity[0])) if isinstance(WeatherState.humidity, tuple) else int(float(WeatherState.humidity))
-      message = f"#XMQTTSUBMSG : {extAddress},{temperature},{humidity}"
+      message = f"#XMQTTSUBMSG : 0,{temperature},{humidity}"
       try:
         mqtt.publish(topic, message)
         app_logger.info(f"MQTT message sent to {topic}: {message}")
@@ -314,6 +314,8 @@ def handle_sync_data(mqtt_data, extAddress):
       app_logger.error(f"Error up dating band connection status: {str(e)}")
       print("****** error ********")
       print(e)
+    finally:
+      db.session.remove()
   else:
     insertBandData(extAddress)
     band = selectBandBid(extAddress)
@@ -352,6 +354,8 @@ def check_disconnected_bands():
         except Exception as e:
             db.session.rollback()
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
+        finally:
+          db.session.remove()
 
 # 백그라운드 스케줄러 설정
 def start_disconnect_checker():
@@ -391,7 +395,51 @@ def start_mqtt_publish_checker():
     with app.app_context():
         while True:
             data = get_connected_band_locations()
-            #print(data)
+            if WeatherState.warn_send_flag == 1:
+                topic = "/DT/test_eHG4/Status/BandSet"
+                message = f"#XMQTTSUBMSG : 1,{WeatherState.warn_types},{WeatherState.warn_levels}"
+
+                try:
+                    mqtt.publish(topic, message)
+                    app_logger.info(f"MQTT message sent to {topic}: {message}")
+                except Exception as e:
+                    app_logger.error(f"Failed to publish MQTT message: {e}")
+
+                dev_list = db.session.query(Bands).all()
+
+
+                for dev in dev_list:
+                    #app_logger.info(f"Before update: heat_warn={getattr(dev, 'heat_warn', None)}, cold_warn={getattr(dev, 'cold_warn', None)}")
+
+                    warn_level = WeatherState.warn_levels
+                    if warn_level is None:
+                        warn_level = None
+
+                    try:
+                        warn_level = float(warn_level)
+                    except (TypeError, ValueError):
+                        warn_level = None
+
+                    if WeatherState.warn_types == 12:
+                        setattr(dev, 'heat_warn', warn_level)
+                        setattr(dev, 'cold_warn', None)
+                    elif WeatherState.warn_types == 3:
+                        setattr(dev, 'heat_warn', None)
+                        setattr(dev, 'cold_warn', warn_level)
+                    else:
+                        setattr(dev, 'heat_warn', None)
+                        setattr(dev, 'cold_warn', None)
+
+                    #app_logger.info(f"After update: heat_warn={getattr(dev, 'heat_warn', None)}, cold_warn={getattr(dev, 'cold_warn', None)}")
+
+                try:
+                    db.session.commit()
+                    app_logger.info("DB commit successful.")
+                except Exception as e:
+                    db.session.rollback()
+                    app_logger.error(f"Failed to update DB: {e}")
+                finally:
+                  db.session.remove()
             socketio.sleep(60)
 
 @mqtt.on_message()

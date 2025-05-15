@@ -44,6 +44,12 @@ login_manager.init_app(app)
 # api
 mqtt = Mqtt()
 mqtt.init_app(app)
+mqtt.subscribe('/efwb/post/sync')
+mqtt.subscribe('/efwb/post/async')
+# mqtt.subscribe('/efwb/post/connectcheck')
+
+# New CHU
+mqtt.subscribe('/DT/eHG4/GPS/Location')
 
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 
@@ -102,7 +108,7 @@ def admin_static(path):
     return send_from_directory('/home/ubuntu/admin/efwb_admin/efwb-frontend/dist/static', path)
 
 from backend.api.api_create import *
-from backend.api.mqtt import *
+#from backend.api.mqtt import *
 
 server = db.session.query(Server).first()
 if server.start == 0 :
@@ -112,12 +118,6 @@ if server.start == 0 :
 else :
     db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
     db.session.commit()
-    mqtt.subscribe('/efwb/post/sync')
-    mqtt.subscribe('/efwb/post/async')
-    #mqtt.subscribe('/efwb/post/connectcheck')
-    
-    # New CHU
-    mqtt.subscribe('/DT/eHG4/GPS/Location')
     
 socketio.start_background_task(start_disconnect_checker)
 socketio.start_background_task(start_mqtt_publish_checker)

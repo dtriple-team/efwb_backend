@@ -140,6 +140,8 @@ class Bands(db.Model):
         'connect_state', db.Integer, default=0, comment='밴드 상태 0:disconnected, 1:connected')
     latitude = db.Column('latitude', db.Float, comment='위도')
     longitude = db.Column('longitude', db.Float, comment='경도')
+    heat_warn = db.Column('heat_warn', db.Integer, comment='폭염특보(주의,경고)')
+    cold_warn = db.Column('cold_warn', db.Integer, comment='한파특보(주의,경고)')
 
     def serialize(self):
         resultJSON = {
@@ -333,7 +335,7 @@ class SensorData(db.Model):
     # x = db.Column('x', db.Integer, comment='x')
     # y = db.Column('y', db.Integer, comment='y')
     # z = db.Column('z', db.Integer, comment='z')
-    t = db.Column('t', db.Integer, comment='t')
+    t = db.Column('skin_temp', db.Integer, comment='skin_temp')
     h = db.Column('h', db.Integer, comment='h')
 
     rssi = db.Column('rssi', db.Integer, comment='수신 감도')
