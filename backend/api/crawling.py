@@ -163,10 +163,14 @@ def get_weather(location, lat, lng):
     }
 
     # ✅ 단기 예보 (최저/최고 기온)
-    fcst_base_time = now
+    now = datetime.now() - timedelta(hours=1)
+    query_time = now
+
+    # 새벽 0~1시는 전날 데이터를 조회해야 하므로 하루 전으로 조정
     if now.hour < 2:
-        fcst_base_time -= timedelta(days=1)
-    fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(now)
+        query_time -= timedelta(days=1)
+
+    fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(query_time)
 
     url2 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
     params2 = {
@@ -179,6 +183,7 @@ def get_weather(location, lat, lng):
         'nx': nx,
         'ny': ny
     }
+
 
     try:
         # 초단기 실황 요청
@@ -206,6 +211,15 @@ def get_weather(location, lat, lng):
         min_temp = next((item['fcstValue'] for item in items2 if item['category'] == 'TMN'), '정보 없음')
         max_temp = next((item['fcstValue'] for item in items2 if item['category'] == 'TMX'), '정보 없음')
 
+        try:
+            min_temp = int(float(min_temp))
+        except (ValueError, TypeError):
+            min_temp = '정보 없음'
+        try:
+            max_temp = int(float(max_temp))
+        except (ValueError, TypeError):
+            max_temp = '정보 없음'
+        
         result = {
             "city": location,
             "temp": weather_data.get('T1H', '정보 없음'),
