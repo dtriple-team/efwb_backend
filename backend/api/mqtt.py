@@ -202,12 +202,12 @@ def handle_sync_data(mqtt_data, extAddress):
       bandData = mqtt_data['bandData']
       data = SensorData()
       data.FK_bid = dev.id
-      data.start_byte = bandData['start_byte']
-      data.sample_count = bandData['sample_count']
-      data.fall_detect = bandData['fall_detect']
+      # data.start_byte = bandData['start_byte']
+      # data.sample_count = bandData['sample_count']
+      # data.fall_detect = bandData['fall_detect']
       data.battery_level = bandData['battery_level']
-      data.hrConfidence = bandData['hrConfidence']
-      data.spo2Confidence = bandData['spo2Confidence']
+      # data.hrConfidence = bandData['hrConfidence']
+      # data.spo2Confidence = bandData['spo2Confidence']
       data.hr = bandData['hr']
       data.spo2 = bandData['spo2']
       data.motionFlag = bandData['motionFlag']
@@ -281,11 +281,15 @@ def handle_sync_data(mqtt_data, extAddress):
         db.session.add(walkRunCount)
         db.session.commit()
         db.session.flush()
-      data.x = bandData['x']
-      data.y = bandData['y']
-      data.z = bandData['z']
-      data.t = bandData['t']
-      data.h = bandData['h']
+      # data.x = bandData['x']
+      # data.y = bandData['y']
+      # data.z = bandData['z']
+      # data.t = bandData['t']
+      # data.h = bandData['h']
+      data.move_activity = bandData['move_activity']
+      data.move_cumulative_activity = bandData['move_cumulative_activity']
+      data.heart_activity = bandData['heart_activity']
+      data.skin_temp = bandData['skin_temp']
       data.rssi = mqtt_data['rssi']
       data.datetime = datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
@@ -440,6 +444,38 @@ def start_weather_warning_mqtt_publish_checker():
                     app_logger.error(f"Failed to update DB: {e}")
                 finally:
                   db.session.remove()
+            if WeatherState.warn_send_flag == 2:
+                topic = "/DT/test_eHG4/Status/BandSet"
+                message = f"#XMQTTSUBMSG : 1,99,99"
+                try:
+                    mqtt.publish(topic, message)
+                    app_logger.info(f"MQTT message sent to {topic}: {message}")
+                except Exception as e:
+                    app_logger.error(f"Failed to publish MQTT message: {e}")
+                
+                dev_list = db.session.query(Bands).all()
+
+                for dev in dev_list:
+
+                    warn_level = WeatherState.warn_levels
+                    if warn_level is None:
+                        warn_level = None
+
+                    try:
+                        warn_level = float(warn_level)
+                    except (TypeError, ValueError):
+                        
+                        warn_level = None
+                        setattr(dev, 'heat_warn', None)
+                        setattr(dev, 'cold_warn', None)
+                try:
+                    db.session.commit()
+                    app_logger.info("DB commit successful.")
+                except Exception as e:
+                    db.session.rollback()
+                    app_logger.error(f"Failed to update DB: {e}")
+
+
             socketio.sleep(60)
 
 @mqtt.on_message()

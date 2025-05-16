@@ -335,9 +335,13 @@ class SensorData(db.Model):
     # x = db.Column('x', db.Integer, comment='x')
     # y = db.Column('y', db.Integer, comment='y')
     # z = db.Column('z', db.Integer, comment='z')
-    t = db.Column('skin_temp', db.Integer, comment='skin_temp')
-    h = db.Column('h', db.Integer, comment='h')
-
+    # t = db.Column('t', db.Integer, comment='t')
+    # h = db.Column('h', db.Integer, comment='h')
+    move_activity = db.Column('move_activity', db.Integer, comment='활동량(움직임)')
+    move_cumulative_activity = db.Column('move_cumulative_activity', db.Integer, comment='누적활동량(움직임)')
+    heart_activity = db.Column('heart_activity', db.Integer, comment='활동량(심박)')
+    skin_temp = db.Column('skin_temp', db.Integer, comment='피부온도')
+    
     rssi = db.Column('rssi', db.Integer, comment='수신 감도')
 
     def serialize(self):
@@ -364,9 +368,10 @@ class SensorData(db.Model):
             # "x": self.x,
             # "y": self.y,
             # "z": self.z,
-            "h": self.h,
-            "t": self.t,
-            "h": self.h,
+            "move_activity": self.move_activity,
+            "move_cumulative_activity": self.move_cumulative_activity,
+            "heart_activity": self.heart_activity,
+            "skin_temp": self.skin_temp,
             "rssi": self.rssi
         }
         return resultJSON

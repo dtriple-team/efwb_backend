@@ -260,7 +260,7 @@ def get_warn_weather(location, lat, lng):
         "경상남도": "159",
         "대구": "143",
         "대구광역시": "143",
-        "경상북도": "108",  # 143 -. 108 전국 테스트
+        "경상북도": "143",  # 108 전국 테스트
         "광주": "156",
         "광주광역시": "156",
         "전라남도": "156",
@@ -350,6 +350,8 @@ def get_warn_weather(location, lat, lng):
                     '33': "서명되지 않은 호출",
                     '99': "기타 에러"
                 }
+                if result_code == "03":
+                    WeatherState.warn_send_flag = 2
                 error_msg = error_messages.get(result_code, "알 수 없는 에러")
                 return {
                     "error": f"기상청 API 오류 ({result_code}): {error_msg}",
@@ -369,7 +371,7 @@ def get_warn_weather(location, lat, lng):
             
             # 경보 타입을 번호로 매핑하는 딕셔너리
             warn_type_to_number = {
-                "강풍": 3,#1 테스트용
+                "강풍": 1,
                 "호우": 2,
                 "한파": 3,
                 "건조": 4,
@@ -408,8 +410,6 @@ def get_warn_weather(location, lat, lng):
                                 WeatherState.warn_levels = warn_level
 
                                 WeatherState.warn_send_flag = 1
-
-
                                 break
 
             # set을 list로 변환하여 반환

@@ -2397,9 +2397,8 @@ def get_band_sensor_data(bid):
             'activity': latest_sensor_data.activity if latest_sensor_data.activity is not None else '-',
             'walk_steps': latest_sensor_data.walk_steps if latest_sensor_data.walk_steps is not None else '-',
             'run_steps': latest_sensor_data.run_steps if latest_sensor_data.run_steps is not None else '-',
-            'h': latest_sensor_data.h if latest_sensor_data.h is not None else '-',
             'latitude': float(band.latitude) if band.latitude else None,
-            'longitude': float(band.longitude) if band.longitude else None
+            'longitude': float(band.longitude) if band.longitude else None,
         }
         
         return make_response(jsonify({
