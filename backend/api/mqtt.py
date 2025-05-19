@@ -447,6 +447,7 @@ def start_weather_warning_mqtt_publish_checker():
             if WeatherState.warn_send_flag == 2:
                 topic = "/DT/test_eHG4/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 1,99,99"
+                #message = f"#XMQTTSUBMSG : 1,13,0" # TEST용 제거해야함
                 try:
                     mqtt.publish(topic, message)
                     app_logger.info(f"MQTT message sent to {topic}: {message}")
@@ -555,7 +556,14 @@ def handle_mqtt_message(client, userdata, message):
           if dev is not None:
             insertEvent(
               dev.id, event_data['type'], event_data['value'])
-            
+
+          if event_data['type'] in [6, 1]:
+            db.session.query(Bands).filter_by(id=dev.id).update({'emergency_signal': 1})
+            db.session.commit()
+          elif event_data['type'] in [6, 0]:
+            db.session.query(Bands).filter_by(id=dev.id).update({'emergency_signal': 0})
+            db.session.commit()
+
             event_socket = {
               "type": event_data['type'],
               "value": event_data['value'],
