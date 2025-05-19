@@ -341,7 +341,7 @@ def check_disconnected_bands():
                     if band_connect_time.tzinfo is None:
                         band_connect_time = timezone('Asia/Seoul').localize(band_connect_time)
                     
-                    if (current_time - band_connect_time) > timedelta(minutes=1):
+                    if (current_time - band_connect_time) > timedelta(minutes=30):
                         band.connect_state = 0
                         band.disconnect_time = current_time
                         
@@ -366,7 +366,7 @@ def start_disconnect_checker():
     """5분마다 연결 해제 상태를 체크하는 스케줄러 시작"""
     while True:
         check_disconnected_bands()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-        socketio.sleep(150)  # 2분 30초
+        socketio.sleep(300)  # 5분
     
 # def handle_gateway_state(panid):
 #   print("handle_gateway_state", panid)
