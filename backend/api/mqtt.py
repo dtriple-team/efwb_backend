@@ -44,87 +44,173 @@ def getAltitude(pressure, airpressure):  # 기압 - 높이 계산 Dtriple
 def handle_gps_data(mqtt_data, extAddress):
     app_logger.debug(f"Processing GPS data: {mqtt_data}")
     try:
-        # Extract the extAddress
+        # extAddress를 low 값에 덮어쓰기
         mqtt_data['extAddress']['low'] = extAddress
-        # Find the corresponding band
-        band = db.session.query(Bands).filter_by(bid=extAddress).first()
         
+        # 해당 band 조회
+        band = db.session.query(Bands).filter_by(bid=extAddress).first()
         if band is None:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
             return
         
         timestamp = datetime.now(timezone('Asia/Seoul'))
         
-        gps_info = mqtt_data['data'].split(',')
+        raw_data = mqtt_data['data'].strip()
         
-        # GPS 데이터 형식에 따라 다르게 처리
-        if len(gps_info) == 4:
+        # 마지막 쉼표 기준으로 timestamp 분리
+        gps_str, timestamp_str = raw_data.rsplit(',', 1)
+        
+        # gps 부분을 쉼표로 분리해서 리스트 생성
+        gps_info = [x.strip() for x in gps_str.split(',')]
+        
+        # timestamp 문자열에서 불필요한 따옴표 제거
+        timestamp_str = timestamp_str.strip().strip('"').strip("'")
+        
+        # gps_info 길이에 따라 처리
+        if len(gps_info) == 3:  # 예: 위도, 경도, 고도
+            latitude, longitude, altitude = gps_info
+            speed = None
+            course = None
+            sats = None
+        elif len(gps_info) == 4:
             latitude, longitude, altitude, speed = gps_info
-            gps_data = {
-                'bid': extAddress,
-                'latitude': float(latitude),
-                'longitude': float(longitude),
-                'altitude': float(altitude),
-                'speed': float(speed),
-                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            }
+            course = None
+            sats = None
         elif len(gps_info) == 5:
             latitude, longitude, altitude, speed, course = gps_info
-            gps_data = {
-                'bid': extAddress,
-                'latitude': float(latitude),
-                'longitude': float(longitude),
-                'altitude': float(altitude),
-                'speed': float(speed),
-                'course': float(course),
-                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            }
+            sats = None
         elif len(gps_info) == 6:
             latitude, longitude, altitude, speed, course, sats = gps_info
-            gps_data = {
-                'bid': extAddress,
-                'latitude': float(latitude),
-                'longitude': float(longitude),
-                'altitude': float(altitude),
-                'speed': float(speed),
-                'course': float(course),
-                'satellites': int(float(sats)),
-                'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            }
         else:
-            app_logger.error(f"Invalid GPS data format: {mqtt_data['data']}")
+            app_logger.error(f"Invalid GPS data format: {mqtt_data['data']} with gps_info length {len(gps_info)}")
             return
-          
+        
+        gps_data = {
+            'bid': extAddress,
+            'latitude': float(latitude),
+            'longitude': float(longitude),
+            'altitude': float(altitude),
+            'timestamp': timestamp_str or timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        if speed is not None:
+            gps_data['speed'] = float(speed)
+        if course is not None:
+            gps_data['course'] = float(course)
+        if sats is not None:
+            gps_data['satellites'] = int(float(sats))
+        
         try:
-            # gps_data 확인
-            print(f"GPS 데이터 확인: {gps_data}")
-            
-            # band 조회 결과 확인
+            # DB band 조회 및 업데이트
             band = db.session.query(Bands).filter_by(bid=gps_data['bid']).first()
-            print(f"조회된 band: {band.bid if band else 'Not Found'}")
-            
             if band:
-                print(f"업데이트 전 위치: lat={band.latitude}, lng={band.longitude}")
+                app_logger.debug(f"Before update lat={band.latitude}, lng={band.longitude}")
                 band.latitude = gps_data['latitude']
                 band.longitude = gps_data['longitude']
                 db.session.commit()
                 db.session.flush()
                 db.session.remove()
                 db.session.close()
-                print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
+                app_logger.debug(f"After update lat={band.latitude}, lng={band.longitude}")
             else:
-                print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
+                app_logger.warning(f"Band not found for bid: {gps_data['bid']}")
                 
         except Exception as e:
-            print(f"GPS 데이터 DB 업데이트 중 에러 발생: {e}")
+            app_logger.error(f"Error updating GPS data in DB: {e}")
         
-        # Emit the GPS data to the frontend
+        # 프론트엔드에 이벤트 발행
         socketio.emit('ehg4_gps', gps_data, namespace='/admin')
-        app_logger.debug(f"GPS Data : {gps_data}")
+        app_logger.debug(f"GPS Data emitted: {gps_data}")
         app_logger.info(f"Successfully processed and emitted GPS data for band: {extAddress}")
         
     except Exception as e:
         app_logger.error(f"Unexpected error processing eHG4 GPS data: {str(e)}", exc_info=True)
+
+
+
+# def handle_gps_data(mqtt_data, extAddress):
+#     app_logger.debug(f"Processing GPS data: {mqtt_data}")
+#     try:
+#         # Extract the extAddress
+#         mqtt_data['extAddress']['low'] = extAddress
+#         # Find the corresponding band
+#         band = db.session.query(Bands).filter_by(bid=extAddress).first()
+        
+#         if band is None:
+#             app_logger.warning(f"Band not found for extAddress: {extAddress}")
+#             return
+        
+#         timestamp = datetime.now(timezone('Asia/Seoul'))
+        
+#         gps_info = mqtt_data['data'].split(',')
+        
+#         # GPS 데이터 형식에 따라 다르게 처리
+#         if len(gps_info) == 4:
+#             latitude, longitude, altitude, speed = gps_info
+#             gps_data = {
+#                 'bid': extAddress,
+#                 'latitude': float(latitude),
+#                 'longitude': float(longitude),
+#                 'altitude': float(altitude),
+#                 'speed': float(speed),
+#                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+#             }
+#         elif len(gps_info) == 5:
+#             latitude, longitude, altitude, speed, course = gps_info
+#             gps_data = {
+#                 'bid': extAddress,
+#                 'latitude': float(latitude),
+#                 'longitude': float(longitude),
+#                 'altitude': float(altitude),
+#                 'speed': float(speed),
+#                 'course': float(course),
+#                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+#             }
+#         elif len(gps_info) == 6:
+#             latitude, longitude, altitude, speed, course, sats = gps_info
+#             gps_data = {
+#                 'bid': extAddress,
+#                 'latitude': float(latitude),
+#                 'longitude': float(longitude),
+#                 'altitude': float(altitude),
+#                 'speed': float(speed),
+#                 'course': float(course),
+#                 'satellites': int(float(sats)),
+#                 'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S')
+#             }
+#         else:
+#             app_logger.error(f"Invalid GPS data format: {mqtt_data['data']}")
+#             return
+          
+#         try:
+#             # gps_data 확인
+#             print(f"GPS 데이터 확인: {gps_data}")
+            
+#             # band 조회 결과 확인
+#             band = db.session.query(Bands).filter_by(bid=gps_data['bid']).first()
+#             print(f"조회된 band: {band.bid if band else 'Not Found'}")
+            
+#             if band:
+#                 print(f"업데이트 전 위치: lat={band.latitude}, lng={band.longitude}")
+#                 band.latitude = gps_data['latitude']
+#                 band.longitude = gps_data['longitude']
+#                 db.session.commit()
+#                 db.session.flush()
+#                 db.session.remove()
+#                 db.session.close()
+#                 print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
+#             else:
+#                 print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
+                
+#         except Exception as e:
+#             print(f"GPS 데이터 DB 업데이트 중 에러 발생: {e}")
+        
+#         # Emit the GPS data to the frontend
+#         socketio.emit('ehg4_gps', gps_data, namespace='/admin')
+#         app_logger.debug(f"GPS Data : {gps_data}")
+#         app_logger.info(f"Successfully processed and emitted GPS data for band: {extAddress}")
+        
+#     except Exception as e:
+#         app_logger.error(f"Unexpected error processing eHG4 GPS data: {str(e)}", exc_info=True)
 
 def handle_ehg4_data(data, b_id):
   
@@ -510,23 +596,51 @@ def handle_mqtt_message(client, userdata, message):
                     extAddress=extAddress
                 )
                 mqtt_thread = None
-                
+
     elif message.topic == '/DT/eHG4/GPS/Location':
         with thread_lock:
             if mqtt_thread is None:
-                mqtt_data = json.loads(message.payload.decode())
-                #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+                raw_payload = message.payload.decode().strip()
+
+                # "data" 필드 내 날짜 앞에 붙은 " 한 개와 맨 뒤 큰따옴표 한 개 제거
+                # 예: ...,0.000000,"2025-05-19 10:12:43""  →  ...,0.000000,2025-05-19 10:12:43"
+                fixed_payload = re.sub(
+                    r'("data"\s*:\s*".*?,\d+\.\d+,)"(20\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})""',
+                    r'\1\2"',
+                    raw_payload
+                )
+
+                mqtt_data = json.loads(fixed_payload)
+
                 extAddress = int(
                     format(mqtt_data['extAddress']['high'], 'x') +
                     format(mqtt_data['extAddress']['low'], 'x'),
                     16
                 )
+
                 mqtt_thread = socketio.start_background_task(
                     target=handle_gps_data,
                     mqtt_data=mqtt_data,
                     extAddress=extAddress
                 )
                 mqtt_thread = None
+
+    # elif message.topic == '/DT/eHG4/GPS/Location':
+    #     with thread_lock:
+    #         if mqtt_thread is None:
+    #             mqtt_data = json.loads(message.payload.decode())
+    #             #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+    #             extAddress = int(
+    #                 format(mqtt_data['extAddress']['high'], 'x') +
+    #                 format(mqtt_data['extAddress']['low'], 'x'),
+    #                 16
+    #             )
+    #             mqtt_thread = socketio.start_background_task(
+    #                 target=handle_gps_data,
+    #                 mqtt_data=mqtt_data,
+    #                 extAddress=extAddress
+    #             )
+    #             mqtt_thread = None
               
     elif message.topic == '/efwb/post/connectcheck':
       with thread_lock:
