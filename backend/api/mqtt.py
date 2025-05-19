@@ -108,6 +108,9 @@ def handle_gps_data(mqtt_data, extAddress):
                 band.latitude = gps_data['latitude']
                 band.longitude = gps_data['longitude']
                 db.session.commit()
+                db.session.flush()
+                db.session.remove()
+                db.session.close()
                 print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
             else:
                 print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
@@ -172,6 +175,9 @@ def handle_ehg4_data(data, b_id):
   except SQLAlchemyError as e:
     db.session.rollback()
     app_logger.error(f"Database error while saving sensor data for band {data['bid']}: {str(e)}")
+  finally:
+    db.session.remove()
+    db.session.close()
   except Exception as e:
     app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
 
@@ -563,6 +569,9 @@ def handle_mqtt_message(client, userdata, message):
             if event_data['type'] == 6 and event_data['value'] in [0, 1]:
               db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
               db.session.commit()
+              db.session.flush()
+              db.session.remove()
+              db.session.close()
 
             event_socket = {
               "type": event_data['type'],
