@@ -175,11 +175,11 @@ def handle_ehg4_data(data, b_id):
   except SQLAlchemyError as e:
     db.session.rollback()
     app_logger.error(f"Database error while saving sensor data for band {data['bid']}: {str(e)}")
+  except Exception as e:
+    app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
   finally:
     db.session.remove()
     db.session.close()
-  except Exception as e:
-    app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
 
 
 
