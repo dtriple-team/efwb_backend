@@ -320,7 +320,7 @@ def handle_sync_data(mqtt_data, extAddress):
       print(e)
     finally:
       db.session.remove()
-      session.close()
+      db.session.close()
   else:
     insertBandData(extAddress)
     band = selectBandBid(extAddress)
@@ -361,7 +361,7 @@ def check_disconnected_bands():
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
         finally:
           db.session.remove()
-          session.close()
+          db.session.close()
 
 # 백그라운드 스케줄러 설정
 def start_disconnect_checker():
@@ -446,7 +446,7 @@ def start_weather_warning_mqtt_publish_checker():
                     app_logger.error(f"Failed to update DB: {e}")
                 finally:
                   db.session.remove()
-                  session.close()
+                  db.session.close()
             if WeatherState.warn_send_flag == 2:
                 topic = "/DT/test_eHG4/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 1,99,99"
