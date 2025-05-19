@@ -557,12 +557,9 @@ def handle_mqtt_message(client, userdata, message):
             insertEvent(
               dev.id, event_data['type'], event_data['value'])
 
-          if event_data['type'] in [6, 1]:
-            db.session.query(Bands).filter_by(id=dev.id).update({'emergency_signal': 1})
-            db.session.commit()
-          elif event_data['type'] in [6, 0]:
-            db.session.query(Bands).filter_by(id=dev.id).update({'emergency_signal': 0})
-            db.session.commit()
+            if event_data['type'] == 6 and event_data['value'] in [0, 1]:
+              db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
+              db.session.commit()
 
             event_socket = {
               "type": event_data['type'],
