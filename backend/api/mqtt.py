@@ -82,7 +82,7 @@ def handle_gps_data(mqtt_data, extAddress):
         elif len(gps_info) == 6:
             latitude, longitude, altitude, speed, course, sats = gps_info
         else:
-            app_logger.error(f"Invalid GPS data format: {mqtt_data['data']} with gps_info length {len(gps_info)}")
+            #app_logger.error(f"Invalid GPS data format: {mqtt_data['data']} with gps_info length {len(gps_info)}")
             return
         
         gps_data = {
@@ -103,14 +103,14 @@ def handle_gps_data(mqtt_data, extAddress):
             # DB band 조회 및 업데이트
             band = db.session.query(Bands).filter_by(bid=gps_data['bid']).first()
             if band:
-                app_logger.debug(f"Before update lat={band.latitude}, lng={band.longitude}")
+                app_logger.debug(f"업데이트 전 위치 : {band.latitude}, lng={band.longitude}")
                 band.latitude = gps_data['latitude']
                 band.longitude = gps_data['longitude']
                 db.session.commit()
                 db.session.flush()
                 db.session.remove()
                 db.session.close()
-                app_logger.debug(f"After update lat={band.latitude}, lng={band.longitude}")
+                app_logger.debug(f"업데이트 후 위치 : {band.latitude}, lng={band.longitude}")
             else:
                 app_logger.warning(f"Band not found for bid: {gps_data['bid']}")
                 
@@ -119,7 +119,7 @@ def handle_gps_data(mqtt_data, extAddress):
         
         # 프론트엔드에 이벤트 발행
         socketio.emit('ehg4_gps', gps_data, namespace='/admin')
-        app_logger.debug(f"GPS Data emitted: {gps_data}")
+        #app_logger.debug(f"GPS Data emitted: {gps_data}")
         app_logger.info(f"Successfully processed and emitted GPS data for band: {extAddress}")
         
     except Exception as e:
