@@ -488,7 +488,7 @@ def start_disconnect_checker():
 
 
 def start_weather_warning_mqtt_publish_checker():
-    """1분마다 기상특보가 있는지 체크하는 스케줄러 시작"""
+    """3분마다 기상특보가 있는지 체크하는 스케줄러 시작"""
     from backend.api.api_band import get_connected_band_locations
     with app.app_context():
         while True:
@@ -572,7 +572,7 @@ def start_weather_warning_mqtt_publish_checker():
                     app_logger.error(f"Failed to update DB: {e}")
 
 
-            socketio.sleep(60)
+            socketio.sleep(180)
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
