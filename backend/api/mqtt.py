@@ -252,6 +252,7 @@ def handle_ehg4_data(data, b_id):
       
     db.session.add(sensor_data)
     db.session.commit()
+    db.session.flush()
     app_logger.info(f"Successfully saved sensor data to database for band: {data['bid']}")
     
     # 실시간 데이터 전송
@@ -446,6 +447,7 @@ def check_disconnected_bands():
                         socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
             db.session.commit()
+            db.session.flush()
             app_logger.info("Successfully checked and updated disconnected bands")
             
         except Exception as e:
@@ -532,6 +534,7 @@ def start_weather_warning_mqtt_publish_checker():
 
                 try:
                     db.session.commit()
+                    db.session.flush()
                     app_logger.info("DB commit successful.")
                 except Exception as e:
                     db.session.rollback()
@@ -566,10 +569,14 @@ def start_weather_warning_mqtt_publish_checker():
                         setattr(dev, 'cold_warn', None)
                 try:
                     db.session.commit()
+                    db.session.flush()
                     app_logger.info("DB commit successful.")
                 except Exception as e:
                     db.session.rollback()
                     app_logger.error(f"Failed to update DB: {e}")
+                finally:
+                  db.session.remove()
+                  db.session.close()
 
 
             socketio.sleep(180)
