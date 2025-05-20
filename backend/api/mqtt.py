@@ -394,7 +394,7 @@ def handle_sync_data(mqtt_data, extAddress):
       # app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
 
-      topic = "/DT/test_eHG4/Status/BandSet"
+      topic = "/DT/eHG4/Status/BandSet"
       temperature = int(float(WeatherState.tempor[0]) * 100) if isinstance(WeatherState.tempor, tuple) else int(float(WeatherState.tempor) * 100)
       humidity = int(float(WeatherState.humidity[0])) if isinstance(WeatherState.humidity, tuple) else int(float(WeatherState.humidity))
       message = f"#XMQTTSUBMSG : 0,{temperature},{humidity}"
@@ -494,7 +494,7 @@ def start_weather_warning_mqtt_publish_checker():
         while True:
             data = get_connected_band_locations()
             if WeatherState.warn_send_flag == 1:
-                topic = "/DT/test_eHG4/Status/BandSet"
+                topic = "/DT/eHG4/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 1,{WeatherState.warn_types},{WeatherState.warn_levels}"
 
                 try:
@@ -540,7 +540,7 @@ def start_weather_warning_mqtt_publish_checker():
                   db.session.remove()
                   db.session.close()
             if WeatherState.warn_send_flag == 2:
-                topic = "/DT/test_eHG4/Status/BandSet"
+                topic = "/DT/eHG4/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 1,99,99"
                 #message = f"#XMQTTSUBMSG : 1,13,0" # TEST용 제거해야함
                 try:
@@ -579,7 +579,7 @@ def handle_mqtt_message(client, userdata, message):
   try:
     global mqtt_thread, gw_thread, event_thread, num, thread_lock
 
-    if message.topic == '/efwb/post/sync':
+    if message.topic == '/DT/eHG4/post/sync':
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
@@ -642,13 +642,13 @@ def handle_mqtt_message(client, userdata, message):
     #             )
     #             mqtt_thread = None
               
-    elif message.topic == '/efwb/post/connectcheck':
+    elif message.topic == '/DT/eHG4/post/connectcheck':
       with thread_lock:
         if gw_thread is None:
           # gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
           gw_thread = None
 
-    elif message.topic == '/efwb/post/async':
+    elif message.topic == '/DT/eHG4/post/async':
       with thread_lock:
         if event_thread is None:
           
