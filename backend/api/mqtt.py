@@ -126,7 +126,7 @@ def handle_gps_data(mqtt_data, extAddress):
 
                 if band.latitude is not None and band.longitude is not None:
                     distance = haversine(band.latitude, band.longitude, gps_data['latitude'], gps_data['longitude'])
-                    if distance > 400:
+                    if distance > 700:
                         app_logger.warning(f"GPS 위치 변화가 너무 큽니다: 약 {distance:.2f}km 차이, 업데이트하지 않습니다.")
                         return  # 업데이트하지 않고 함수 종료
 
