@@ -684,8 +684,8 @@ def handle_mqtt_message(client, userdata, message):
             #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
             #   db.session.commit()
             #   db.session.flush()
-            db.session.remove()
-            db.session.close()
+            #   db.session.remove()
+            #   db.session.close()
 
             event_socket = {
               "type": event_data['type'],
@@ -695,7 +695,8 @@ def handle_mqtt_message(client, userdata, message):
             }
             socketio.emit('efwbasync', event_socket,namespace='/admin')
             app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
-            
+            db.session.remove()
+            db.session.close()
           else:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
           event_thread = None
