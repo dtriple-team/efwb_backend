@@ -11,6 +11,7 @@ from sqlalchemy import text
 from collections import defaultdict
 import time
 import sys
+import math
 sys.setrecursionlimit(10000)  # 재귀 제한 증가
 
 # 캐시 저장을 위한 전역 변수 추가
@@ -40,15 +41,32 @@ def getAltitude(pressure, airpressure):  # 기압 - 높이 계산 Dtriple
   except:
       pass
 
-def is_valid_lat_lng(lat, lng):
-    return -90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0
+def haversine(lat1, lon1, lat2, lon2):
+    # 지구 반지름 (km)
+    R = 6371.0
 
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    distance = R * c
+    return distance
+    
 # New CHU MQTT Message Parsing
 def handle_gps_data(mqtt_data, extAddress):
     app_logger.debug(f"Processing GPS data: {mqtt_data}")
     try:
+        # extAddress를 low 값에 덮어쓰기
         mqtt_data['extAddress']['low'] = extAddress
         
+        # 해당 band 조회
         band = db.session.query(Bands).filter_by(bid=extAddress).first()
         if band is None:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
@@ -57,11 +75,18 @@ def handle_gps_data(mqtt_data, extAddress):
         timestamp = datetime.now(timezone('Asia/Seoul'))
         
         raw_data = mqtt_data['data'].strip()
+        
+        # 마지막 쉼표 기준으로 timestamp 분리
         gps_str, timestamp_str = raw_data.rsplit(',', 1)
+        
+        # gps 부분을 쉼표로 분리해서 리스트 생성
         gps_info = [x.strip() for x in gps_str.split(',')]
+        
+        # timestamp 문자열에서 불필요한 따옴표 제거
         timestamp_str = timestamp_str.strip().strip('"').strip("'")
         
-        if len(gps_info) == 3:
+        # gps_info 길이에 따라 처리
+        if len(gps_info) == 3:  # 예: 위도, 경도, 고도
             latitude, longitude, altitude = gps_info
             speed = None
             course = None
@@ -76,53 +101,35 @@ def handle_gps_data(mqtt_data, extAddress):
         elif len(gps_info) == 6:
             latitude, longitude, altitude, speed, course, sats = gps_info
         else:
+            #app_logger.error(f"Invalid GPS data format: {mqtt_data['data']} with gps_info length {len(gps_info)}")
             return
         
-        latitude = float(latitude)
-        longitude = float(longitude)
-        altitude = float(altitude)
-        if speed is not None:
-            speed = float(speed)
-        if course is not None:
-            course = float(course)
-        if sats is not None:
-            sats = int(float(sats))
-
-        def is_valid_lat_lng(lat, lng):
-            return -90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0
-        
-        if not is_valid_lat_lng(latitude, longitude):
-            app_logger.warning(f"Invalid GPS coordinates: lat={latitude}, lng={longitude}")
-            return
-
-        # ✅ 비정상 위치 변화 필터링 (예: 36 → 360 같은 오차, 100km 오차)
-        if band.latitude is not None and band.longitude is not None:
-            lat_diff = abs(latitude - band.latitude)
-            lng_diff = abs(longitude - band.longitude)
-            if lat_diff > 1.0 or lng_diff > 1.0:
-                app_logger.warning(
-                    f"비정상 GPS 변경 감지: 기존(lat={band.latitude}, lng={band.longitude}) → 새(lat={latitude}, lng={longitude})"
-                )
-                return
-
         gps_data = {
             'bid': extAddress,
-            'latitude': latitude,
-            'longitude': longitude,
-            'altitude': altitude,
+            'latitude': float(latitude),
+            'longitude': float(longitude),
+            'altitude': float(altitude),
             'timestamp': timestamp_str or timestamp.strftime('%Y-%m-%d %H:%M:%S')
         }
         if speed is not None:
-            gps_data['speed'] = speed
+            gps_data['speed'] = float(speed)
         if course is not None:
-            gps_data['course'] = course
+            gps_data['course'] = float(course)
         if sats is not None:
-            gps_data['satellites'] = sats
+            gps_data['satellites'] = int(float(sats))
         
         try:
+            # DB band 조회 및 업데이트
             band = db.session.query(Bands).filter_by(bid=gps_data['bid']).first()
             if band:
                 app_logger.debug(f"업데이트 전 위치 : {band.latitude}, lng={band.longitude}")
+
+                if band.latitude is not None and band.longitude is not None:
+                    distance = haversine(band.latitude, band.longitude, gps_data['latitude'], gps_data['longitude'])
+                    if distance > 100:
+                        app_logger.warning(f"GPS 위치 변화가 너무 큽니다: 약 {distance:.2f}km 차이, 업데이트하지 않습니다.")
+                        return  # 업데이트하지 않고 함수 종료
+
                 band.latitude = gps_data['latitude']
                 band.longitude = gps_data['longitude']
                 db.session.commit()
@@ -136,7 +143,9 @@ def handle_gps_data(mqtt_data, extAddress):
         except Exception as e:
             app_logger.error(f"Error updating GPS data in DB: {e}")
         
+        # 프론트엔드에 이벤트 발행
         socketio.emit('ehg4_gps', gps_data, namespace='/admin')
+        #app_logger.debug(f"GPS Data emitted: {gps_data}")
         app_logger.info(f"Successfully processed and emitted GPS data for band: {extAddress}")
         
     except Exception as e:
