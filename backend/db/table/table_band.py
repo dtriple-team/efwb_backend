@@ -144,7 +144,7 @@ class Bands(db.Model):
     cold_warn = db.Column('cold_warn', db.Integer, comment='한파특보(주의,경고)')
     heat_illness_risk = db.Column('heat_illness_risk', db.Integer, comment='온열질환 위험(3단계)')
     rest_alert = db.Column('rest_alert', db.Integer, comment='휴식 알림(3단계)')
-    emergency_signal = db.Column('emergency_signal', db.Integer, comment='긴급 호출 신호')
+    # emergency_signal = db.Column('emergency_signal', db.Integer, comment='긴급 호출 신호')
     sw_ver = db.Column('sw_ver', db.Integer, comment='프로그램 버전')
 
     def serialize(self):

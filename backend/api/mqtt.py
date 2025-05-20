@@ -680,10 +680,10 @@ def handle_mqtt_message(client, userdata, message):
             insertEvent(
               dev.id, event_data['type'], event_data['value'])
 
-            if event_data['type'] == 6 and event_data['value'] in [0, 1]:
-              db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
-              db.session.commit()
-              db.session.flush()
+            # if event_data['type'] == 6 and event_data['value'] in [0, 1]:
+            #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
+            #   db.session.commit()
+            #   db.session.flush()
               db.session.remove()
               db.session.close()
 
