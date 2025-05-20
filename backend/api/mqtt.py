@@ -133,15 +133,14 @@ def handle_gps_data(mqtt_data, extAddress):
                 band.latitude = gps_data['latitude']
                 band.longitude = gps_data['longitude']
                 db.session.commit()
-                db.session.flush()
-                db.session.remove()
-                db.session.close()
                 app_logger.debug(f"업데이트 후 위치 : {band.latitude}, lng={band.longitude}")
             else:
                 app_logger.warning(f"Band not found for bid: {gps_data['bid']}")
                 
         except Exception as e:
             app_logger.error(f"Error updating GPS data in DB: {e}")
+        finally:
+          db.session.remove()
         
         # 프론트엔드에 이벤트 발행
         socketio.emit('ehg4_gps', gps_data, namespace='/admin')
@@ -220,9 +219,7 @@ def handle_gps_data(mqtt_data, extAddress):
 #                 band.latitude = gps_data['latitude']
 #                 band.longitude = gps_data['longitude']
 #                 db.session.commit()
-#                 db.session.flush()
 #                 db.session.remove()
-#                 db.session.close()
 #                 print(f"업데이트 후 위치: lat={band.latitude}, lng={band.longitude}")
 #             else:
 #                 print(f"해당 bid를 가진 band를 찾을 수 없음: {gps_data['bid']}")
@@ -278,7 +275,6 @@ def handle_ehg4_data(data, b_id):
       
     db.session.add(sensor_data)
     db.session.commit()
-    db.session.flush()
     app_logger.info(f"Successfully saved sensor data to database for band: {data['bid']}")
     
     # 실시간 데이터 전송
@@ -292,7 +288,6 @@ def handle_ehg4_data(data, b_id):
     app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
   finally:
     db.session.remove()
-    db.session.close()
 
 
 
@@ -315,7 +310,7 @@ def handle_sync_data(mqtt_data, extAddress):
       sensorDev = db.session.query(WalkRunCount).\
         filter(WalkRunCount.FK_bid == dev.id).\
         filter(func.date(WalkRunCount.datetime) == func.date(datetime.now(timezone('Asia/Seoul')))).first()
-      db.session.flush()
+      db.session.commit()
 
       mqtt_data['extAddress']['high'] = extAddress
       bandData = mqtt_data['bandData']
@@ -395,11 +390,9 @@ def handle_sync_data(mqtt_data, extAddress):
                       temp_run_steps=walkRunCount.temp_run_steps,
                       datetime=walkRunCount.datetime))
         db.session.commit()
-        db.session.flush()
       else:
         db.session.add(walkRunCount)
         db.session.commit()
-        db.session.flush()
       # data.x = bandData['x']
       # data.y = bandData['y']
       # data.z = bandData['z']
@@ -413,7 +406,6 @@ def handle_sync_data(mqtt_data, extAddress):
       data.datetime = datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
       db.session.commit()
-      db.session.flush()
       
       # Emit the sync data to the frontend
       app_logger.info(f"Emitting sync data: {mqtt_data} to namespace '/admin'")
@@ -439,7 +431,6 @@ def handle_sync_data(mqtt_data, extAddress):
       print(e)
     finally:
       db.session.remove()
-      db.session.close()
   else:
     insertBandData(extAddress)
     band = selectBandBid(extAddress)
@@ -473,7 +464,6 @@ def check_disconnected_bands():
                         socketio.emit('band_disconnect', disconnect_event, namespace='/admin')
                 
             db.session.commit()
-            db.session.flush()
             app_logger.info("Successfully checked and updated disconnected bands")
             
         except Exception as e:
@@ -481,7 +471,6 @@ def check_disconnected_bands():
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
         finally:
           db.session.remove()
-          db.session.close()
 
 # 백그라운드 스케줄러 설정
 def start_disconnect_checker():
@@ -560,14 +549,12 @@ def start_weather_warning_mqtt_publish_checker():
 
                 try:
                     db.session.commit()
-                    db.session.flush()
                     app_logger.info("DB commit successful.")
                 except Exception as e:
                     db.session.rollback()
                     app_logger.error(f"Failed to update DB: {e}")
                 finally:
                   db.session.remove()
-                  db.session.close()
             if WeatherState.warn_send_flag == 2:
                 topic = "/DT/eHG4/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 1,99,99"
@@ -595,14 +582,12 @@ def start_weather_warning_mqtt_publish_checker():
                         setattr(dev, 'cold_warn', None)
                 try:
                     db.session.commit()
-                    db.session.flush()
                     app_logger.info("DB commit successful.")
                 except Exception as e:
                     db.session.rollback()
                     app_logger.error(f"Failed to update DB: {e}")
                 finally:
                   db.session.remove()
-                  db.session.close()
 
 
             socketio.sleep(180)
@@ -716,9 +701,7 @@ def handle_mqtt_message(client, userdata, message):
             # if event_data['type'] == 6 and event_data['value'] in [0, 1]:
             #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
             #   db.session.commit()
-            #   db.session.flush()
             #   db.session.remove()
-            #   db.session.close()
 
             event_socket = {
               "type": event_data['type'],
@@ -729,7 +712,6 @@ def handle_mqtt_message(client, userdata, message):
             socketio.emit('efwbasync', event_socket,namespace='/admin')
             app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
             db.session.remove()
-            db.session.close()
           else:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
           event_thread = None
