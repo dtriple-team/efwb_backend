@@ -684,8 +684,8 @@ def handle_mqtt_message(client, userdata, message):
             #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
             #   db.session.commit()
             #   db.session.flush()
-              db.session.remove()
-              db.session.close()
+            db.session.remove()
+            db.session.close()
 
             event_socket = {
               "type": event_data['type'],
