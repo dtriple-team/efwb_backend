@@ -117,7 +117,6 @@ def insertEvent(id, type, value):
     events.datetime = datetime.datetime.now()
     db.session.add(events)
     db.session.commit()
-    db.session.remove()
     
 # def selectGatewayLog(gid):
 #     print("[method] selectGatewayLog")

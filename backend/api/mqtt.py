@@ -590,7 +590,7 @@ def start_weather_warning_mqtt_publish_checker():
                   db.session.remove()
 
 
-            socketio.sleep(180)
+            socketio.sleep(120)#기존: 180
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
