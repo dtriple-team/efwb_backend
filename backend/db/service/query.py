@@ -34,6 +34,7 @@ def selectBandBid(bid):
 #     gateways_bands.FK_bid = bid
 #     db.session.add(gateways_bands)
 #     db.session.commit()
+#     db.session.remove()
 
 def insertUsers():
     user = Users()
@@ -44,14 +45,17 @@ def insertUsers():
     user.permission = 1
     db.session.add(user)
     db.session.commit()
+    db.session.remove()
 
 def updateBandNameAlias(bid, name, alias):
     db.session.query(Bands).filter_by(id = bid).update(dict(name=name, alias=alias))
     db.session.commit()
+    db.session.remove()
 
 # def updateGatewayAlias(pid, alias):
 #     db.session.query(Gateways).filter_by(id = pid).update(dict(alias=alias))
 #     db.session.commit()
+#     db.session.remove()
 
 def insertBandData(extAddress):
     bands = Bands()
@@ -63,6 +67,7 @@ def insertBandData(extAddress):
         
     db.session.add(bands)        
     db.session.commit()
+    db.session.remove()
     
 # def insertUsersGateways(uid,pid):
 #     users_gateways = UsersGateways()
@@ -70,6 +75,7 @@ def insertBandData(extAddress):
 #     users_gateways.FK_uid = uid
 #     db.session.add(users_gateways)
 #     db.session.commit()
+#     db.session.remove()
 
 def insertUsersGroups(uid,gid):
     users_groups = UsersGroups()
@@ -84,6 +90,7 @@ def insertUsersBands(uid, bid):
     users_bands.FK_uid = uid
     db.session.add(users_bands)
     db.session.commit()
+    db.session.remove()
 
 def insertSensorData(data, ):
     data = SensorData()
@@ -100,6 +107,8 @@ def insertSensorData(data, ):
 #     gateways.location = "서울"
 #     db.session.add(gateways)
 #     db.session.commit()
+#     db.session.remove()
+
 def insertEvent(id, type, value):
     events = Events()
     events.FK_bid = id
@@ -108,7 +117,7 @@ def insertEvent(id, type, value):
     events.datetime = datetime.datetime.now()
     db.session.add(events)
     db.session.commit()
-    db.session.flush()  
+    db.session.remove()
     
 # def selectGatewayLog(gid):
 #     print("[method] selectGatewayLog")
@@ -137,7 +146,7 @@ def insertEvent(id, type, value):
 #     db.session.query(Gateways).filter_by(id=gid).\
 #         update(dict(connect_check_time=datetime.datetime.now(timezone('Asia/Seoul'))))
 #     db.session.commit()
-#     db.session.flush()
+#     db.session.remove()
     
 # def updateGatewaysConnect(gid, type):
 #     print("[method] updateGatewaysConnect")
@@ -158,8 +167,7 @@ def insertEvent(id, type, value):
 #     gatewayLog.type = type
 #     db.session.add(gatewayLog) 
 #     db.session.commit()
-#     db.session.flush()
-#     # db.session.close() 
+#     db.session.remove() 
 
 # def selectBandsConnectGateway(gid):
 #     print("[method] selectBandsConnectGateway")
@@ -175,7 +183,7 @@ def updateConnectBands(bid , type):
           disconnect_time=datetime.datetime.now(timezone('Asia/Seoul'))
           , connect_state = type))
     db.session.commit()
-    db.session.flush()
+    db.session.remove()
 
 def insertConnectBandLog(bid, type):
     print("[method] setBandLog")
@@ -184,5 +192,5 @@ def insertConnectBandLog(bid, type):
     bandlog.type = type
     db.session.add(bandlog)
     db.session.commit()
-    db.session.flush()
+    db.session.remove()
       
