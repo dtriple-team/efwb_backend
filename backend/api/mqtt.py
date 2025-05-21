@@ -695,23 +695,34 @@ def handle_mqtt_message(client, userdata, message):
           dev = db.session.query(Bands).filter_by(bid=extAddress).first()
           
           if dev is not None:
-            insertEvent(
-              dev.id, event_data['type'], event_data['value'])
+              insertEvent(
+                  dev.id, event_data['type'], event_data['value']
+              )
 
-            # if event_data['type'] == 6 and event_data['value'] in [0, 1]:
-            #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
-            #   db.session.commit()
-            #   db.session.remove()
+              # ✅ 이벤트 후 Webhook 호출
+              try:
+                  response = requests.get("https://hdwitheye.mycafe24.com/api/v1/hook")
+                  if response.status_code == 200:
+                      print("Webhook 호출 성공")
+                  else:
+                      print(f"Webhook 호출 실패: {response.status_code}")
+              except Exception as e:
+                  print(f"Webhook 호출 중 오류 발생: {e}")
 
-            event_socket = {
-              "type": event_data['type'],
-              "value": event_data['value'],
-              "bid": dev.bid,
-              "name": dev.name
-            }
-            socketio.emit('efwbasync', event_socket,namespace='/admin')
-            app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
-            db.session.remove()
+              # if event_data['type'] == 6 and event_data['value'] in [0, 1]:
+              #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
+              #   db.session.commit()
+              #   db.session.remove()
+
+              event_socket = {
+                  "type": event_data['type'],
+                  "value": event_data['value'],
+                  "bid": dev.bid,
+                  "name": dev.name
+              }
+              socketio.emit('efwbasync', event_socket,namespace='/admin')
+              app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
+              db.session.remove()
           else:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
           event_thread = None
