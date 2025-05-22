@@ -10,12 +10,9 @@ from zoneinfo import ZoneInfo
 
 class WeatherState:
     location = None
-    temp = None
-    humidity = None
     warn_types = None
     warn_levels = None
     warn_send_flag = None
-    feels_like = None
 
 def getAirpressure(date) :
     try:
@@ -235,16 +232,6 @@ def get_weather(location, lat, lng):
             "humidity": humidity,
             "feels_like": feels_like
         }
-
-        # 예시: WeatherState 같은 외부 상태 객체가 있다면 여기서 설정
-        WeatherState.temp = temp
-        WeatherState.humidity = humidity
-        WeatherState.feels_like = feels_like
-
-        # 특보 정보 (함수 정의 필요 시 주석)
-        warn_weather = get_warn_weather(location, lat, lng)
-        print("기상 특보 정보:", warn_weather)
-
         return result
 
     except Exception as e:
@@ -252,7 +239,7 @@ def get_weather(location, lat, lng):
         return None
 
 # 주의보, 경고, 체감온도      
-def get_warn_weather(location, lat, lng):
+def get_warn_weather(lat, lng):
     # 현재 시간 정보 설정
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     base_date = now.strftime("%Y%m%d")
