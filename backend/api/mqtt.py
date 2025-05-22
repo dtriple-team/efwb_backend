@@ -436,8 +436,6 @@ def handle_sync_data(mqtt_data, extAddress):
       # app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
 
-      publish_weather_mqtt_by_bid(dev.bid)
-
     except Exception as e:
       db.session.rollback()
       app_logger.error(f"Error up dating band connection status: {str(e)}")
@@ -558,8 +556,8 @@ def publish_weather_mqtt_by_bid(bid):
     except Exception as e:
         app_logger.error(f"[DB] Failed to fetch band {bid}: {e}")
 
-def publish_weather_mqtt_to_bands():
-    """밴드별로 현재 날씨 정보를 MQTT로 전송"""
+def start_publish_weather_mqtt_to_bands():
+    """30마다 밴드별로 현재 날씨 정보를 MQTT로 전송"""
     while True:
         band_data_list = fetch_connected_band_data()
 
@@ -599,7 +597,7 @@ def publish_weather_mqtt_to_bands():
             except Exception as e:
                 app_logger.error(f"[MQTT] Failed to publish for band {bid}: {e}")
 
-        socketio.sleep(120)  # 3분 간격
+        socketio.sleep(60*30)  # 30분 간격
 
 def start_weather_warning_mqtt_publish_checker():
     """3분마다 기상특보가 있는지 체크해서 밴드별로 MQTT 전송 및 DB 갱신"""
@@ -729,7 +727,18 @@ def handle_mqtt_message(client, userdata, message):
     #                 extAddress=extAddress
     #             )
     #             mqtt_thread = None
-              
+    elif message.topic == '/DT/eHG4/WEATHER/GET':
+      with thread_lock:
+        if mqtt_thread is None:
+            mqtt_data = json.loads(message.payload.decode())
+            extAddress = int(
+                format(mqtt_data['extAddress']['high'], 'x') +
+                format(mqtt_data['extAddress']['low'], 'x'),
+                16
+            )
+            publish_weather_mqtt_by_bid(extAddress)
+            mqtt_thread = None
+
     elif message.topic == '/DT/eHG4/post/connectcheck':
       with thread_lock:
         if gw_thread is None:

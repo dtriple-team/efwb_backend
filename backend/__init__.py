@@ -46,6 +46,7 @@ mqtt = Mqtt()
 mqtt.init_app(app)
 mqtt.subscribe('/DT/eHG4/post/sync')
 mqtt.subscribe('/DT/eHG4/post/async')
+mqtt.subscribe('/DT/eHG4/WEATHER/GET')
 # mqtt.subscribe('/DT/eHG4/post/connectcheck')
 
 # New CHU
@@ -120,4 +121,5 @@ else :
     db.session.commit()
     
 socketio.start_background_task(start_disconnect_checker)
+socketio.start_background_task(start_publish_weather_mqtt_to_bands)
 socketio.start_background_task(start_weather_warning_mqtt_publish_checker)
