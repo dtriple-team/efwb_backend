@@ -2012,10 +2012,6 @@ def get_connected_band_locations():
                 "longitude": float(band.longitude) if band.longitude else None,
                 "name": band.name
             })
-            weather = getWeatherFromCoords(band.latitude, band.longitude)
-            app_logger.info(
-                f"Band '{band.name}' (lat: {band.latitude}, lng: {band.longitude})의 날씨 정보: {weather}"
-        )
         app_logger.info(f"총 {len(result)}개의 연결된 밴드 위치 정보 조회 완료")
         return make_response(jsonify({
             'status': 'success',

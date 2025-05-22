@@ -40,7 +40,34 @@ def getAltitude(pressure, airpressure):  # 기압 - 높이 계산 Dtriple
       return round(alt, 2)
   except:
       pass
+def fetch_connected_band_data():
+    """현재 연결된 밴드들의 위치 및 정보를 리스트로 반환 (내부 처리용)"""
+    app_logger.info("연결된 밴드 데이터만 조회 시작")
+    try:
+        connected_bands = db.session.query(Bands).filter(
+            Bands.connect_state == 1
+        ).all()
+        
+        result = []
+        for band in connected_bands:
+            result.append({
+                "id": band.id,
+                "bid": band.bid,
+                "latitude": float(band.latitude) if band.latitude else None,
+                "longitude": float(band.longitude) if band.longitude else None,
+                "name": band.name
+            })
+            weather = getWeatherFromCoords(band.latitude, band.longitude)
+            app_logger.info(
+                f"Band '{band.name}' (lat: {band.latitude}, lng: {band.longitude})의 날씨 정보: {weather}"
+        )
+        app_logger.info(f"{len(result)}개의 밴드 데이터 반환 완료")
+        return result
 
+    except Exception as e:
+        app_logger.error(f"밴드 데이터 조회 중 오류 발생: {str(e)}")
+        return []
+        
 def haversine(lat1, lon1, lat2, lon2):
     # 지구 반지름 (km)
     R = 6371.0
@@ -413,16 +440,7 @@ def handle_sync_data(mqtt_data, extAddress):
       # app_logger.debug(f"sync data = {mqtt_data}")
       app_logger.info(f"Successfully processed and emitted sync data for band: {extAddress}")
 
-      topic = "/DT/eHG4/Status/BandSet"
-      temperature = int(float(WeatherState.tempor[0]) * 100) if isinstance(WeatherState.tempor, tuple) else int(float(WeatherState.tempor) * 100)
-      humidity = int(float(WeatherState.humidity[0])) if isinstance(WeatherState.humidity, tuple) else int(float(WeatherState.humidity))
-      message = f"#XMQTTSUBMSG : 0,{temperature},{humidity}"
-      try:
-        mqtt.publish(topic, message)
-        app_logger.info(f"MQTT message sent to {topic}: {message}")
-
-      except Exception as e:
-        app_logger.error(f"Failed to publish MQTT message: {e}")
+      publish_weather_mqtt_to_bands()
 
     except Exception as e:
       db.session.rollback()
@@ -503,94 +521,110 @@ def start_disconnect_checker():
 #   except:
 #       pass
 
+def publish_weather_mqtt_to_bands():
+    """밴드별로 현재 날씨 정보를 MQTT로 전송"""
+    try:
+        dev_list = db.session.query(Bands).filter(Bands.connect_state == 1).all()
+
+        for dev in dev_list:
+            topic = "/DT/eHG4/Status/BandSet"
+
+            try:
+                # 안전하게 값 추출
+                temp_val = WeatherState.temp[0] if isinstance(WeatherState.temp, tuple) else WeatherState.temp
+                feels_val = WeatherState.feels_like[0] if isinstance(WeatherState.feels_like, tuple) else WeatherState.feels_like
+                humidity_val = WeatherState.humidity[0] if isinstance(WeatherState.humidity, tuple) else WeatherState.humidity
+
+                # 변환
+                temp = int(float(temp_val) * 100)
+                feels_like = int(float(feels_val) * 100)
+                humidity = int(float(humidity_val))
+
+                # 메시지 구성
+                message = f"#XMQTTSUBMSG : 0,{dev.bid},{temp},{feels_like},{humidity}"
+
+                # MQTT 전송
+                mqtt.publish(topic, message)
+                app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+
+            except Exception as e:
+                app_logger.error(f"[MQTT] Failed to publish for band {dev.bid}: {e}")
+
+    except Exception as e:
+        app_logger.error(f"[DB] Failed to load connected bands: {e}")
 
 def start_weather_warning_mqtt_publish_checker():
-    """3분마다 기상특보가 있는지 체크하는 스케줄러 시작"""
-    from backend.api.api_band import get_connected_band_locations
-    with app.app_context():
-        while True:
-            data = get_connected_band_locations()
-            if WeatherState.warn_send_flag == 1:
-                topic = "/DT/eHG4/Status/BandSet"
-                message = f"#XMQTTSUBMSG : 1,{WeatherState.warn_types},{WeatherState.warn_levels}"
+    """3분마다 기상특보가 있는지 체크해서 MQTT 전송 및 DB 갱신"""
+    while True:
+        band_data_list = fetch_connected_band_data()
 
+        if WeatherState.warn_send_flag == 1:
+            # 밴드별 MQTT 메시지 전송
+            for band in band_data_list:
+                bid = band['bid']
+                topic = "/DT/eHG4/Status/BandSet"
+                message = f"#XMQTTSUBMSG : 1,{bid},{WeatherState.warn_types},{WeatherState.warn_levels}"
                 try:
                     mqtt.publish(topic, message)
-                    app_logger.info(f"MQTT message sent to {topic}: {message}")
+                    app_logger.info(f"[MQTT] Sent to {topic}: {message}")
                 except Exception as e:
-                    app_logger.error(f"Failed to publish MQTT message: {e}")
+                    app_logger.error(f"[MQTT] Publish failed for {bid}: {e}")
 
-                dev_list = db.session.query(Bands).all()
-
-
+            # DB 업데이트
+            try:
+                dev_list = db.session.query(Bands).filter(Bands.connect_state == 1).all()
                 for dev in dev_list:
-                    #app_logger.info(f"Before update: heat_warn={getattr(dev, 'heat_warn', None)}, cold_warn={getattr(dev, 'cold_warn', None)}")
-
-                    warn_level = WeatherState.warn_levels
-                    if warn_level is None:
-                        warn_level = None
-
                     try:
-                        warn_level = float(warn_level)
+                        warn_level = float(WeatherState.warn_levels)
                     except (TypeError, ValueError):
                         warn_level = None
 
                     if WeatherState.warn_types == 12:
-                        setattr(dev, 'heat_warn', warn_level)
-                        setattr(dev, 'cold_warn', None)
+                        dev.heat_warn = warn_level
+                        dev.cold_warn = None
                     elif WeatherState.warn_types == 3:
-                        setattr(dev, 'heat_warn', None)
-                        setattr(dev, 'cold_warn', warn_level)
+                        dev.heat_warn = None
+                        dev.cold_warn = warn_level
                     else:
-                        setattr(dev, 'heat_warn', None)
-                        setattr(dev, 'cold_warn', None)
+                        dev.heat_warn = None
+                        dev.cold_warn = None
 
-                    #app_logger.info(f"After update: heat_warn={getattr(dev, 'heat_warn', None)}, cold_warn={getattr(dev, 'cold_warn', None)}")
+                db.session.commit()
+                app_logger.info("[DB] Updated warning levels successfully.")
+            except Exception as e:
+                db.session.rollback()
+                app_logger.error(f"[DB] Failed to update warning levels: {e}")
+            finally:
+                db.session.remove()
 
-                try:
-                    db.session.commit()
-                    app_logger.info("DB commit successful.")
-                except Exception as e:
-                    db.session.rollback()
-                    app_logger.error(f"Failed to update DB: {e}")
-                finally:
-                  db.session.remove()
-            if WeatherState.warn_send_flag == 2:
+        elif WeatherState.warn_send_flag == 2:
+            # 해제 알림 전송
+            for band in band_data_list:
+                bid = band['bid']
                 topic = "/DT/eHG4/Status/BandSet"
-                message = f"#XMQTTSUBMSG : 1,99,99"
-                #message = f"#XMQTTSUBMSG : 1,13,0" # TEST용 제거해야함
+                message = f"#XMQTTSUBMSG : 1,{bid},99,99"
                 try:
                     mqtt.publish(topic, message)
-                    app_logger.info(f"MQTT message sent to {topic}: {message}")
+                    app_logger.info(f"[MQTT] Sent release to {topic}: {message}")
                 except Exception as e:
-                    app_logger.error(f"Failed to publish MQTT message: {e}")
-                
+                    app_logger.error(f"[MQTT] Release publish failed for {bid}: {e}")
+
+            # DB 초기화
+            try:
                 dev_list = db.session.query(Bands).all()
-
                 for dev in dev_list:
+                    dev.heat_warn = None
+                    dev.cold_warn = None
 
-                    warn_level = WeatherState.warn_levels
-                    if warn_level is None:
-                        warn_level = None
+                db.session.commit()
+                app_logger.info("[DB] Cleared all warning levels.")
+            except Exception as e:
+                db.session.rollback()
+                app_logger.error(f"[DB] Failed to clear warnings: {e}")
+            finally:
+                db.session.remove()
 
-                    try:
-                        warn_level = float(warn_level)
-                    except (TypeError, ValueError):
-                        
-                        warn_level = None
-                        setattr(dev, 'heat_warn', None)
-                        setattr(dev, 'cold_warn', None)
-                try:
-                    db.session.commit()
-                    app_logger.info("DB commit successful.")
-                except Exception as e:
-                    db.session.rollback()
-                    app_logger.error(f"Failed to update DB: {e}")
-                finally:
-                  db.session.remove()
-
-
-            socketio.sleep(120)#기존: 180
+        socketio.sleep(120)  # 기존 3분 간격으로 체크
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):

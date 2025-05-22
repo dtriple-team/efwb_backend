@@ -10,12 +10,12 @@ from zoneinfo import ZoneInfo
 
 class WeatherState:
     location = None
-    tempor = None
+    temp = None
     humidity = None
     warn_types = None
     warn_levels = None
     warn_send_flag = None
-    
+    feels_like = None
 
 def getAirpressure(date) :
     try:
@@ -116,11 +116,7 @@ def latlon_to_xy(lat, lon):
     return int(x), int(y)
 
 def get_fcst_base_datetime(now):
-    """
-    현재 시간 기준으로 단기예보 base_time을 계산한다.
-    단기예보는 02, 05, 08, 11, 14, 17, 20, 23시에 갱신되므로
-    그 중 가장 가까운 이전 시각을 선택해야 한다.
-    """
+    """현재 시간 기준으로 단기예보 base_time 계산"""
     base_hours = [2, 5, 8, 11, 14, 17, 20, 23]
     for hour in reversed(base_hours):
         base_candidate = now.replace(hour=hour, minute=0, second=0, microsecond=0)
@@ -128,28 +124,39 @@ def get_fcst_base_datetime(now):
             base_time = base_candidate
             break
     else:
-        # 새벽 0~1시: 전날 23시 사용
         base_time = (now - timedelta(days=1)).replace(hour=23, minute=0, second=0, microsecond=0)
 
     base_date = base_time.strftime("%Y%m%d")
     base_time_str = base_time.strftime("%H%M")
     return base_date, base_time_str
 
-# 단기 / 초단기 예보 수신
+def calculate_wind_chill(temp_c, wind_mps):
+    """겨울철 체감온도 계산 (섭씨, 풍속 m/s)"""
+    v_kmph = wind_mps * 3.6
+    wc = 13.12 + 0.6215 * temp_c - 11.37 * (v_kmph ** 0.16) + 0.3965 * temp_c * (v_kmph ** 0.16)
+    return round(wc, 1)
+    
+def calculate_heat_index(temp_c, humidity):
+    """여름철 열지수 기반 체감온도 계산"""
+    T = temp_c * 9 / 5 + 32
+    R = humidity
+    HI = (-42.379 + 2.04901523*T + 10.14333127*R - 0.22475541*T*R -
+          0.00683783*T*T - 0.05481717*R*R + 0.00122874*T*T*R +
+          0.00085282*T*R*R - 0.00000199*T*T*R*R)
+    HI_c = (HI - 32) * 5 / 9
+    return round(HI_c, 1)
+
 def get_weather(location, lat, lng):
     nx, ny = latlon_to_xy(lat, lng)
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     one_hour_ago = now - timedelta(hours=1)
     base_time = one_hour_ago.replace(minute=0, second=0, microsecond=0)
-    print("now =", now)
-    print("base_time =", base_time)
     base_date = base_time.strftime("%Y%m%d")
     base_time_str = base_time.strftime("%H%M")
 
-    
-    api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="  # 여기에 실제 API 키 입력
+    api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="  # 실제 키 입력
 
-    # ✅ 초단기 실황 (현재 날씨)
+    # 초단기 실황
     url1 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
     params1 = {
         'serviceKey': api_key,
@@ -162,15 +169,12 @@ def get_weather(location, lat, lng):
         'ny': ny
     }
 
-    # ✅ 단기 예보 (최저/최고 기온)
+    # 단기예보
     now = datetime.now() - timedelta(hours=1)
-    query_time = now
-
-    # 새벽 0~1시는 전날 데이터를 조회해야 하므로 하루 전으로 조정
     if now.hour < 2:
-        query_time -= timedelta(days=1)
+        now -= timedelta(days=1)
 
-    fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(query_time)
+    fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(now)
 
     url2 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
     params2 = {
@@ -184,26 +188,17 @@ def get_weather(location, lat, lng):
         'ny': ny
     }
 
-
     try:
-        # 초단기 실황 요청
         response1 = requests.get(url1, params=params1)
-        if response1.status_code == 200:
-            print("초단기 실황 응답:")  # 응답 내용 출력 (디버깅 용)
-            #print("초단기 실황 응답:", response1.text)  # 응답 내용 출력 (디버깅 용)
-        else:
+        if response1.status_code != 200:
             print(f"초단기 실황 요청 실패. 상태 코드: {response1.status_code}")
             return None
 
         items1 = response1.json()['response']['body']['items']['item']
         weather_data = {item['category']: item['obsrValue'] for item in items1}
 
-        # 단기 예보 요청 (최저/최고 기온)
         response2 = requests.get(url2, params=params2)
-        if response2.status_code == 200:
-            print("단기 예보 응답:")  # 응답 내용 출력 (디버깅 용)
-            #print("단기 예보 응답:", response2.text)  # 응답 내용 출력 (디버깅 용)
-        else:
+        if response2.status_code != 200:
             print(f"단기 예보 요청 실패. 상태 코드: {response2.status_code}")
             return None
 
@@ -215,23 +210,38 @@ def get_weather(location, lat, lng):
             min_temp = int(float(min_temp))
         except (ValueError, TypeError):
             min_temp = '정보 없음'
+
         try:
             max_temp = int(float(max_temp))
         except (ValueError, TypeError):
             max_temp = '정보 없음'
-        
+
+        temp = float(weather_data.get('T1H', 0))
+        wind = float(weather_data.get('WSD', 0))
+        humidity = float(weather_data.get('REH', 0))
+
+        # 체감온도 계산
+        feels_like = calculate_wind_chill(temp, wind)
+        feels_like = calculate_heat_index(feels_like, humidity)
+
         result = {
             "city": location,
-            "temp": weather_data.get('T1H', '정보 없음'),
+            "temp": temp,
             "status": weather_data.get('PTY', '정보 없음'),
-            "min":min_temp,
-            "max":max_temp,
-            "wind": weather_data.get('WSD', '정보 없음'),
+            "min": min_temp,
+            "max": max_temp,
+            "wind": wind,
             "wind_strength": weather_data.get('VEC', '정보 없음'),
-            "humidity": weather_data.get('REH', '정보 없음'),
+            "humidity": humidity,
+            "feels_like": feels_like
         }
-        WeatherState.tempor = weather_data.get('T1H', '정보 없음'),
-        WeatherState.humidity = weather_data.get('REH', '정보 없음')
+
+        # 예시: WeatherState 같은 외부 상태 객체가 있다면 여기서 설정
+        WeatherState.temp = temp
+        WeatherState.humidity = humidity
+        WeatherState.feels_like = feels_like
+
+        # 특보 정보 (함수 정의 필요 시 주석)
         warn_weather = get_warn_weather(location, lat, lng)
         print("기상 특보 정보:", warn_weather)
 
