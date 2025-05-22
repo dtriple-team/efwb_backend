@@ -37,11 +37,16 @@ def searchAirpressure(trtemp, atemp, location):
     tdtemp = trtemp[at+2].find_all('td')
     return  float(tdtemp[len(tdtemp)-1].text)
 
+# 위치별 캐시: {(lat, lng): (region_1depth_name, region_2depth_name)}
+location_cache = {}
+
 def get_province_from_coords(lat, lng):
+    key = (round(lat, 4), round(lng, 4))  # 소수점 정밀도 줄여서 캐시 효율 ↑
+    if key in location_cache:
+        return location_cache[key][0]  # 1depth
+
     url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
-    headers = {
-        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
-    }
+    headers = {"Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"}
 
     try:
         response = requests.get(url, headers=headers)
@@ -55,35 +60,25 @@ def get_province_from_coords(lat, lng):
             return None
 
         address_info = documents[0].get("address", {})
-        return address_info.get("region_1depth_name")
+        region_1 = address_info.get("region_1depth_name")
+        region_2 = address_info.get("region_2depth_name")
+
+        location_cache[key] = (region_1, region_2)
+        return region_1
 
     except Exception as e:
         print(f"오류 발생: {e}")
         return None
+
 
 def get_city_from_coords(lat, lng):
-    url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
-    headers = {
-        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
-    }
+    key = (round(lat, 4), round(lng, 4))
+    if key in location_cache:
+        return location_cache[key][1]  # 2depth
 
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print(f"요청 실패: {response.status_code}")
-            return None
-
-        data = response.json()
-        documents = data.get("documents", [])
-        if not documents:
-            return None
-
-        address_info = documents[0].get("address", {})
-        return address_info.get("region_2depth_name")
-
-    except Exception as e:
-        print(f"오류 발생: {e}")
-        return None
+    # 이 함수에서도 캐시가 없다면 get_province_from_coords를 먼저 호출해도 OK
+    get_province_from_coords(lat, lng)
+    return location_cache.get(key, (None, None))[1]
 
 def getWeatherFromCoords(lat, lng):
     location = get_city_from_coords(lat, lng)
