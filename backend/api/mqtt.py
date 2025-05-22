@@ -532,7 +532,7 @@ def publish_weather_mqtt_to_bands():
             lng = band.get('longitude')
 
             if lat is None or lng is None:
-                app_logger.warning(f"Band {bid} 위치 정보 부족")
+                app_logger.warning(f"Band {bid} 위치 정보 없음")
                 continue
 
             # 밴드별 날씨 정보 조회
@@ -542,7 +542,7 @@ def publish_weather_mqtt_to_bands():
                 continue
 
             try:
-                # 안전하게 값 추출
+                # 값 추출
                 temp_val = weather.get("temp")
                 feels_val = weather.get("feels_like")
                 humidity_val = weather.get("humidity")
@@ -577,16 +577,10 @@ def start_weather_warning_mqtt_publish_checker():
 
             # lat, lng 먼저 체크
             if lat is None or lng is None:
-                app_logger.warning(f"Band {bid} 위치 정보 부족, 특보 조회 종료")
+                app_logger.warning(f"Band {bid} 위치 정보 없음")
                 continue
 
-            # # 위치 먼저 할당
-            # location = get_city_from_coords(lat, lng)
-            # if not location:
-            #     app_logger.warning(f"Band {bid} 위치 정보에서 주소 추출 실패, 특보 조회 건너뜀")
-            #     continue
-
-            get_warn_weather(lat, lng) # 도 단위로 수정 location x
+            get_warn_weather(lat, lng)
 
             topic = "/DT/eHG4/Status/BandSet"
             if WeatherState.warn_send_flag == 1:
