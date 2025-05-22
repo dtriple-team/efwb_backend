@@ -37,28 +37,52 @@ def searchAirpressure(trtemp, atemp, location):
     tdtemp = trtemp[at+2].find_all('td')
     return  float(tdtemp[len(tdtemp)-1].text)
 
-
-def get_city_from_coords(lat, lng):
-    url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
+def get_province_from_coords(lat, lng):
+    url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
     headers = {
-        "User-Agent": "yourapp/1.0 (your@email.com)"
+        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
     }
 
     try:
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
+            print(f"요청 실패: {response.status_code}")
             return None
 
         data = response.json()
-        address = data.get('address', {})
+        documents = data.get("documents", [])
+        if not documents:
+            return None
 
-        # 우선순위대로 시/군/구 키 확인
-        for key in ['city', 'county', 'town', 'village']:
-            if key in address:
-                return address[key]
+        address_info = documents[0].get("address", {})
+        return address_info.get("region_1depth_name")
 
-        return None
     except Exception as e:
+        print(f"오류 발생: {e}")
+        return None
+
+def get_city_from_coords(lat, lng):
+    url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
+    headers = {
+        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print(f"요청 실패: {response.status_code}")
+            return None
+
+        data = response.json()
+        documents = data.get("documents", [])
+        if not documents:
+            return None
+
+        address_info = documents[0].get("address", {})
+        return address_info.get("region_2depth_name")
+
+    except Exception as e:
+        print(f"오류 발생: {e}")
         return None
 
 def getWeatherFromCoords(lat, lng):
@@ -273,32 +297,12 @@ def get_warn_weather(lat, lng):
         "제주특별자치도": "184"
     }
 
-    # 위도/경도로 지역 정보 가져오기
-    url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
-    headers = {
-        "User-Agent": "yourapp/1.0 (your@email.com)"
-    }
-
     try:
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
+        region = get_province_from_coords(lat, lng)
+        if not region:
             return {"error": "지역 정보 조회 실패"}
 
-        data = response.json()
-        address = data.get('address', {})
-        
-        # 도 정보 추출
-        region = None
-        for key in ['province']:
-            if key in address:
-                region = address[key]
-                break
-
-        if not region:
-            return {"error": "지역 정보 추출 실패"}
-
-        # stnId 찾기
-        stnId = REGION_TO_STNID.get(region, "108")  # 기본값은 전국(108)
+        stnId = REGION_TO_STNID.get(region, "108")  # 기본값: 전국
 
         # 기상특보 API 호출
         warn_url = 'http://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnMsg'
