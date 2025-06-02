@@ -38,37 +38,85 @@ def searchAirpressure(trtemp, atemp, location):
     return  float(tdtemp[len(tdtemp)-1].text)
 
 def get_province_from_coords(lat, lng):
-    url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
-    headers = {
-        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
+    # 1차: Nominatim API (OpenStreetMap)
+    nominatim_url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
+    nominatim_headers = {
+        "User-Agent": "yourapp/1.0 (your@email.com)"
     }
+
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(nominatim_url, headers=nominatim_headers, timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            address = data.get('address', {})
+
+            for key in ['province']:
+                if key in address:
+                    return address[key]
+            
+            # province가 없으면 실패 처리
+            print("[Nominatim] 지역 정보 추출 실패: province 없음")
+        else:
+            print(f"[Nominatim] 요청 실패: {response.status_code}")
+    except Exception as e:
+        print(f"[Nominatim] 오류 발생: {e}")
+
+    # 2차: Kakao API fallback
+    kakao_url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
+    kakao_headers = {
+        "Authorization": "akaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
+    }
+
+    try:
+        response = requests.get(kakao_url, headers=kakao_headers, timeout=3)
         if response.status_code != 200:
-            print(f"요청 실패: {response.status_code}")
-            return None
+            print(f"[Kakao] 요청 실패: {response.status_code}")
+            return {"error": "지역 정보 조회 실패 (Kakao)"}
 
         data = response.json()
         documents = data.get("documents", [])
         if not documents:
-            return None
+            print("[Kakao] 지역 정보 없음")
+            return {"error": "지역 정보 없음 (Kakao)"}
 
         address_info = documents[0].get("address", {})
-        return address_info.get("region_1depth_name")
+        province = address_info.get("region_1depth_name")
+        return province if province else {"error": "지역 정보 추출 실패 (Kakao)"}
 
     except Exception as e:
-        print(f"오류 발생: {e}")
-        return None
+        print(f"[Kakao] 오류 발생: {e}")
+        return {"error": "예외 발생 (Kakao)"}
 
 def get_city_from_coords(lat, lng):
-    url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
-    headers = {
+    # 1차: Nominatim (OpenStreetMap) API
+    nominatim_url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
+    nominatim_headers = {
+        "User-Agent": "yourapp/1.0 (your@email.com)"
+    }
+
+    try:
+        response = requests.get(nominatim_url, headers=nominatim_headers, timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            address = data.get('address', {})
+
+            for key in ['city', 'county', 'town', 'village']:
+                if key in address:
+                    return address[key]
+        # 실패 시 Kakao API로 넘어감
+    except Exception as e:
+        pass  # 조용히 무시하고 Kakao로 넘어감
+
+    # 2차: Kakao API
+    kakao_url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
+    kakao_headers = {
         "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
     }
+
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(kakao_url, headers=kakao_headers, timeout=3)
         if response.status_code != 200:
-            print(f"요청 실패: {response.status_code}")
+            print(f"[Kakao] 요청 실패: {response.status_code}")
             return None
 
         data = response.json()
@@ -80,7 +128,7 @@ def get_city_from_coords(lat, lng):
         return address_info.get("region_2depth_name")
 
     except Exception as e:
-        print(f"오류 발생: {e}")
+        print(f"[Kakao] 오류 발생: {e}")
         return None
 
 def getWeatherFromCoords(lat, lng):
