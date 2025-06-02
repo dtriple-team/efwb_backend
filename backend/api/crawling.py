@@ -52,6 +52,7 @@ def get_province_from_coords(lat, lng):
 
             for key in ['province']:
                 if key in address:
+                    print(f"[openstreetmap] 요청 성공")
                     return address[key]
             
             # province가 없으면 실패 처리
@@ -81,6 +82,7 @@ def get_province_from_coords(lat, lng):
 
         address_info = documents[0].get("address", {})
         province = address_info.get("region_1depth_name")
+        print(f"[Kakao] 요청 성공")
         return province if province else {"error": "지역 정보 추출 실패 (Kakao)"}
 
     except Exception as e:
@@ -102,6 +104,7 @@ def get_city_from_coords(lat, lng):
 
             for key in ['city', 'county', 'town', 'village']:
                 if key in address:
+                    print(f"[openstreetmap] 요청 성공")
                     return address[key]
         # 실패 시 Kakao API로 넘어감
     except Exception as e:
@@ -125,6 +128,7 @@ def get_city_from_coords(lat, lng):
             return None
 
         address_info = documents[0].get("address", {})
+        print(f"[Kakao] 요청 성공")
         return address_info.get("region_2depth_name")
 
     except Exception as e:
