@@ -489,7 +489,7 @@ def start_disconnect_checker():
     """5분마다 연결 해제 상태를 체크하는 스케줄러 시작"""
     while True:
         check_disconnected_bands()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-        socketio.sleep(300)  # 5분
+        socketio.sleep(60*30)  # 30분
     
 # def handle_gateway_state(panid):
 #   print("handle_gateway_state", panid)
@@ -660,7 +660,7 @@ def start_weather_warning_mqtt_publish_checker():
         finally:
             db.session.remove()
 
-        socketio.sleep(120)  # 기존은 3분 간격으로 체크
+        socketio.sleep(60*2)  # 기존은 3분 간격으로 체크
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
