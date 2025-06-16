@@ -554,7 +554,7 @@ def publish_weather_mqtt_by_bid(bid):
             app_logger.error(f"[MQTT] Failed to publish for Band {bid}: {e}")
 
     except Exception as e:
-        session.rollback()
+        db.session.rollback()
         app_logger.error(f"[DB] Failed to fetch band {bid}: {e}")
 
 def start_publish_weather_mqtt_to_bands():
@@ -596,7 +596,7 @@ def start_publish_weather_mqtt_to_bands():
                 app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
 
             except Exception as e:
-                session.rollback()
+                db.session.rollback()
                 app_logger.error(f"[MQTT] Failed to publish for band {bid}: {e}")
 
         socketio.sleep(60*30)  # 30분 간격
