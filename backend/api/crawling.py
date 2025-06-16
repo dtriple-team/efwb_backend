@@ -202,20 +202,27 @@ def get_fcst_base_datetime(now):
     return base_date, base_time_str
 
 def calculate_wind_chill(temp_c, wind_mps):
-    """겨울철 체감온도 계산 (섭씨, 풍속 m/s)"""
+    """
+    겨울철 체감온도 계산 (섭씨, 풍속 m/s)
+    - 캐나다/한국 공동 공식 기반
+    - 기준: 기온 ≤ 10°C, 풍속 ≥ 1.3 m/s
+    """
+    if temp_c > 10 or wind_mps < 1.3:
+        return temp_c  # 체감온도 공식 적용 불가 구간
     v_kmph = wind_mps * 3.6
     wc = 13.12 + 0.6215 * temp_c - 11.37 * (v_kmph ** 0.16) + 0.3965 * temp_c * (v_kmph ** 0.16)
     return round(wc, 1)
-    
+
 def calculate_heat_index(temp_c, humidity):
-    """여름철 열지수 기반 체감온도 계산"""
-    T = temp_c * 9 / 5 + 32
-    R = humidity
-    HI = (-42.379 + 2.04901523*T + 10.14333127*R - 0.22475541*T*R -
-          0.00683783*T*T - 0.05481717*R*R + 0.00122874*T*T*R +
-          0.00085282*T*R*R - 0.00000199*T*T*R*R)
-    HI_c = (HI - 32) * 5 / 9
-    return round(HI_c, 1)
+    """
+    여름철 체감온도 (열지수, 간이형 – 한국형 보정 버전)
+    - 과장 방지 및 실생활 체감 반영
+    - 기준: 기온 ≥ 27°C, 습도 ≥ 40% 권장
+    """
+    if temp_c < 27 or humidity < 40:
+        return temp_c  # 체감온도 적용 안 함
+    hi = temp_c + 0.02 * humidity  # 보수적 보정
+    return round(hi, 1)
 
 def get_weather(location, lat, lng):
     nx, ny = latlon_to_xy(lat, lng)
