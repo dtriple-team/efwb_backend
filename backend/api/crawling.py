@@ -201,45 +201,58 @@ def get_fcst_base_datetime(now):
     base_time_str = base_time.strftime("%H%M")
     return base_date, base_time_str
 
-def calculate_wind_chill(temp_c, wind_mps):
-    """
-    겨울철 체감온도 계산 (섭씨, 풍속 m/s)
-    적용 조건: 기온 ≤ 10°C AND 풍속 ≥ 1.3 m/s
-    """
+def calculate_winter_feels_like(temp_c, wind_mps):
+    """기상청 겨율 체감온도 공식 (2022.6.2 이후)"""
     if temp_c > 10 or wind_mps < 1.3:
         return temp_c
     v_kmph = wind_mps * 3.6
-    wc = 13.12 + 0.6215 * temp_c - 11.37 * (v_kmph ** 0.16) + 0.3965 * temp_c * (v_kmph ** 0.16)
+    wc = (
+        13.12 +
+        0.6215 * temp_c -
+        11.37 * (v_kmph ** 0.16) +
+        0.3965 * temp_c * (v_kmph ** 0.16)
+    )
     return round(wc, 1)
 
-def calculate_heat_index(temp_c, humidity):
-    """
-    여름철 체감온도 계산 (한국형 간이 보정)
-    적용 조건: 기온 ≥ 27°C AND 습도 ≥ 40%
-    """
-    if temp_c < 27 or humidity < 40:
-        return temp_c
-    hi = temp_c + 0.02 * humidity
-    return round(hi, 1)
+def calculate_stull_tw(temp_c, rh):
+    """Stull 공식 기반 습구온도 Tw 계산"""
+    rh_sqrt = math.sqrt(rh + 8.313659)
+    tw = (
+        temp_c * math.atan(0.151977 * rh_sqrt) +
+        math.atan(temp_c + rh) -
+        math.atan(rh - 1.67633) +
+        0.00391838 * (rh ** 1.5) * math.atan(0.023101 * rh) -
+        4.686035
+    )
+    return tw
 
-def estimate_feels_like(temp_c, humidity=None, wind_mps=None):
-    """
-    계절 조건에 따라 자동으로 체감온도 계산
-    - 여름: 열지수 기반
-    - 겨울: 풍속 냉각 기반
-    - 그 외: 실제 기온 반환
-    """
-    if humidity is not None and temp_c >= 27:
-        return calculate_heat_index(temp_c, humidity)
-    elif wind_mps is not None and temp_c <= 10:
-        return calculate_wind_chill(temp_c, wind_mps)
+def calculate_summer_feels_like(temp_c, rh):
+    """기상청 여름 체감온도 공식 (2022.6.2 이후)"""
+    tw = calculate_stull_tw(temp_c, rh)
+    fl = (
+        -0.2442 +
+        0.55399 * tw +
+        0.45535 * temp_c -
+        0.0022 * (tw ** 2) +
+        0.00278 * tw * temp_c +
+        3.0
+    )
+    return round(fl, 1)
+
+def calculate_discomfort_index(temp_c, humidity):
+    return round(0.81 * temp_c + 0.01 * humidity * (0.99 * temp_c - 14.3) + 46.3, 1)
+
+def kma_official_feels_like(temp_c, humidity=None, wind_mps=None):
+    """기상청 공식 체감온도 계산기"""
+    if temp_c <= 10 and wind_mps is not None:
+        return calculate_winter_feels_like(temp_c, wind_mps)
     else:
-        return temp_c
+        return calculate_summer_feels_like(temp_c, humidity)
 
 def get_weather(location, lat, lng):
     nx, ny = latlon_to_xy(lat, lng)
     now = datetime.now(ZoneInfo("Asia/Seoul"))
-    one_hour_ago = now - timedelta(hours=1)
+    one_hour_ago = now - timedelta(minutes=20)
     base_time = one_hour_ago.replace(minute=0, second=0, microsecond=0)
     base_date = base_time.strftime("%Y%m%d")
     base_time_str = base_time.strftime("%H%M")
@@ -260,7 +273,7 @@ def get_weather(location, lat, lng):
     }
 
     # 단기예보
-    now = datetime.now() - timedelta(hours=1)
+    now = datetime.now() - timedelta(minutes=20)
     if now.hour < 2:
         now -= timedelta(days=1)
 
@@ -311,7 +324,7 @@ def get_weather(location, lat, lng):
         humidity = float(weather_data.get('REH', 0))
 
         # 체감온도 계산
-        feels_like = estimate_feels_like(temp, humidity, wind)
+        feels_like = kma_official_feels_like(temp, humidity, wind)
 
         result = {
             "city": location,
