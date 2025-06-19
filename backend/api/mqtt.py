@@ -172,6 +172,7 @@ def handle_gps_data(mqtt_data, extAddress):
         
     except Exception as e:
         app_logger.error(f"Unexpected error processing eHG4 GPS data: {str(e)}", exc_info=True)
+        db.session.remove()
 
 
 
@@ -309,6 +310,7 @@ def handle_ehg4_data(data, b_id):
     app_logger.error(f"Database error while saving sensor data for band {data['bid']}: {str(e)}")
   except Exception as e:
     app_logger.error(f"Unexpected error processing eHG4 data for band {data['bid']}: {str(e)}")
+    db.session.remove()
   finally:
     db.session.remove()
 
@@ -439,6 +441,7 @@ def handle_sync_data(mqtt_data, extAddress):
     except Exception as e:
       db.session.rollback()
       app_logger.error(f"Error up dating band connection status: {str(e)}")
+      db.session.remove()
       print("****** error ********")
       print(e)
     finally:
@@ -481,6 +484,7 @@ def check_disconnected_bands():
         except Exception as e:
             db.session.rollback()
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
+            db.session.remove()
         finally:
           db.session.remove()
 
