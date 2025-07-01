@@ -441,7 +441,6 @@ def handle_sync_data(mqtt_data, extAddress):
     except Exception as e:
       db.session.rollback()
       app_logger.error(f"Error up dating band connection status: {str(e)}")
-      db.session.remove()
       print("****** error ********")
       print(e)
     finally:
@@ -484,7 +483,6 @@ def check_disconnected_bands():
         except Exception as e:
             db.session.rollback()
             app_logger.error(f"Error checking disconnected bands: {str(e)}")
-            db.session.remove()
         finally:
           db.session.remove()
 
@@ -548,7 +546,7 @@ def publish_weather_mqtt_by_bid(bid):
             feels_like = int(float(weather["feels_like"]) * 100)
             humidity = int(float(weather["humidity"]))
 
-            topic = "/DT/eHG4/Status/BandSet"
+            topic = "/DT/eHG4/naas/Status/BandSet"
             message = f"#XMQTTSUBMSG : 0,{bid},{temp},{feels_like},{humidity}"
 
             mqtt.publish(topic, message)
@@ -592,7 +590,7 @@ def start_publish_weather_mqtt_to_bands():
                 humidity = int(float(humidity_val))
 
                 # 메시지 구성
-                topic = "/DT/eHG4/Status/BandSet"
+                topic = "/DT/eHG4/naas/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 0,{bid},{temp},{feels_like},{humidity}"
 
                 # MQTT 전송
@@ -623,7 +621,7 @@ def start_weather_warning_mqtt_publish_checker():
 
             get_warn_weather(lat, lng)
 
-            topic = "/DT/eHG4/Status/BandSet"
+            topic = "/DT/eHG4/naas/Status/BandSet"
             if WeatherState.warn_send_flag == 1:
                 message = f"#XMQTTSUBMSG : 1,{bid},{WeatherState.warn_types},{WeatherState.warn_levels}"
             elif WeatherState.warn_send_flag == 2:
@@ -671,7 +669,7 @@ def handle_mqtt_message(client, userdata, message):
   try:
     global mqtt_thread, gw_thread, event_thread, num, thread_lock
 
-    if message.topic == '/DT/eHG4/post/sync':
+    if message.topic == '/DT/eHG4/naas/post/sync':
         with thread_lock:
             if mqtt_thread is None:
                 mqtt_data = json.loads(message.payload.decode())
@@ -689,7 +687,7 @@ def handle_mqtt_message(client, userdata, message):
                 )
                 mqtt_thread = None
 
-    elif message.topic == '/DT/eHG4/GPS/Location':
+    elif message.topic == '/DT/eHG4/naas/GPS/Location':
         with thread_lock:
             if mqtt_thread is None:
                 raw_payload = message.payload.decode().strip()
@@ -717,7 +715,7 @@ def handle_mqtt_message(client, userdata, message):
                 )
                 mqtt_thread = None
 
-    # elif message.topic == '/DT/eHG4/GPS/Location':
+    # elif message.topic == '/DT/eHG4/naas/GPS/Location':
     #     with thread_lock:
     #         if mqtt_thread is None:
     #             mqtt_data = json.loads(message.payload.decode())
@@ -733,7 +731,7 @@ def handle_mqtt_message(client, userdata, message):
     #                 extAddress=extAddress
     #             )
     #             mqtt_thread = None
-    elif message.topic == '/DT/eHG4/WEATHER/GET':
+    elif message.topic == '/DT/eHG4/naas/WEATHER/GET':
       with thread_lock:
         if mqtt_thread is None:
             mqtt_data = json.loads(message.payload.decode())
@@ -745,13 +743,13 @@ def handle_mqtt_message(client, userdata, message):
             publish_weather_mqtt_by_bid(extAddress)
             mqtt_thread = None
 
-    elif message.topic == '/DT/eHG4/post/connectcheck':
+    elif message.topic == '/DT/eHG4/naas/post/connectcheck':
       with thread_lock:
         if gw_thread is None:
           # gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
           gw_thread = None
 
-    elif message.topic == '/DT/eHG4/post/async':
+    elif message.topic == '/DT/eHG4/naas/post/async':
       with thread_lock:
         if event_thread is None:
           

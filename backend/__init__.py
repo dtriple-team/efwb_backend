@@ -44,13 +44,13 @@ login_manager.init_app(app)
 # api
 mqtt = Mqtt()
 mqtt.init_app(app)
-mqtt.subscribe('/DT/eHG4/post/sync')
-mqtt.subscribe('/DT/eHG4/post/async')
-mqtt.subscribe('/DT/eHG4/WEATHER/GET')
+mqtt.subscribe('/DT/eHG4/naas/post/sync')
+mqtt.subscribe('/DT/eHG4/naas/post/async')
+mqtt.subscribe('/DT/eHG4/naas/WEATHER/GET')
 # mqtt.subscribe('/DT/eHG4/post/connectcheck')
 
 # New CHU
-mqtt.subscribe('/DT/eHG4/GPS/Location')
+mqtt.subscribe('/DT/eHG4/naas/GPS/Location')
 
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
 
