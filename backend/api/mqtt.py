@@ -518,6 +518,11 @@ def start_disconnect_checker():
 #       pass
 def publish_weather_mqtt_by_bid(bid):
     """특정 밴드(bid)에 대해 현재 날씨 정보를 MQTT로 전송"""
+    dev = db.session.query(Bands).filter_by(bid=extAddress).first()     
+     # 밴드 연결 상태 업데이트
+    dev.connect_state = 1  # 1: connected
+    dev.connect_time = datetime.now(timezone('Asia/Seoul'))
+    db.session.commit()
     try:
         dev = db.session.query(Bands).filter(Bands.bid == bid, Bands.connect_state == 1).first()
 
@@ -560,7 +565,7 @@ def publish_weather_mqtt_by_bid(bid):
         app_logger.error(f"[DB] Failed to fetch band {bid}: {e}")
 
 def start_publish_weather_mqtt_to_bands():
-    """30마다 밴드별로 현재 날씨 정보를 MQTT로 전송"""
+    """30분마다 밴드별로 현재 날씨 정보를 MQTT로 전송"""
     while True:
         band_data_list = fetch_connected_band_data()
 
@@ -601,7 +606,7 @@ def start_publish_weather_mqtt_to_bands():
                 db.session.rollback()
                 app_logger.error(f"[MQTT] Failed to publish for band {bid}: {e}")
 
-        socketio.sleep(60*30)  # 30분 간격
+        socketio.sleep(60*2)  # 30분 간격
 
 def start_weather_warning_mqtt_publish_checker():
     """3분마다 기상특보가 있는지 체크해서 밴드별로 MQTT 전송 및 DB 갱신"""
