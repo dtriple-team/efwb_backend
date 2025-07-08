@@ -7,6 +7,9 @@ import requests
 import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from backend.api.dfs_zone_tree import area_no_map
+import urllib.parse
+import urllib.request
 
 class WeatherState:
     location = None
@@ -37,7 +40,13 @@ def searchAirpressure(trtemp, atemp, location):
     tdtemp = trtemp[at+2].find_all('td')
     return  float(tdtemp[len(tdtemp)-1].text)
 
-def get_province_from_coords(lat, lng):
+def get_province_city_from_coords(lat, lng):
+    """
+    lat, lng 좌표로부터 (province, city, borough) 정보를 반환하는 함수
+
+    1차: Nominatim (OpenStreetMap)
+    2차: Kakao API fallback
+    """
     # 1차: Nominatim API (OpenStreetMap)
     nominatim_url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
     nominatim_headers = {
@@ -50,13 +59,20 @@ def get_province_from_coords(lat, lng):
             data = response.json()
             address = data.get('address', {})
 
-            for key in ['province']:
-                if key in address:
-                    print(f"[openstreetmap] 요청 성공")
-                    return address[key]
-            
-            # province가 없으면 실패 처리
-            print("[Nominatim] 지역 정보 추출 실패: province 없음")
+            province = address.get('province') or address.get('state') or address.get('region')
+            city = address.get('city') or address.get('county') or address.get('town') or address.get('village') or address.get('municipality')
+            borough = address.get('borough')  # borough 별도 추출
+
+            # province가 없지만 city가 있을 경우
+            if not province and city:
+                province = address.get('state') or address.get('region') or "province가 없음"
+                print("[Nominatim] province 없음 → fallback 적용:", province)
+
+            if province and city:
+                print("[Nominatim] 요청 성공")
+                return province, city, borough
+            else:
+                print("[Nominatim] 지역 정보 추출 실패: province 또는 city 없음")
         else:
             print(f"[Nominatim] 요청 실패: {response.status_code}")
     except Exception as e:
@@ -65,84 +81,55 @@ def get_province_from_coords(lat, lng):
     # 2차: Kakao API fallback
     kakao_url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
     kakao_headers = {
-        "Authorization": "akaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
+        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"  # 실제 REST API Key로 교체
     }
 
     try:
         response = requests.get(kakao_url, headers=kakao_headers, timeout=3)
         if response.status_code != 200:
             print(f"[Kakao] 요청 실패: {response.status_code}")
-            return {"error": "지역 정보 조회 실패 (Kakao)"}
+            return None, None, None
 
         data = response.json()
         documents = data.get("documents", [])
         if not documents:
             print("[Kakao] 지역 정보 없음")
-            return {"error": "지역 정보 없음 (Kakao)"}
+            return None, None, None
 
         address_info = documents[0].get("address", {})
         province = address_info.get("region_1depth_name")
-        print(f"[Kakao] 요청 성공")
-        return province if province else {"error": "지역 정보 추출 실패 (Kakao)"}
+        city = address_info.get("region_2depth_name")
+        borough = None  # Kakao 응답에서 borough는 없음
+
+        if province and city:
+            print("[Kakao] 요청 성공")
+            return province, city, borough
+        else:
+            print("[Kakao] 지역 정보 추출 실패: province 또는 city 없음")
+            return None, None, None
 
     except Exception as e:
         print(f"[Kakao] 오류 발생: {e}")
-        return {"error": "예외 발생 (Kakao)"}
-
-def get_city_from_coords(lat, lng):
-    # 1차: Nominatim (OpenStreetMap) API
-    nominatim_url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json&addressdetails=1"
-    nominatim_headers = {
-        "User-Agent": "yourapp/1.0 (your@email.com)"
-    }
-
-    try:
-        response = requests.get(nominatim_url, headers=nominatim_headers, timeout=3)
-        if response.status_code == 200:
-            data = response.json()
-            address = data.get('address', {})
-
-            for key in ['city', 'county', 'town', 'village']:
-                if key in address:
-                    print(f"[openstreetmap] 요청 성공")
-                    return address[key]
-        # 실패 시 Kakao API로 넘어감
-    except Exception as e:
-        pass  # 조용히 무시하고 Kakao로 넘어감
-
-    # 2차: Kakao API
-    kakao_url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
-    kakao_headers = {
-        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"
-    }
-
-    try:
-        response = requests.get(kakao_url, headers=kakao_headers, timeout=3)
-        if response.status_code != 200:
-            print(f"[Kakao] 요청 실패: {response.status_code}")
-            return None
-
-        data = response.json()
-        documents = data.get("documents", [])
-        if not documents:
-            return None
-
-        address_info = documents[0].get("address", {})
-        print(f"[Kakao] 요청 성공")
-        return address_info.get("region_2depth_name")
-
-    except Exception as e:
-        print(f"[Kakao] 오류 발생: {e}")
-        return None
+        return None, None, None
 
 def getWeatherFromCoords(lat, lng):
-    location = get_city_from_coords(lat, lng)
+    province, city, borough = get_province_city_from_coords(lat, lng)
 
-    if not location:
+    if not province and not city and not borough:
         return {"error": "주소 추출 실패"}
 
+    # borough 우선, 없으면 city, 없으면 province
+    if borough:
+        location = f"{province} {city} {borough}"
+    elif city:
+        location = f"{province} {city}"
+    else:
+        location = province
+
     print("추출된 위치:", location)
+
     WeatherState.location = location
+
     return get_weather(location, lat, lng)
 
 def latlon_to_xy(lat, lon):
@@ -324,8 +311,18 @@ def get_weather(location, lat, lng):
         humidity = float(weather_data.get('REH', 0))
 
         # 체감온도 계산
-        feels_like = kma_official_feels_like(temp, humidity, wind)
+        province, city, borough = get_province_city_from_coords(lat, lng)
+        feels_like = fetch_uv_index_by_province_city(province, city, borough)
+        #feels_like = kma_official_feels_like(temp, humidity, wind)
 
+        # ✅ feels_like None 처리 및 float 변환
+        if feels_like is None:
+            feels_like = 0.0
+        else:
+            try:
+                feels_like = float(feels_like)
+            except (ValueError, TypeError):
+                feels_like = 0.0
         result = {
             "city": location,
             "temp": temp,
@@ -342,6 +339,108 @@ def get_weather(location, lat, lng):
     except Exception as e:
         print(f"날씨 데이터 처리 중 오류 발생: {e}")
         return None
+
+def normalize(text):
+    """
+    문자열에서 공백을 제거하고 소문자로 변환
+    """
+    if not text:
+        return ''
+    return re.sub(r'\s+', '', text).lower()
+
+def get_area_no_by_province_city(province, city, borough):
+    """
+    province → borough → city 순서로 area_no_map에서 포함 여부를 체크해 반환
+
+    - 띄어쓰기는 무시
+    """
+    province_norm = normalize(province)
+    city_norm = normalize(city)
+    borough_norm = normalize(borough)
+
+    for area_no, (prov, ct) in area_no_map.items():
+        prov_norm = normalize(prov)
+        ct_norm = normalize(ct)
+
+        # 1. province 포함 여부
+        if province_norm and province_norm in prov_norm:
+            return area_no
+
+        # 2. borough 포함 여부
+        if borough_norm and borough_norm in ct_norm:
+            return area_no
+
+        # 3. city 포함 여부
+        if city_norm and city_norm in ct_norm:
+            return area_no
+
+    return None
+
+def fetch_uv_index_by_province_city(province, city, borough):
+    area_no = get_area_no_by_province_city(province, city, borough)
+    if not area_no:
+        print(f"지역을 찾을 수 없습니다: {province} {city}")
+        return None
+
+    now =  datetime.now()
+    time_str = now.strftime('%Y%m%d%H')
+
+    base_url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getSenTaIdxV4'
+    request_code = "A44"
+    service_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="
+
+    params = {
+        'serviceKey': service_key,
+        'pageNo': '1',
+        'numOfRows': '10',
+        'dataType': 'JSON',
+        'areaNo': area_no,
+        'time': time_str,
+        'requestCode': request_code
+    }
+
+    try:
+        response = requests.get(base_url, params=params, timeout=5)
+        response.raise_for_status()
+
+        # 응답 내용 출력
+        response_text = response.text
+        #print(f"[DEBUG] API raw response:\n{response_text}")
+
+        # JSON parse 시도
+        try:
+            result = response.json()
+        except ValueError as ve:
+            print(f"[ERROR] JSON decode error: {ve}")
+            return None
+
+        print(f"[{province} {city}] (AreaNo: {area_no}, {request_code}) 호출 성공")
+
+        # 체감온도 추출
+        items = result.get('response', {}).get('body', {}).get('items', {}).get('item', [])
+        if not items:
+            print("item이 비어있음")
+            return None
+
+        item = items[0]
+        current_hour = now.hour
+        key = f"h{current_hour + 1}"
+
+        feels_like = item.get(key)
+        if feels_like:
+            print(f"현재 체감온도({key}): {feels_like}")
+            return feels_like
+        else:
+            print(f"{key} 값 없음")
+            return None
+
+    except requests.exceptions.HTTPError as http_err:
+        print(f"[{province} {city}] HTTP error occurred: {http_err}")
+    except Exception as e:
+        print(f"[{province} {city}] 호출 실패: {e}")
+
+    return None
+
 
 # 주의보, 경고, 체감온도      
 def get_warn_weather(lat, lng):
@@ -379,7 +478,7 @@ def get_warn_weather(lat, lng):
     }
 
     try:
-        region = get_province_from_coords(lat, lng)
+        region = get_province_city_from_coords(lat, lng)
         if not region:
             return {"error": "지역 정보 조회 실패"}
 

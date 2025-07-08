@@ -9,6 +9,7 @@ from logger_config import app_logger
 from datetime import timedelta
 from sqlalchemy import text
 from collections import defaultdict
+from backend.sms.send_sms import send_warning_sms
 import time
 import sys
 import math
@@ -788,7 +789,18 @@ def handle_mqtt_message(client, userdata, message):
               insertEvent(
                   dev.id, event_data['type'], event_data['value']
               )
-
+              # ✅ users 테이블에서 phone 번호 조회 - 쿼리 수정
+              user = db.session.query(Users).join(UsersBands).join(Bands).filter(Bands.id == dev.id).first()
+            
+              if user and user.phone:
+                  send_warning_sms(
+                      dev_name=dev.name,
+                      warning_type=event_data['type'],
+                      value=event_data['value'],
+                      rcv_number=user.phone
+                  )
+              else:
+                  app_logger.warning(f"No user found for band: {dev.bid}")
               # ✅ 이벤트 후 Webhook 호출
               try:
                   response = requests.get("https://hdwitheye.mycafe24.com/api/v1/hook")
