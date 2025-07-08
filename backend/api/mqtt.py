@@ -609,7 +609,7 @@ def start_publish_weather_mqtt_to_bands():
                 db.session.rollback()
                 app_logger.error(f"[MQTT] Failed to publish for band {bid}: {e}")
 
-        socketio.sleep(60*2)  # 30분 간격
+        socketio.sleep(60*4)  # 30분 간격
 
 def start_weather_warning_mqtt_publish_checker():
     """3분마다 기상특보가 있는지 체크해서 밴드별로 MQTT 전송 및 DB 갱신"""
