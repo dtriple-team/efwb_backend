@@ -53,8 +53,8 @@ def fetch_connected_band_data():
             result.append({
                 "id": band.id,
                 "bid": band.bid,
-                "latitude": float(band.latitude) if band.latitude else None,
-                "longitude": float(band.longitude) if band.longitude else None,
+                "latitude": float(band.latitude) if band.latitude is not None else None,
+                "longitude": float(band.longitude) if band.longitude is not None else None,
                 "name": band.name
             })
         app_logger.info(f"{len(result)}개의 밴드 데이터 반환 완료")
@@ -63,6 +63,8 @@ def fetch_connected_band_data():
     except Exception as e:
         app_logger.error(f"밴드 데이터 조회 중 오류 발생: {str(e)}")
         return []
+    finally:
+        db.session.remove()
         
 def haversine(lat1, lon1, lat2, lon2):
     # 지구 반지름 (km)
@@ -667,7 +669,7 @@ def start_weather_warning_mqtt_publish_checker():
         finally:
             db.session.remove()
 
-        socketio.sleep(60*2)  # 기존은 3분 간격으로 체크
+        socketio.sleep(60*3)  # 기존은 3분 간격으로 체크
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
