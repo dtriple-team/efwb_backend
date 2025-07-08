@@ -64,7 +64,7 @@ def login_api():
         if loginuser is None:
             result = {'status': False, 'reason': 1}  # ID 없음
         else:
-            if loginuser.password = password_encoder_512(data["password"]):
+            if loginuser.password != password_encoder_512(data["password"]):
                 result = {'status': False, 'reason': 2}  # PW 틀림
             
             # # 추가된 조건: permission이 0이 아닌 경우 로그인 실패
