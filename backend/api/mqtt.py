@@ -519,7 +519,7 @@ def start_disconnect_checker():
 #       socketio.emit('gateway_connect', panid, namespace='/admin')
 #   except:
 #       pass
-def publish_weather_mqtt_by_bid(bid):
+def publish_weather_mqtt_by_bid(extAddress):
     """특정 밴드(bid)에 대해 현재 날씨 정보를 MQTT로 전송"""
     dev = db.session.query(Bands).filter_by(bid=extAddress).first()     
      # 밴드 연결 상태 업데이트
@@ -527,10 +527,10 @@ def publish_weather_mqtt_by_bid(bid):
     dev.connect_time = datetime.now(timezone('Asia/Seoul'))
     db.session.commit()
     try:
-        dev = db.session.query(Bands).filter(Bands.bid == bid, Bands.connect_state == 1).first()
+        dev = db.session.query(Bands).filter(Bands.bid == extAddress, Bands.connect_state == 1).first()
 
         if not dev:
-            app_logger.warning(f"[MQTT] Band {bid} not found or not connected.")
+            app_logger.warning(f"[MQTT] Band {extAddress} not found or not connected.")
             return
 
         # 위치 정보 추출
@@ -538,14 +538,14 @@ def publish_weather_mqtt_by_bid(bid):
         lng = dev.longitude
 
         if lat is None or lng is None:
-            app_logger.warning(f"[MQTT] Band {bid} has missing location info.")
+            app_logger.warning(f"[MQTT] Band {extAddress} has missing location info.")
             return
 
         # 날씨 정보 조회
         weather = getWeatherFromCoords(lat, lng)
 
         if not weather or "error" in weather:
-            app_logger.warning(f"[MQTT] Weather fetch failed for Band {bid}: {weather}")
+            app_logger.warning(f"[MQTT] Weather fetch failed for Band {extAddress}: {weather}")
             return
 
         try:
@@ -555,17 +555,17 @@ def publish_weather_mqtt_by_bid(bid):
             humidity = int(float(weather["humidity"]))
 
             topic = "/DT/eHG4/naas/Status/BandSet"
-            message = f"#XMQTTSUBMSG : 0,{bid},{temp},{feels_like},{humidity}"
+            message = f"#XMQTTSUBMSG : 0,{extAddress},{temp},{feels_like},{humidity}"
 
             mqtt.publish(topic, message)
             app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
 
         except Exception as e:
-            app_logger.error(f"[MQTT] Failed to publish for Band {bid}: {e}")
+            app_logger.error(f"[MQTT] Failed to publish for Band {extAddress}: {e}")
 
     except Exception as e:
         db.session.rollback()
-        app_logger.error(f"[DB] Failed to fetch band {bid}: {e}")
+        app_logger.error(f"[DB] Failed to fetch band {extAddress}: {e}")
 
 def start_publish_weather_mqtt_to_bands():
     """30분마다 밴드별로 현재 날씨 정보를 MQTT로 전송"""
