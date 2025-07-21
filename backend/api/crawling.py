@@ -112,6 +112,41 @@ def get_province_city_from_coords(lat, lng):
         print(f"[Kakao] 오류 발생: {e}")
         return None, None, None
 
+def get_province_city_from_coords_Kakao(lat, lng):
+    # 2차: Kakao API fallback
+    kakao_url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
+    kakao_headers = {
+        "Authorization": "KakaoAK 16a6a90d4695b2fe0bc4e86724d3014d"  # 실제 REST API Key로 교체
+    }
+
+    try:
+        response = requests.get(kakao_url, headers=kakao_headers, timeout=3)
+        if response.status_code != 200:
+            print(f"[Kakao] 요청 실패: {response.status_code}")
+            return None, None, None
+
+        data = response.json()
+        documents = data.get("documents", [])
+        if not documents:
+            print("[Kakao] 지역 정보 없음")
+            return None, None, None
+
+        address_info = documents[0].get("address", {})
+        province = address_info.get("region_1depth_name")
+        city = address_info.get("region_2depth_name")
+        borough = None  # Kakao 응답에서 borough는 없음
+
+        if province and city:
+            print("[Kakao] 요청 성공")
+            return province, city, borough
+        else:
+            print("[Kakao] 지역 정보 추출 실패: province 또는 city 없음")
+            return None, None, None
+
+    except Exception as e:
+        print(f"[Kakao] 오류 발생: {e}")
+        return None, None, None
+
 def getWeatherFromCoords(lat, lng):
     province, city, borough = get_province_city_from_coords(lat, lng)
 
@@ -449,6 +484,27 @@ def get_warn_weather(lat, lng):
     base_date = now.strftime("%Y%m%d")
     
     # 지역에 따른 stnId 매핑
+    REGION_NAME_NORMALIZE = {
+    "서울": "서울특별시",
+    "부산": "부산광역시",
+    "대구": "대구광역시",
+    "인천": "인천광역시",
+    "광주": "광주광역시",
+    "대전": "대전광역시",
+    "울산": "울산광역시",
+    "세종": "세종특별시",
+    "경기": "경기도",
+    "강원": "강원도",
+    "충북": "충청북도",
+    "충남": "충청남도",
+    "전북": "전라북도",
+    "전남": "전라남도",
+    "경북": "경상북도",
+    "경남": "경상남도",
+    "제주": "제주특별자치도",
+    "전북특별자치도": "전라북도"  # 예외 대응
+    }
+
     REGION_TO_STNID = {
         "서울특별시": "109",
         "서울": "109",
@@ -474,15 +530,20 @@ def get_warn_weather(lat, lng):
         "충청북도": "131",
         "강원도": "105",
         "제주도": "184",
-        "제주특별자치도": "184"
+        "제주특별자치도": "184",
     }
 
     try:
-        region = get_province_city_from_coords(lat, lng)
+        region = get_province_city_from_coords_Kakao(lat, lng)
         if not region:
             return {"error": "지역 정보 조회 실패"}
 
-        stnId = REGION_TO_STNID.get(region, "108")  # 기본값: 전국
+        region_key = region[0] if isinstance(region, tuple) else region
+        normalized_region = REGION_NAME_NORMALIZE.get(region_key, region_key)
+
+        stnId = REGION_TO_STNID.get(normalized_region, "108")
+
+        #print(f"[DEBUG] 선택된 지역 키: '{region_key}' → '{normalized_region}', stnId: '{stnId}'")
 
         # 기상특보 API 호출
         warn_url = 'http://apis.data.go.kr/1360000/WthrWrnInfoService/getWthrWrnMsg'
