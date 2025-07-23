@@ -452,7 +452,7 @@ def fetch_uv_index_by_province_city(province, city, borough):
 
         forecast_base = datetime.strptime(forecast_base_str, "%Y%m%d%H").replace(tzinfo=ZoneInfo("Asia/Seoul"))
         delta_hours = int((now - forecast_base).total_seconds() / 3600)
-        hn_key = f"h{delta_hours}"
+        hn_key = f"h{delta_hours +1}"
 
         feels_like = item.get(hn_key)
         if feels_like:
