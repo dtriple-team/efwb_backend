@@ -430,6 +430,13 @@ def handle_sync_data(mqtt_data, extAddress):
       data.move_cumulative_activity = bandData['move_cumulative_activity']
       data.heart_activity = bandData['heart_activity']
       data.skin_temp = bandData['skin_temp']
+
+      data.sum_Kcal_acc = bandData.get('sum_Kcal_acc', 0)
+      data.ssHr_dayMin = bandData.get('ssHr_dayMin', 255)
+      data.ssHr_dayMax = bandData.get('ssHr_dayMax', 0)
+      data.temperature_dayMin = bandData.get('temperature_dayMin', 255)
+      data.temperature_dayMax = bandData.get('temperature_dayMax', 0)
+
       data.rssi = mqtt_data['rssi']
       data.datetime = datetime.now(timezone('Asia/Seoul'))
       db.session.add(data)
@@ -672,6 +679,68 @@ def start_weather_warning_mqtt_publish_checker():
 
         socketio.sleep(60*10)  # 기존은 20분 간격으로 체크
 
+def publish_info_mqtt_by_bid(extAddress):
+    """특정 밴드(bid)에 대해 초기 정보를 MQTT로 전송"""
+    try:
+        # Bands 테이블에서 bid로 밴드 정보 찾기
+        dev = db.session.query(Bands).filter_by(bid=extAddress).first()
+        if not dev:
+            app_logger.warning(f"[MQTT] Band {extAddress} not found.")
+            return
+
+        # 연결 상태 업데이트
+        dev.connect_state = 1  # connected
+        dev.connect_time = datetime.now(timezone('Asia/Seoul'))
+        db.session.commit()
+
+        # 최신 SensorData 1건 조회
+        latest_data = (
+            db.session.query(SensorData)
+            .filter_by(FK_bid=dev.id)
+            .order_by(SensorData.datetime.desc())
+            .first()
+        )
+
+        if not latest_data:
+            app_logger.warning(f"[MQTT] No sensor data found for band ID {dev.id}")
+            return
+
+        # 오늘 날짜 기준 비교
+        now = datetime.now(timezone('Asia/Seoul'))
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # 🛠 datetime에 타임존 지정 (방법 1 적용)
+        latest_datetime = latest_data.datetime.replace(tzinfo=timezone('Asia/Seoul'))
+
+        if latest_datetime >= today_start:
+            # 오늘 데이터이면 그대로 사용
+            sum_Kcal_acc = latest_data.sum_Kcal_acc
+            ssHr_dayMin = latest_data.ssHr_dayMin
+            ssHr_dayMax = latest_data.ssHr_dayMax
+            temperature_dayMin = latest_data.temperature_dayMin
+            temperature_dayMax = latest_data.temperature_dayMax
+        else:
+            # 전날 데이터일 경우 초기화 값으로 대체
+            sum_Kcal_acc = 0
+            ssHr_dayMin = 255
+            ssHr_dayMax = 0
+            temperature_dayMin = 255
+            temperature_dayMax = 0
+
+        # MQTT 메시지 발행
+        topic = "/DT/eHG4/naas/Status/BandSet"
+        message = (
+            f"#XMQTTSUB2MSG : 0,{extAddress},"
+            f"{sum_Kcal_acc},{ssHr_dayMin},{ssHr_dayMax},{temperature_dayMin},{temperature_dayMax}"
+        )
+
+        mqtt.publish(topic, message)
+        app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f"[MQTT] Failed to publish for Band {extAddress}: {e}")
+
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
   try:
@@ -749,6 +818,18 @@ def handle_mqtt_message(client, userdata, message):
                 16
             )
             publish_weather_mqtt_by_bid(extAddress)
+            mqtt_thread = None
+
+    elif message.topic == '/DT/eHG4/naas/INFO/GET':
+      with thread_lock:
+        if mqtt_thread is None:
+            mqtt_data = json.loads(message.payload.decode())
+            extAddress = int(
+                format(mqtt_data['extAddress']['high'], 'x') +
+                format(mqtt_data['extAddress']['low'], 'x'),
+                16
+            )
+            publish_info_mqtt_by_bid(extAddress)
             mqtt_thread = None
 
     elif message.topic == '/DT/eHG4/naas/post/connectcheck':

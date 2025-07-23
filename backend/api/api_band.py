@@ -994,23 +994,23 @@ def band_delete_api():
 #     return make_response(jsonify(result), 200)
 
 
-# @app.route('/api/efwb/v1/bands/userinfo/<id>', methods=['GET'])
-# @token_required
-# def band_userinfo_api(id):
-#     dev = db.session.query(Users).\
-#         filter(Users.id == UsersGateways.FK_uid).\
-#         filter(UsersGateways.FK_pid == GatewaysBands.FK_pid).\
-#         filter(GatewaysBands.FK_bid == id).all()
-#     userlist = []
-#     if dev is None:
-#         return make_response(jsonify('User is not Found.'), 404)
-#     for u in dev:
-#         userlist.append(u.serialize())
-#     result = {
-#         "result": "OK",
-#         "data": userlist
-#     }
-#     return make_response(jsonify(result), 200)
+@app.route('/api/efwb/v1/bands/userinfo/<id>', methods=['GET'])
+@token_required
+def band_userinfo_api(id):
+    dev = db.session.query(Users).\
+        filter(Users.id == UsersGateways.FK_uid).\
+        filter(UsersGateways.FK_pid == GatewaysBands.FK_pid).\
+        filter(GatewaysBands.FK_bid == id).all()
+    userlist = []
+    if dev is None:
+        return make_response(jsonify('User is not Found.'), 404)
+    for u in dev:
+        userlist.append(u.serialize())
+    result = {
+        "result": "OK",
+        "data": userlist
+    }
+    return make_response(jsonify(result), 200)
 
 
 @app.route('/api/efwb/v1/usersgroups/add', methods=['POST'])

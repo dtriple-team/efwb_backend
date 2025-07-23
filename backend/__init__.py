@@ -47,6 +47,7 @@ mqtt.init_app(app)
 mqtt.subscribe('/DT/eHG4/naas/post/sync')
 mqtt.subscribe('/DT/eHG4/naas/post/async')
 mqtt.subscribe('/DT/eHG4/naas/WEATHER/GET')
+mqtt.subscribe('/DT/eHG4/naas/INFO/GET')
 # mqtt.subscribe('/DT/eHG4/post/connectcheck')
 
 # New CHU

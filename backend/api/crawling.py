@@ -417,7 +417,7 @@ def fetch_uv_index_by_province_city(province, city, borough):
         print(f"지역을 찾을 수 없습니다: {province} {city}")
         return None
 
-    now =  datetime.now()
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
     time_str = now.strftime('%Y%m%d%H')
 
     base_url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getSenTaIdxV4'
@@ -438,35 +438,30 @@ def fetch_uv_index_by_province_city(province, city, borough):
         response = requests.get(base_url, params=params, timeout=5)
         response.raise_for_status()
 
-        # 응답 내용 출력
-        response_text = response.text
-        #print(f"[DEBUG] API raw response:\n{response_text}")
-
-        # JSON parse 시도
-        try:
-            result = response.json()
-        except ValueError as ve:
-            print(f"[ERROR] JSON decode error: {ve}")
-            return None
-
+        result = response.json()
         print(f"[{province} {city}] (AreaNo: {area_no}, {request_code}) 호출 성공")
 
-        # 체감온도 추출
         items = result.get('response', {}).get('body', {}).get('items', {}).get('item', [])
         if not items:
             print("item이 비어있음")
             return None
 
         item = items[0]
-        current_hour = now.hour
-        key = f"h{current_hour + 1}"
+        forecast_base_str = item.get('date')  # 예: "2025072315"
+        if not forecast_base_str:
+            print("예보 기준 시간이 없음")
+            return None
 
-        feels_like = item.get(key)
+        forecast_base = datetime.strptime(forecast_base_str, "%Y%m%d%H").replace(tzinfo=ZoneInfo("Asia/Seoul"))
+        delta_hours = int((now - forecast_base).total_seconds() / 3600)
+        hn_key = f"h{delta_hours}"
+
+        feels_like = item.get(hn_key)
         if feels_like:
-            print(f"현재 체감온도({key}): {feels_like}")
+            print(f"현재 체감온도({hn_key}): {feels_like}°C")
             return feels_like
         else:
-            print(f"{key} 값 없음")
+            print(f"{hn_key} 값 없음")
             return None
 
     except requests.exceptions.HTTPError as http_err:

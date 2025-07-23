@@ -345,6 +345,12 @@ class SensorData(db.Model):
     move_cumulative_activity = db.Column('move_cumulative_activity', db.Integer, comment='누적활동량(움직임)')
     heart_activity = db.Column('heart_activity', db.Integer, comment='활동량(심박)')
     skin_temp = db.Column('skin_temp', db.Integer, comment='피부온도')
+
+    sum_Kcal_acc = db.Column('sum_Kcal_acc', db.Integer, comment='오늘 칼로리')
+    ssHr_dayMin = db.Column('ssHr_dayMin', db.Integer, comment='최소 심박수')
+    ssHr_dayMax = db.Column('ssHr_dayMax', db.Integer, comment='최대 심박수')
+    temperature_dayMin = db.Column('temperature_dayMin', db.Integer, comment='오늘 하루 최저 체감온도')
+    temperature_dayMax = db.Column('temperature_dayMax', db.Integer, comment='오늘 하루 최대 체감온도')
     
     rssi = db.Column('rssi', db.Integer, comment='수신 감도')
 
@@ -376,6 +382,11 @@ class SensorData(db.Model):
             "move_cumulative_activity": self.move_cumulative_activity,
             "heart_activity": self.heart_activity,
             "skin_temp": self.skin_temp,
+            "sum_Kcal_acc": self.sum_Kcal_acc,
+            "ssHr_dayMin": self.ssHr_dayMin,
+            "ssHr_dayMax": self.ssHr_dayMax,
+            "temperature_dayMin": self.temperature_dayMin,
+            "temperature_dayMax": self.temperature_dayMax,
             "rssi": self.rssi
         }
         return resultJSON
