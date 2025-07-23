@@ -385,9 +385,7 @@ def normalize(text):
 
 def get_area_no_by_province_city(province, city, borough):
     """
-    province → borough → city 순서로 area_no_map에서 포함 여부를 체크해 반환
-
-    - 띄어쓰기는 무시
+    city → borough → province 순서로 우선 체크하여 area_no 반환
     """
     province_norm = normalize(province)
     city_norm = normalize(city)
@@ -397,16 +395,16 @@ def get_area_no_by_province_city(province, city, borough):
         prov_norm = normalize(prov)
         ct_norm = normalize(ct)
 
-        # 1. province 포함 여부
-        if province_norm and province_norm in prov_norm:
+        # 1. city 포함 여부 (예: "구미시")
+        if city_norm and city_norm in ct_norm:
             return area_no
 
-        # 2. borough 포함 여부
+        # 2. borough 포함 여부 (예: "수성구")
         if borough_norm and borough_norm in ct_norm:
             return area_no
 
-        # 3. city 포함 여부
-        if city_norm and city_norm in ct_norm:
+        # 3. province 포함 여부 (예: "경상북도")
+        if province_norm and province_norm in prov_norm:
             return area_no
 
     return None
