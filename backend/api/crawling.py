@@ -415,7 +415,7 @@ def fetch_uv_index_by_province_city(province, city, borough):
         print(f"지역을 찾을 수 없습니다: {province} {city}")
         return None
 
-    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    now = datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(hours=1)
     time_str = now.strftime('%Y%m%d%H')
 
     base_url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getSenTaIdxV4'
