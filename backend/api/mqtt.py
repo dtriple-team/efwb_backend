@@ -13,6 +13,7 @@ from backend.sms.send_sms import send_warning_sms
 import time
 import sys
 import math
+from pytz import timezone
 sys.setrecursionlimit(10000)  # 재귀 제한 증가
 
 # 캐시 저장을 위한 전역 변수 추가
@@ -611,6 +612,7 @@ def start_publish_weather_mqtt_to_bands():
                 # MQTT 전송
                 mqtt.publish(topic, message)
                 app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+                socketio.sleep(0.5)
 
             except Exception as e:
                 db.session.rollback()
@@ -646,6 +648,7 @@ def start_weather_warning_mqtt_publish_checker():
 
             try:
                 mqtt.publish(topic, message)
+                socketio.sleep(0.5)
                 app_logger.info(f"[MQTT] Sent to {topic}: {message}")
             except Exception as e:
                 app_logger.error(f"[MQTT] Publish failed for {bid}: {e}")
@@ -705,12 +708,19 @@ def publish_info_mqtt_by_bid(extAddress):
             app_logger.warning(f"[MQTT] No sensor data found for band ID {dev.id}")
             return
 
-        # 오늘 날짜 기준 비교
-        now = datetime.now(timezone('Asia/Seoul'))
+        # 오늘 날짜 기준 (KST)
+        kst = timezone('Asia/Seoul')
+        now = datetime.now(kst)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # 🛠 datetime에 타임존 지정 (방법 1 적용)
-        latest_datetime = latest_data.datetime.replace(tzinfo=timezone('Asia/Seoul'))
+        # ✅ 타임존 정확히 붙이기 (localize 사용) → KST → UTC 보정
+        latest_datetime = kst.localize(latest_data.datetime)
+
+        # 🔍 디버깅 출력
+        app_logger.debug(f"[MQTT] extAddress: {extAddress}")
+        app_logger.debug(f"[MQTT] latest_data.datetime (original): {latest_data.datetime}")
+        app_logger.debug(f"[MQTT] latest_datetime (converted): {latest_datetime}")
+        app_logger.debug(f"[MQTT] today_start: {today_start}")
 
         if latest_datetime >= today_start:
             # 오늘 데이터이면 그대로 사용

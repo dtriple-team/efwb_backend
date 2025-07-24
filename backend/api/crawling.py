@@ -389,30 +389,27 @@ def normalize(text):
     return re.sub(r'\s+', '', text).lower()
 
 def get_area_no_by_province_city(province, city, borough):
-    """
-    city → borough → province 순서로 우선 체크하여 area_no 반환
-    """
     province_norm = normalize(province)
     city_norm = normalize(city)
     borough_norm = normalize(borough)
 
+     # 1. city 포함 여부 (예: "구미시")
     for area_no, (prov, ct) in area_no_map.items():
-        prov_norm = normalize(prov)
-        ct_norm = normalize(ct)
-
-        # 1. city 포함 여부 (예: "구미시")
-        if city_norm and city_norm in ct_norm:
+        if city_norm and city_norm in normalize(ct):
             return area_no
 
-        # 2. borough 포함 여부 (예: "수성구")
-        if borough_norm and borough_norm in ct_norm:
+     # 2. borough 포함 여부 (예: "수성구")
+    for area_no, (prov, ct) in area_no_map.items():
+        if borough_norm and borough_norm in normalize(ct):
             return area_no
 
-        # 3. province 포함 여부 (예: "경상북도")
-        if province_norm and province_norm in prov_norm:
+     # 3. province 포함 여부 (예: "경상북도")
+    for area_no, (prov, _) in area_no_map.items():
+        if province_norm and province_norm in normalize(prov):
             return area_no
 
     return None
+
 
 def fetch_uv_index_by_province_city(province, city, borough):
     area_no = get_area_no_by_province_city(province, city, borough)
@@ -464,9 +461,13 @@ def fetch_uv_index_by_province_city(province, city, borough):
         hn_key = f"h{delta_hours + 1}"
 
         feels_like = item.get(hn_key)
-        if feels_like:
-            print(f"현재 체감온도({hn_key}): {feels_like}°C")
-            return float(feels_like)
+        if feels_like is not None:
+            feels_like_val = float(feels_like)
+            if feels_like_val == 0:
+                print(f"{hn_key} 값이 0°C → 무시됨")
+                return None
+            print(f"현재 체감온도({hn_key}): {feels_like_val}°C")
+            return feels_like_val
         else:
             print(f"{hn_key} 값 없음")
             return None
