@@ -347,8 +347,13 @@ def get_weather(location, lat, lng):
 
         # 체감온도 계산
         province, city, borough = get_province_city_from_coords(lat, lng)
-        feels_like = fetch_uv_index_by_province_city(province, city, borough)
-        #feels_like = kma_official_feels_like(temp, humidity, wind)
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        if 5 <= now.month <= 9:
+         # 5~9월은 기상청 API 사용
+          feels_like = fetch_uv_index_by_province_city(province, city, borough)
+        else:
+          # 그 외 기간은 직접 계산
+          feels_like = kma_official_feels_like(temp, humidity, wind)
 
         # ✅ feels_like None 처리 및 float 변환
         if feels_like is None:
@@ -415,8 +420,12 @@ def fetch_uv_index_by_province_city(province, city, borough):
         print(f"지역을 찾을 수 없습니다: {province} {city}")
         return None
 
-    now = datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(hours=1)
-    time_str = now.strftime('%Y%m%d%H')
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+
+    # 3시간 단위로 내림
+    rounded_hour = now.replace(minute=0, second=0, microsecond=0)
+    rounded_hour -= timedelta(hours=now.hour % 3)
+    time_str = rounded_hour.strftime('%Y%m%d%H')
 
     base_url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getSenTaIdxV4'
     request_code = "A44"
@@ -445,19 +454,19 @@ def fetch_uv_index_by_province_city(province, city, borough):
             return None
 
         item = items[0]
-        forecast_base_str = item.get('date')  # 예: "2025072315"
+        forecast_base_str = item.get('date')
         if not forecast_base_str:
             print("예보 기준 시간이 없음")
             return None
 
         forecast_base = datetime.strptime(forecast_base_str, "%Y%m%d%H").replace(tzinfo=ZoneInfo("Asia/Seoul"))
         delta_hours = int((now - forecast_base).total_seconds() / 3600)
-        hn_key = f"h{delta_hours +1}"
+        hn_key = f"h{delta_hours + 1}"
 
         feels_like = item.get(hn_key)
         if feels_like:
             print(f"현재 체감온도({hn_key}): {feels_like}°C")
-            return feels_like
+            return float(feels_like)
         else:
             print(f"{hn_key} 값 없음")
             return None
@@ -466,7 +475,6 @@ def fetch_uv_index_by_province_city(province, city, borough):
         print(f"[{province} {city}] HTTP error occurred: {http_err}")
     except Exception as e:
         print(f"[{province} {city}] 호출 실패: {e}")
-
     return None
 
 
