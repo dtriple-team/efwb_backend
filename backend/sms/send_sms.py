@@ -11,7 +11,7 @@ def set_rcv_number(phone_number):
 def get_warning_info(warning_type):
   warnings = {
     #0: {"type": "낙상", "severity": "위험"},
-    1: {"type": "배터리 용량 부족", "severity": "경고"},
+    # 1: {"type": "배터리 용량 부족", "severity": "경고"},
     # 2: {"type": "배터리 용량 주의", "severity": "알림"},
     # 3: {"type": "미착용", "severity": "알림"},
     # 4: {"type": "심박수 이상", "severity": "위험"},

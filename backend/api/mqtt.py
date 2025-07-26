@@ -612,7 +612,7 @@ def start_publish_weather_mqtt_to_bands():
                 # MQTT 전송
                 mqtt.publish(topic, message)
                 app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
-                socketio.sleep(0.5)
+                socketio.sleep(1.0)
 
             except Exception as e:
                 db.session.rollback()
@@ -648,7 +648,7 @@ def start_weather_warning_mqtt_publish_checker():
 
             try:
                 mqtt.publish(topic, message)
-                socketio.sleep(0.5)
+                socketio.sleep(1.0)
                 app_logger.info(f"[MQTT] Sent to {topic}: {message}")
             except Exception as e:
                 app_logger.error(f"[MQTT] Publish failed for {bid}: {e}")
