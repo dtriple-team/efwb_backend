@@ -4,7 +4,7 @@ from flask import json
 from backend.db.table.table_band import *
 from backend.db.service.query import *
 from backend.api.crawling import *
-from threading import Lock
+import threading
 from logger_config import app_logger
 from datetime import timedelta
 from sqlalchemy import text
@@ -14,18 +14,17 @@ import time
 import sys
 import math
 from pytz import timezone
+import queue
+import re
+import requests
 sys.setrecursionlimit(10000)  # 재귀 제한 증가
 
 # 캐시 저장을 위한 전역 변수 추가
 last_event_cache = defaultdict(dict)
 EVENT_COOLDOWN = 0.5  # 중복 처리 방지 시간 (초)
 
-mqtt_thread = None
-gw_thread = None
-event_thread = None
-
-num = 0
-thread_lock = Lock()
+mqtt_job_queue = queue.Queue()
+event_job_queue = queue.Queue()
 
 
 def mqttPublish(topic, message):
@@ -751,173 +750,142 @@ def publish_info_mqtt_by_bid(extAddress):
         db.session.rollback()
         app_logger.error(f"[MQTT] Failed to publish for Band {extAddress}: {e}")
 
+# 워커 스레드 정의
+def mqtt_worker():
+    while True:
+        job = mqtt_job_queue.get()
+        try:
+            job()
+        except Exception as e:
+            app_logger.error(f"[MQTT Worker] Error: {e}", exc_info=True)
+        finally:
+            mqtt_job_queue.task_done()
+
+def event_worker():
+    while True:
+        job = event_job_queue.get()
+        try:
+            job()
+        except Exception as e:
+            app_logger.error(f"[Event Worker] Error: {e}", exc_info=True)
+        finally:
+            event_job_queue.task_done()
+
+# 워커 실행
+threading.Thread(target=mqtt_worker, daemon=True).start()
+threading.Thread(target=event_worker, daemon=True).start()
+
+# 메시지 핸들러
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
-  try:
-    global mqtt_thread, gw_thread, event_thread, num, thread_lock
+    try:
+        topic = message.topic
+        payload = message.payload.decode().strip()
 
-    if message.topic == '/DT/eHG4/naas/post/sync':
-        with thread_lock:
-            if mqtt_thread is None:
-                mqtt_data = json.loads(message.payload.decode())
-                #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
+        if topic == '/DT/eHG4/naas/post/sync':
+            def job():
+                mqtt_data = json.loads(payload)
                 extAddress = int(
                     format(mqtt_data['extAddress']['high'], 'x') +
-                    format(mqtt_data['extAddress']['low'], 'x'),
-                    16
+                    format(mqtt_data['extAddress']['low'], 'x'), 16
                 )
-                # 비동기 처리를 위해 background_task 사용
-                mqtt_thread = socketio.start_background_task(
-                    target=handle_sync_data,
-                    mqtt_data=mqtt_data,
-                    extAddress=extAddress
-                )
-                mqtt_thread = None
+                handle_sync_data(mqtt_data=mqtt_data, extAddress=extAddress)
+            mqtt_job_queue.put(job)
 
-    elif message.topic == '/DT/eHG4/naas/GPS/Location':
-        with thread_lock:
-            if mqtt_thread is None:
-                raw_payload = message.payload.decode().strip()
-
-                # "data" 필드 내 날짜 앞에 붙은 " 한 개와 맨 뒤 큰따옴표 한 개 제거
-                # 예: ...,0.000000,"2025-05-19 10:12:43""  →  ...,0.000000,2025-05-19 10:12:43"
+        elif topic == '/DT/eHG4/naas/GPS/Location':
+            def job():
                 fixed_payload = re.sub(
                     r'("data"\s*:\s*".*?,\d+\.\d+,)"(20\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})""',
-                    r'\1\2"',
-                    raw_payload
+                    r'\1\2"', payload
                 )
-
                 mqtt_data = json.loads(fixed_payload)
-
                 extAddress = int(
                     format(mqtt_data['extAddress']['high'], 'x') +
-                    format(mqtt_data['extAddress']['low'], 'x'),
-                    16
+                    format(mqtt_data['extAddress']['low'], 'x'), 16
+                )
+                handle_gps_data(mqtt_data=mqtt_data, extAddress=extAddress)
+            mqtt_job_queue.put(job)
+
+        elif topic == '/DT/eHG4/naas/WEATHER/GET':
+            def job():
+                mqtt_data = json.loads(payload)
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'), 16
+                )
+                publish_weather_mqtt_by_bid(extAddress)
+            mqtt_job_queue.put(job)
+
+        elif topic == '/DT/eHG4/naas/INFO/GET':
+            def job():
+                mqtt_data = json.loads(payload)
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'), 16
+                )
+                publish_info_mqtt_by_bid(extAddress)
+            mqtt_job_queue.put(job)
+
+        elif topic == '/DT/eHG4/naas/post/connectcheck':
+            def job():
+                # 비어 있음 (gw_thread 미사용)
+                pass
+            mqtt_job_queue.put(job)
+
+        elif topic == '/DT/eHG4/naas/post/async':
+            def job():
+                event_data = json.loads(payload)
+                extAddress = int(
+                    format(event_data['extAddress']['high'], 'x') +
+                    format(event_data['extAddress']['low'], 'x'), 16
                 )
 
-                mqtt_thread = socketio.start_background_task(
-                    target=handle_gps_data,
-                    mqtt_data=mqtt_data,
-                    extAddress=extAddress
-                )
-                mqtt_thread = None
+                cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
+                current_time = time.time()
 
-    # elif message.topic == '/DT/eHG4/naas/GPS/Location':
-    #     with thread_lock:
-    #         if mqtt_thread is None:
-    #             mqtt_data = json.loads(message.payload.decode())
-    #             #extAddress = hex(int(str(mqtt_data['extAddress']['high'])+str(mqtt_data['extAddress']['low'])))
-    #             extAddress = int(
-    #                 format(mqtt_data['extAddress']['high'], 'x') +
-    #                 format(mqtt_data['extAddress']['low'], 'x'),
-    #                 16
-    #             )
-    #             mqtt_thread = socketio.start_background_task(
-    #                 target=handle_gps_data,
-    #                 mqtt_data=mqtt_data,
-    #                 extAddress=extAddress
-    #             )
-    #             mqtt_thread = None
-    elif message.topic == '/DT/eHG4/naas/WEATHER/GET':
-      with thread_lock:
-        if mqtt_thread is None:
-            mqtt_data = json.loads(message.payload.decode())
-            extAddress = int(
-                format(mqtt_data['extAddress']['high'], 'x') +
-                format(mqtt_data['extAddress']['low'], 'x'),
-                16
-            )
-            publish_weather_mqtt_by_bid(extAddress)
-            mqtt_thread = None
+                if cache_key in last_event_cache:
+                    if current_time - last_event_cache[cache_key] < EVENT_COOLDOWN:
+                        app_logger.debug(f"Skipping duplicate event: {cache_key}")
+                        return
 
-    elif message.topic == '/DT/eHG4/naas/INFO/GET':
-      with thread_lock:
-        if mqtt_thread is None:
-            mqtt_data = json.loads(message.payload.decode())
-            extAddress = int(
-                format(mqtt_data['extAddress']['high'], 'x') +
-                format(mqtt_data['extAddress']['low'], 'x'),
-                16
-            )
-            publish_info_mqtt_by_bid(extAddress)
-            mqtt_thread = None
+                last_event_cache[cache_key] = current_time
+                dev = db.session.query(Bands).filter_by(bid=extAddress).first()
 
-    elif message.topic == '/DT/eHG4/naas/post/connectcheck':
-      with thread_lock:
-        if gw_thread is None:
-          # gw_thread = socketio.start_background_task(handle_gateway_state(json.loads(message.payload)))
-          gw_thread = None
+                if dev is not None:
+                    insertEvent(dev.id, event_data['type'], event_data['value'])
 
-    elif message.topic == '/DT/eHG4/naas/post/async':
-      with thread_lock:
-        if event_thread is None:
-          
-          event_data = json.loads(message.payload.decode())
-          
-          #extAddress = hex( int(str(event_data['extAddress']['high'])+str(event_data['extAddress']['low'])))
-          extAddress = int(
-              format(event_data['extAddress']['high'], 'x') +
-              format(event_data['extAddress']['low'], 'x'),
-              16
-          )
-          # 중복 체크를 위한 캐시 키 생성
-          cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
-          current_time = time.time()
-          
-          # 최근 처리된 동일 이벤트 확인
-          if cache_key in last_event_cache:
-            last_time = last_event_cache[cache_key]
-            if current_time - last_time < EVENT_COOLDOWN:
-              app_logger.debug(f"Skipping duplicate event: {cache_key}")
-              return
-              
-          # 현재 이벤트 시간 저장
-          last_event_cache[cache_key] = current_time
-          
-          dev = db.session.query(Bands).filter_by(bid=extAddress).first()
-          
-          if dev is not None:
-              insertEvent(
-                  dev.id, event_data['type'], event_data['value']
-              )
-              # ✅ users 테이블에서 phone 번호 조회 - 쿼리 수정
-              user = db.session.query(Users).join(UsersBands).join(Bands).filter(Bands.id == dev.id).first()
-            
-              if user and user.phone:
-                  send_warning_sms(
-                      dev_name=dev.name,
-                      warning_type=event_data['type'],
-                      value=event_data['value'],
-                      rcv_number=user.phone
-                  )
-              else:
-                  app_logger.warning(f"No user found for band: {dev.bid}")
-              # ✅ 이벤트 후 Webhook 호출
-              try:
-                  response = requests.get("https://hdwitheye.mycafe24.com/api/v1/hook")
-                  if response.status_code == 200:
-                      print("Webhook 호출 성공")
-                  else:
-                      print(f"Webhook 호출 실패: {response.status_code}")
-              except Exception as e:
-                  print(f"Webhook 호출 중 오류 발생: {e}")
+                    user = db.session.query(Users).join(UsersBands).join(Bands).filter(Bands.id == dev.id).first()
+                    if user and user.phone:
+                        send_warning_sms(
+                            dev_name=dev.name,
+                            warning_type=event_data['type'],
+                            value=event_data['value'],
+                            rcv_number=user.phone
+                        )
+                    else:
+                        app_logger.warning(f"No user found for band: {dev.bid}")
 
-              # if event_data['type'] == 6 and event_data['value'] in [0, 1]:
-              #   db.session.query(Bands).filter_by(bid=extAddress).update({'emergency_signal': event_data['value']})
-              #   db.session.commit()
-              #   db.session.remove()
+                    try:
+                        response = requests.get("https://hdwitheye.mycafe24.com/api/v1/hook")
+                        if response.status_code == 200:
+                            print("Webhook 호출 성공")
+                        else:
+                            print(f"Webhook 호출 실패: {response.status_code}")
+                    except Exception as e:
+                        print(f"Webhook 호출 중 오류 발생: {e}")
 
-              event_socket = {
-                  "type": event_data['type'],
-                  "value": event_data['value'],
-                  "bid": dev.bid,
-                  "name": dev.name
-              }
-              socketio.emit('efwbasync', event_socket,namespace='/admin')
-              app_logger.info(f"Successfully processed and emitted async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
-              db.session.remove()
-          else:
-            app_logger.warning(f"Band not found for extAddress: {extAddress}")
-          event_thread = None
-  except Exception as e:
-    app_logger.error(f"Error in MQTT message handler: {str(e)}", exc_info=True)
+                    event_socket = {
+                        "type": event_data['type'],
+                        "value": event_data['value'],
+                        "bid": dev.bid,
+                        "name": dev.name
+                    }
+                    socketio.emit('efwbasync', event_socket, namespace='/admin')
+                    app_logger.info(f"Processed async event for band {dev.bid}: type={event_data['type']}, value={event_data['value']}")
+                    db.session.remove()
+                else:
+                    app_logger.warning(f"Band not found for extAddress: {extAddress}")
+            event_job_queue.put(job)
+
+    except Exception as e:
+        app_logger.error(f"Error in MQTT message handler: {str(e)}", exc_info=True)

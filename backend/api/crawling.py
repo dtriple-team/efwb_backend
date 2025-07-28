@@ -419,63 +419,62 @@ def fetch_uv_index_by_province_city(province, city, borough):
 
     now = datetime.now(ZoneInfo("Asia/Seoul"))
 
-    # 3시간 단위로 내림
-    rounded_hour = now.replace(minute=0, second=0, microsecond=0)
-    rounded_hour -= timedelta(hours=now.hour % 3)
-    time_str = rounded_hour.strftime('%Y%m%d%H')
+    for hour_back in [3, 6, 9]:
+        # 3시간 단위로 내림
+        rounded_hour = now.replace(minute=0, second=0, microsecond=0)
+        rounded_hour -= timedelta(hours=now.hour % 3 + hour_back)
+        time_str = rounded_hour.strftime('%Y%m%d%H')
 
-    base_url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getSenTaIdxV4'
-    request_code = "A44"
-    service_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="
+        base_url = 'http://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getSenTaIdxV4'
+        request_code = "A44"
+        service_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="
 
-    params = {
-        'serviceKey': service_key,
-        'pageNo': '1',
-        'numOfRows': '10',
-        'dataType': 'JSON',
-        'areaNo': area_no,
-        'time': time_str,
-        'requestCode': request_code
-    }
+        params = {
+            'serviceKey': service_key,
+            'pageNo': '1',
+            'numOfRows': '10',
+            'dataType': 'JSON',
+            'areaNo': area_no,
+            'time': time_str,
+            'requestCode': request_code
+        }
 
-    try:
-        response = requests.get(base_url, params=params, timeout=5)
-        response.raise_for_status()
+        try:
+            response = requests.get(base_url, params=params)
+            response.raise_for_status()
+            result = response.json()
 
-        result = response.json()
-        print(f"[{province} {city}] (AreaNo: {area_no}, {request_code}) 호출 성공")
+            print(f"[{province} {city}] (AreaNo: {area_no}, {request_code}, time: {time_str}) 호출 성공")
 
-        items = result.get('response', {}).get('body', {}).get('items', {}).get('item', [])
-        if not items:
-            print("item이 비어있음")
-            return None
+            items = result.get('response', {}).get('body', {}).get('items', {}).get('item', [])
+            if not items:
+                print(f"[{province} {city}] item이 비어있음 (time: {time_str})")
+                continue  # 다음 시간으로 시도
 
-        item = items[0]
-        forecast_base_str = item.get('date')
-        if not forecast_base_str:
-            print("예보 기준 시간이 없음")
-            return None
+            item = items[0]
+            forecast_base_str = item.get('date')
+            if not forecast_base_str:
+                print(f"[{province} {city}] 예보 기준 시간이 없음")
+                continue
 
-        forecast_base = datetime.strptime(forecast_base_str, "%Y%m%d%H").replace(tzinfo=ZoneInfo("Asia/Seoul"))
-        delta_hours = int((now - forecast_base).total_seconds() / 3600)
-        hn_key = f"h{delta_hours + 1}"
+            forecast_base = datetime.strptime(forecast_base_str, "%Y%m%d%H").replace(tzinfo=ZoneInfo("Asia/Seoul"))
+            delta_hours = int((now - forecast_base).total_seconds() / 3600)
+            hn_key = f"h{delta_hours}"
 
-        feels_like = item.get(hn_key)
-        if feels_like is not None:
-            feels_like_val = float(feels_like)
-            if feels_like_val == 0:
-                print(f"{hn_key} 값이 0°C → 무시됨")
-                return None
-            print(f"현재 체감온도({hn_key}): {feels_like_val}°C")
-            return feels_like_val
-        else:
-            print(f"{hn_key} 값 없음")
-            return None
+            feels_like = item.get(hn_key)
+            if feels_like is not None:
+                feels_like_val = float(feels_like)
+                print(f"[{province} {city}] 현재 체감온도({hn_key}): {feels_like_val}°C")
+                return feels_like_val
+            else:
+                print(f"[{province} {city}] {hn_key} 값 없음")
 
-    except requests.exceptions.HTTPError as http_err:
-        print(f"[{province} {city}] HTTP error occurred: {http_err}")
-    except Exception as e:
-        print(f"[{province} {city}] 호출 실패: {e}")
+        except requests.exceptions.HTTPError as http_err:
+            print(f"[{province} {city}] HTTP error occurred: {http_err}")
+        except Exception as e:
+            print(f"[{province} {city}] 호출 실패: {e}")
+
+    # 모든 시도 실패
     return None
 
 
