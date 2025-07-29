@@ -17,6 +17,8 @@ from pytz import timezone
 import queue
 import re
 import requests
+import itertools
+
 sys.setrecursionlimit(10000)  # 재귀 제한 증가
 
 # 캐시 저장을 위한 전역 변수 추가
@@ -26,6 +28,7 @@ EVENT_COOLDOWN = 0.5  # 중복 처리 방지 시간 (초)
 # 우선순위 큐 (priority: 낮을수록 먼저 실행)
 mqtt_event_queue = queue.PriorityQueue()
 background_done = threading.Event()  # 초기화 완료 이벤트
+counter = itertools.count()
 
 
 def mqttPublish(topic, message):
@@ -758,11 +761,11 @@ def mqtt_event_worker():
     print("백그라운드 완료 → 메시지 처리 시작")
 
     while True:
-        priority, job = mqtt_event_queue.get()
         try:
+            priority, _, job = mqtt_event_queue.get()
             job()
         except Exception as e:
-            app_logger.error(f"[Worker] Error: {e}", exc_info=True)
+            app_logger.error(f"[MQTT/Event Worker] Error while executing job: {e}", exc_info=True)
         finally:
             mqtt_event_queue.task_done()
 
@@ -777,8 +780,8 @@ def handle_mqtt_message(client, userdata, message):
         payload = message.payload.decode().strip()
 
         def enqueue(priority, job):
-            mqtt_event_queue.put((priority, job))
-            app_logger.info(f"[MQTT Message Queued] Topic: {topic}, Priority: {priority}")
+            mqtt_event_queue.put((priority, next(counter), job))
+            app_logger.info(f"[MQTT Message Queued] Priority={priority}, Job={job.__name__ if hasattr(job,'__name__') else 'anonymous'}")
 
         # 일반 MQTT 메시지 → 우선순위 1
         if topic == '/DT/eHG4/naas/post/sync':
@@ -847,7 +850,7 @@ def handle_mqtt_message(client, userdata, message):
 
                 dev = db.session.query(Bands).filter_by(bid=extAddress).first()
                 if dev:
-                    insertEvent(dev.id, event_data['type'], event_data['value'])
+                    insertEvent(dev.id, event_data['type'], event_data['value'], datetime.now(ZoneInfo('Asia/Seoul')))
 
                     user = db.session.query(Users).join(UsersBands).join(Bands).filter(Bands.id == dev.id).first()
                     if user and user.phone:

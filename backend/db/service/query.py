@@ -109,12 +109,12 @@ def insertSensorData(data, ):
 #     db.session.commit()
 #     db.session.remove()
 
-def insertEvent(id, type, value):
+def insertEvent(id, type, value, datetime):
     events = Events()
     events.FK_bid = id
     events.type = type
     events.value = value
-    events.datetime = datetime.datetime.now()
+    events.datetime = datetime
     db.session.add(events)
     db.session.commit()
     
