@@ -11,6 +11,8 @@ from backend.api.dfs_zone_tree import area_no_map
 import urllib.parse
 import urllib.request
 from logger_config import app_logger
+import json
+import time
 
 class WeatherState:
     location = None
@@ -381,7 +383,7 @@ def get_weather(location, lat, lng):
         temp = float(weather_data.get('T1H', 0))
         wind = float(weather_data.get('WSD', 0))
         humidity = float(weather_data.get('REH', 0))
-
+        
         # 체감온도 계산
         province, city, borough = get_province_city_from_coords(lat, lng)
         now = datetime.now(ZoneInfo("Asia/Seoul"))
