@@ -120,7 +120,23 @@ if server.start == 0 :
 else :
     db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
     db.session.commit()
-    
-socketio.start_background_task(start_disconnect_checker)
-socketio.start_background_task(start_publish_weather_mqtt_to_bands)
-socketio.start_background_task(start_weather_warning_mqtt_publish_checker)
+
+def init_background_tasks(socketio):
+    from .api.mqtt import background_done  # 순환 참조 방지 위해 지연 임포트
+    background_done.clear()  # 초기화 시작 → MQTT 잠금
+
+    def run_all_background():
+        # 각 백그라운드 태스크를 비동기적으로 개별 실행
+        socketio.start_background_task(start_disconnect_checker)
+        socketio.start_background_task(start_publish_weather_mqtt_to_bands)
+        socketio.start_background_task(start_weather_warning_mqtt_publish_checker)
+
+        # 초기화 후 즉시 MQTT 메시지 처리 허용
+        background_done.set()
+        print("백그라운드 태스크 시작 → MQTT 메시지 처리 가능")
+
+    socketio.start_background_task(run_all_background)
+
+init_background_tasks(socketio)
+
+

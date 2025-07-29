@@ -23,8 +23,9 @@ sys.setrecursionlimit(10000)  # 재귀 제한 증가
 last_event_cache = defaultdict(dict)
 EVENT_COOLDOWN = 0.5  # 중복 처리 방지 시간 (초)
 
-mqtt_job_queue = queue.Queue()
-event_job_queue = queue.Queue()
+# 우선순위 큐 (priority: 낮을수록 먼저 실행)
+mqtt_event_queue = queue.PriorityQueue()
+background_done = threading.Event()  # 초기화 완료 이벤트
 
 
 def mqttPublish(topic, message):
@@ -751,29 +752,22 @@ def publish_info_mqtt_by_bid(extAddress):
         app_logger.error(f"[MQTT] Failed to publish for Band {extAddress}: {e}")
 
 # 워커 스레드 정의
-def mqtt_worker():
-    while True:
-        job = mqtt_job_queue.get()
-        try:
-            job()
-        except Exception as e:
-            app_logger.error(f"[MQTT Worker] Error: {e}", exc_info=True)
-        finally:
-            mqtt_job_queue.task_done()
+def mqtt_event_worker():
+    print("MQTT/Event 워커 대기 중...")
+    background_done.wait()  # 백그라운드 완료까지 대기
+    print("백그라운드 완료 → 메시지 처리 시작")
 
-def event_worker():
     while True:
-        job = event_job_queue.get()
+        priority, job = mqtt_event_queue.get()
         try:
             job()
         except Exception as e:
-            app_logger.error(f"[Event Worker] Error: {e}", exc_info=True)
+            app_logger.error(f"[Worker] Error: {e}", exc_info=True)
         finally:
-            event_job_queue.task_done()
+            mqtt_event_queue.task_done()
 
 # 워커 실행
-threading.Thread(target=mqtt_worker, daemon=True).start()
-threading.Thread(target=event_worker, daemon=True).start()
+threading.Thread(target=mqtt_event_worker, daemon=True).start()
 
 # 메시지 핸들러
 @mqtt.on_message()
@@ -782,6 +776,11 @@ def handle_mqtt_message(client, userdata, message):
         topic = message.topic
         payload = message.payload.decode().strip()
 
+        def enqueue(priority, job):
+            mqtt_event_queue.put((priority, job))
+            app_logger.info(f"[MQTT 큐 등록] {topic}, 우선순위: {priority}")
+
+        # 일반 MQTT 메시지 → 우선순위 1
         if topic == '/DT/eHG4/naas/post/sync':
             def job():
                 mqtt_data = json.loads(payload)
@@ -790,7 +789,7 @@ def handle_mqtt_message(client, userdata, message):
                     format(mqtt_data['extAddress']['low'], 'x'), 16
                 )
                 handle_sync_data(mqtt_data=mqtt_data, extAddress=extAddress)
-            mqtt_job_queue.put(job)
+            enqueue(1, job)
 
         elif topic == '/DT/eHG4/naas/GPS/Location':
             def job():
@@ -804,7 +803,7 @@ def handle_mqtt_message(client, userdata, message):
                     format(mqtt_data['extAddress']['low'], 'x'), 16
                 )
                 handle_gps_data(mqtt_data=mqtt_data, extAddress=extAddress)
-            mqtt_job_queue.put(job)
+            enqueue(1, job)
 
         elif topic == '/DT/eHG4/naas/WEATHER/GET':
             def job():
@@ -814,7 +813,7 @@ def handle_mqtt_message(client, userdata, message):
                     format(mqtt_data['extAddress']['low'], 'x'), 16
                 )
                 publish_weather_mqtt_by_bid(extAddress)
-            mqtt_job_queue.put(job)
+            enqueue(1, job)
 
         elif topic == '/DT/eHG4/naas/INFO/GET':
             def job():
@@ -824,14 +823,12 @@ def handle_mqtt_message(client, userdata, message):
                     format(mqtt_data['extAddress']['low'], 'x'), 16
                 )
                 publish_info_mqtt_by_bid(extAddress)
-            mqtt_job_queue.put(job)
+            enqueue(1, job)
 
         elif topic == '/DT/eHG4/naas/post/connectcheck':
-            def job():
-                # 비어 있음 (gw_thread 미사용)
-                pass
-            mqtt_job_queue.put(job)
+            enqueue(1, lambda: None)  # 현재 미사용
 
+        # 이벤트 메시지 → 우선순위 0
         elif topic == '/DT/eHG4/naas/post/async':
             def job():
                 event_data = json.loads(payload)
@@ -840,18 +837,16 @@ def handle_mqtt_message(client, userdata, message):
                     format(event_data['extAddress']['low'], 'x'), 16
                 )
 
+                # 중복 이벤트 체크
                 cache_key = f"{extAddress}_{event_data['type']}_{event_data['value']}"
                 current_time = time.time()
-
-                if cache_key in last_event_cache:
-                    if current_time - last_event_cache[cache_key] < EVENT_COOLDOWN:
-                        app_logger.debug(f"Skipping duplicate event: {cache_key}")
-                        return
-
+                if cache_key in last_event_cache and current_time - last_event_cache[cache_key] < EVENT_COOLDOWN:
+                    app_logger.debug(f"Skipping duplicate event: {cache_key}")
+                    return
                 last_event_cache[cache_key] = current_time
-                dev = db.session.query(Bands).filter_by(bid=extAddress).first()
 
-                if dev is not None:
+                dev = db.session.query(Bands).filter_by(bid=extAddress).first()
+                if dev:
                     insertEvent(dev.id, event_data['type'], event_data['value'])
 
                     user = db.session.query(Users).join(UsersBands).join(Bands).filter(Bands.id == dev.id).first()
@@ -885,7 +880,7 @@ def handle_mqtt_message(client, userdata, message):
                     db.session.remove()
                 else:
                     app_logger.warning(f"Band not found for extAddress: {extAddress}")
-            event_job_queue.put(job)
+            enqueue(0, job)  # 이벤트는 우선순위 0
 
     except Exception as e:
         app_logger.error(f"Error in MQTT message handler: {str(e)}", exc_info=True)
