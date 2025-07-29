@@ -778,7 +778,7 @@ def handle_mqtt_message(client, userdata, message):
 
         def enqueue(priority, job):
             mqtt_event_queue.put((priority, job))
-            app_logger.info(f"[MQTT 큐 등록] {topic}, 우선순위: {priority}")
+            app_logger.info(f"[MQTT Message Queued] Topic: {topic}, Priority: {priority}")
 
         # 일반 MQTT 메시지 → 우선순위 1
         if topic == '/DT/eHG4/naas/post/sync':

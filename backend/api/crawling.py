@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from backend.api.dfs_zone_tree import area_no_map
 import urllib.parse
 import urllib.request
+from logger_config import app_logger
 
 class WeatherState:
     location = None
@@ -294,7 +295,7 @@ def get_weather(location, lat, lng):
         'ny': ny
     }
 
-    # 단기예보
+    # 단기 예보
     now = datetime.now() - timedelta(minutes=20)
     if now.hour < 2:
         now -= timedelta(days=1)
@@ -314,20 +315,56 @@ def get_weather(location, lat, lng):
     }
 
     try:
+        # [1] 초단기 실황 요청
         response1 = requests.get(url1, params=params1)
+        # app_logger.debug(f"[Ultra-short-term Request URL] {response1.url}")
+        # app_logger.debug(f"[Ultra-short-term Response Status] {response1.status_code}")
+
         if response1.status_code != 200:
-            print(f"초단기 실황 요청 실패. 상태 코드: {response1.status_code}")
+            app_logger.warning(f"Ultra-short-term request failed. Status code: {response1.status_code}")
             return None
 
-        items1 = response1.json()['response']['body']['items']['item']
+        if not response1.text.strip():
+            app_logger.error("Ultra-short-term response is empty.")
+            return None
+
+        try:
+            data1 = response1.json()
+        except json.JSONDecodeError:
+            app_logger.error(f"Ultra-short-term JSON parsing failed: {response1.text[:200]}")
+            return None
+
+        if data1['response']['header']['resultCode'] != '00':
+            app_logger.error(f"Ultra-short-term API error: {data1['response']['header']['resultMsg']}")
+            return None
+
+        items1 = data1['response']['body']['items']['item']
         weather_data = {item['category']: item['obsrValue'] for item in items1}
 
+        # [2] 단기 예보 요청
         response2 = requests.get(url2, params=params2)
+        # app_logger.debug(f"[Short-term Forecast Request URL] {response2.url}")
+        # app_logger.debug(f"[Short-term Forecast Response Status] {response2.status_code}")
+
         if response2.status_code != 200:
-            print(f"단기 예보 요청 실패. 상태 코드: {response2.status_code}")
+            app_logger.warning(f"Short-term forecast request failed. Status code: {response2.status_code}")
             return None
 
-        items2 = response2.json()['response']['body']['items']['item']
+        if not response2.text.strip():
+            app_logger.error("Short-term forecast response is empty.")
+            return None
+
+        try:
+            data2 = response2.json()
+        except json.JSONDecodeError:
+            app_logger.error(f"Short-term forecast JSON parsing failed: {response2.text[:200]}")
+            return None
+
+        if data2['response']['header']['resultCode'] != '00':
+            app_logger.error(f"Short-term forecast API error: {data2['response']['header']['resultMsg']}")
+            return None
+
+        items2 = data2['response']['body']['items']['item']
         min_temp = next((item['fcstValue'] for item in items2 if item['category'] == 'TMN'), '정보 없음')
         max_temp = next((item['fcstValue'] for item in items2 if item['category'] == 'TMX'), '정보 없음')
 
@@ -348,14 +385,14 @@ def get_weather(location, lat, lng):
         # 체감온도 계산
         province, city, borough = get_province_city_from_coords(lat, lng)
         now = datetime.now(ZoneInfo("Asia/Seoul"))
+        #  5~9월은 기상청 API 사용
         if 5 <= now.month <= 9:
-         # 5~9월은 기상청 API 사용
-          feels_like = fetch_uv_index_by_province_city(province, city, borough)
+            feels_like = fetch_uv_index_by_province_city(province, city, borough)
         else:
-          # 그 외 기간은 직접 계산
-          feels_like = kma_official_feels_like(temp, humidity, wind)
+            # 그 외 기간은 직접 계산
+            feels_like = kma_official_feels_like(temp, humidity, wind)
 
-        # ✅ feels_like None 처리 및 float 변환
+        # feels_like None 처리 및 float 변환
         if feels_like is None:
             feels_like = 0.0
         else:
@@ -363,6 +400,7 @@ def get_weather(location, lat, lng):
                 feels_like = float(feels_like)
             except (ValueError, TypeError):
                 feels_like = 0.0
+
         result = {
             "city": location,
             "temp": temp,
@@ -377,8 +415,9 @@ def get_weather(location, lat, lng):
         return result
 
     except Exception as e:
-        print(f"날씨 데이터 처리 중 오류 발생: {e}")
+        app_logger.error(f"Error while processing weather data: {e}", exc_info=True)
         return None
+
 
 def normalize(text):
     """
