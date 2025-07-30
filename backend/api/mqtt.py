@@ -152,18 +152,18 @@ def handle_gps_data(mqtt_data, extAddress):
             # DB band 조회 및 업데이트
             band = db.session.query(Bands).filter_by(bid=gps_data['bid']).first()
             if band:
-                app_logger.debug(f"업데이트 전 위치 : {band.latitude}, lng={band.longitude}")
+                app_logger.debug(f"Location before update : {band.latitude}, lng={band.longitude}")
 
                 if band.latitude is not None and band.longitude is not None:
                     distance = haversine(band.latitude, band.longitude, gps_data['latitude'], gps_data['longitude'])
                     if distance > 700:
-                        app_logger.warning(f"GPS 위치 변화가 너무 큽니다: 약 {distance:.2f}km 차이, 업데이트하지 않습니다.")
+                        app_logger.warning(f"GPS position change is too large: approx. {distance:.2f}km difference, not updating.")
                         return  # 업데이트하지 않고 함수 종료
 
                 band.latitude = gps_data['latitude']
                 band.longitude = gps_data['longitude']
                 db.session.commit()
-                app_logger.debug(f"업데이트 후 위치 : {band.latitude}, lng={band.longitude}")
+                app_logger.debug(f"Location after update : {band.latitude}, lng={band.longitude}")
             else:
                 app_logger.warning(f"Band not found for bid: {gps_data['bid']}")
                 

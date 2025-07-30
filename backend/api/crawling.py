@@ -461,7 +461,7 @@ def get_area_no_by_province_city(province, city, borough):
 def fetch_uv_index_by_province_city(province, city, borough):
     area_no = get_area_no_by_province_city(province, city, borough)
     if not area_no:
-        print(f"지역을 찾을 수 없습니다: {province} {city}")
+        app_logger.error(f"Region not found: {province} {city}")
         return None
 
     now = datetime.now(ZoneInfo("Asia/Seoul"))
@@ -491,17 +491,17 @@ def fetch_uv_index_by_province_city(province, city, borough):
             response.raise_for_status()
             result = response.json()
 
-            print(f"[{province} {city}] (AreaNo: {area_no}, {request_code}, time: {time_str}) 호출 성공")
+            app_logger.error(f"[{province} {city}] (AreaNo: {area_no}, {request_code}, time: {time_str}) call success")
 
             items = result.get('response', {}).get('body', {}).get('items', {}).get('item', [])
             if not items:
-                print(f"[{province} {city}] item이 비어있음 (time: {time_str})")
+                app_logger.error(f"[{province} {city}] item is empty (time: {time_str})")
                 continue  # 다음 시간으로 시도
 
             item = items[0]
             forecast_base_str = item.get('date')
             if not forecast_base_str:
-                print(f"[{province} {city}] 예보 기준 시간이 없음")
+                app_logger.error(f"[{province} {city}] There is no forecast time")
                 continue
 
             forecast_base = datetime.strptime(forecast_base_str, "%Y%m%d%H").replace(tzinfo=ZoneInfo("Asia/Seoul"))
@@ -511,15 +511,15 @@ def fetch_uv_index_by_province_city(province, city, borough):
             feels_like = item.get(hn_key)
             if feels_like is not None:
                 feels_like_val = float(feels_like)
-                print(f"[{province} {city}] 현재 체감온도({hn_key}): {feels_like_val}°C")
+                app_logger.error(f"[{province} {city}] Current perceived temperature({hn_key}): {feels_like_val}°C")
                 return feels_like_val
             else:
-                print(f"[{province} {city}] {hn_key} 값 없음")
+                app_logger.error(f"[{province} {city}] {hn_key} no value")
 
         except requests.exceptions.HTTPError as http_err:
-            print(f"[{province} {city}] HTTP error occurred: {http_err}")
+            app_logger.error(f"[{province} {city}] HTTP error occurred: {http_err}")
         except Exception as e:
-            print(f"[{province} {city}] 호출 실패: {e}")
+            app_logger.error(f"[{province} {city}] call failed: {e}")
 
     # 모든 시도 실패
     return None
@@ -596,7 +596,7 @@ def get_warn_weather(lat, lng):
     try:
         region = get_province_city_from_coords_Kakao(lat, lng)
         if not region:
-            return {"error": "지역 정보 조회 실패"}
+            return {"error": "Local information search failed"}
 
         region_key = region[0] if isinstance(region, tuple) else region
         normalized_region = REGION_NAME_NORMALIZE.get(region_key, region_key)
@@ -622,7 +622,7 @@ def get_warn_weather(lat, lng):
         response = requests.get(warn_url, params=params)
         
         if response.status_code != 200:
-            return {"error": "기상특보 조회 실패"}
+            return {"error": "Failed to check weather report"}
 
         result = response.json()
         
@@ -635,28 +635,28 @@ def get_warn_weather(lat, lng):
             # 에러 코드에 따른 처리
             if result_code != '00':  # 정상 코드가 아닌 경우
                 error_messages = {
-                    '01': "어플리케이션 에러",
-                    '02': "데이터베이스 에러",
-                    '03': "데이터 없음",
-                    '04': "HTTP 에러",
-                    '05': "서비스 연결 실패",
-                    '10': "잘못된 요청 파라미터",
-                    '11': "필수 요청 파라미터 누락",
-                    '12': "해당 오픈API 서비스 없음",
-                    '20': "서비스 접근 거부",
-                    '21': "일시적으로 사용할 수 없는 서비스 키",
-                    '22': "서비스 요청제한횟수 초과",
-                    '30': "등록되지 않은 서비스키",
-                    '31': "기한만료된 서비스키",
-                    '32': "등록되지 않은 IP",
-                    '33': "서명되지 않은 호출",
-                    '99': "기타 에러"
+                    '01': "Application Error",
+                    '02': "Database Error",
+                    '03': "No Data",
+                    '04': "HTTP Error",
+                    '05': "Service Connection Failed",
+                    '10': "Invalid Request Parameter",
+                    '11': "Missing Required Request Parameter",
+                    '12': "No Such OpenAPI Service",
+                    '20': "Service Access Denied",
+                    '21': "Temporarily Unavailable Service Key",
+                    '22': "Exceeded Service Request Limit",
+                    '30': "Unregistered Service Key",
+                    '31': "Expired Service Key",
+                    '32': "Unregistered IP",
+                    '33': "Unsigned Call",
+                    '99': "Other Error"
                 }
                 if result_code == "03":
                     WeatherState.warn_send_flag = 2
-                error_msg = error_messages.get(result_code, "알 수 없는 에러")
+                error_msg = error_messages.get(result_code, "unknown error")
                 return {
-                    "error": f"기상청 API 오류 ({result_code}): {error_msg}",
+                    "error": f"Meteorological Service API error ({result_code}): {error_msg}",
                     "detail": result_msg
                 }
 
@@ -665,7 +665,7 @@ def get_warn_weather(lat, lng):
                 return {
                     "region": region,
                     "warnings": [],
-                    "message": "현재 발효 중인 기상특보가 없습니다."
+                    "message": "There are currently no weather warnings in effect."
                 }
 
             # 정상 데이터 처리
@@ -718,10 +718,10 @@ def get_warn_weather(lat, lng):
             return list(active_warnings)
 
         
-        return {"error": "기상특보 데이터 형식 오류"}
+        return {"error": "Weather report data format error"}
 
     except Exception as e:
-        print(f"기상특보 조회 중 오류 발생: {e}")
+        app_logger.error(f"An error occurred while checking weather reports: {e}")
         WeatherState.warn_send_flag = 0
         return []
 
