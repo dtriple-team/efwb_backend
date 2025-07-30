@@ -530,53 +530,96 @@ def start_disconnect_checker():
 #       socketio.emit('gateway_connect', panid, namespace='/admin')
 #   except:
 #       pass
-def publish_weather_mqtt_by_bid(extAddress):
-    """특정 밴드(bid)에 대해 현재 날씨 정보를 MQTT로 전송"""
-    dev = db.session.query(Bands).filter_by(bid=extAddress).first()     
-     # 밴드 연결 상태 업데이트
-    dev.connect_state = 1  # 1: connected
-    dev.connect_time = datetime.now(timezone('Asia/Seoul'))
-    db.session.commit()
+def publish_weather_and_warn_mqtt_by_bid(extAddress):
+    """특정 밴드(bid)에 대해 현재 날씨 및 특보 정보를 MQTT로 전송"""
     try:
-        dev = db.session.query(Bands).filter(Bands.bid == extAddress, Bands.connect_state == 1).first()
+        # 밴드 정보 조회 및 연결 상태 업데이트
+        dev = db.session.query(Bands).filter_by(bid=extAddress).first()
+        if not dev:
+            app_logger.warning(f"[DB] Band {extAddress} not found.")
+            return
 
+        dev.connect_state = 1  # 1: connected
+        dev.connect_time = datetime.now(timezone('Asia/Seoul'))
+        db.session.commit()
+
+        # 재조회 (연결 상태 확인 포함)
+        dev = db.session.query(Bands).filter(Bands.bid == extAddress, Bands.connect_state == 1).first()
         if not dev:
             app_logger.warning(f"[MQTT] Band {extAddress} not found or not connected.")
             return
 
-        # 위치 정보 추출
-        lat = dev.latitude
-        lng = dev.longitude
-
+        # 위치 정보 확인
+        lat, lng = dev.latitude, dev.longitude
         if lat is None or lng is None:
             app_logger.warning(f"[MQTT] Band {extAddress} has missing location info.")
             return
 
-        # 날씨 정보 조회
+        # 날씨 정보 조회 및 MQTT 전송
         weather = getWeatherFromCoords(lat, lng)
-
         if not weather or "error" in weather:
             app_logger.warning(f"[MQTT] Weather fetch failed for Band {extAddress}: {weather}")
-            return
+        else:
+            try:
+                temp = int(float(weather["temp"]) * 100)
+                feels_like = int(float(weather["feels_like"]) * 100)
+                humidity = int(float(weather["humidity"]))
 
+                topic = "/DT/eHG4/naas/Status/BandSet"
+                message = f"#XMQTTSUBMSG : 0,{extAddress},{temp},{feels_like},{humidity}"
+                mqtt.publish(topic, message)
+                app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+            except Exception as e:
+                app_logger.error(f"[MQTT] Failed to publish weather for Band {extAddress}: {e}")
+
+        # 특보 정보 조회 및 MQTT 전송
+        get_warn_weather(lat, lng)
+        topic = "/DT/eHG4/naas/Status/BandSet"
+        if WeatherState.warn_send_flag == 1:
+            warn_msg = f"#XMQTTSUBMSG : 1,{extAddress},{WeatherState.warn_types},{WeatherState.warn_levels}"
+        elif WeatherState.warn_send_flag == 2:
+            warn_msg = f"#XMQTTSUBMSG : 1,{extAddress},99,99"
+        else:
+            warn_msg = None  # 특보 없음
+
+        if warn_msg:
+            try:
+                mqtt.publish(topic, warn_msg)
+                socketio.sleep(1.0)
+                app_logger.info(f"[MQTT] Sent warning to {topic}: {warn_msg}")
+            except Exception as e:
+                app_logger.error(f"[MQTT] Publish warning failed for {extAddress}: {e}")
+
+        # 밴드별 특보 DB 업데이트
         try:
-            # 값 추출 및 변환
-            temp = int(float(weather["temp"]) * 100)
-            feels_like = int(float(weather["feels_like"]) * 100)
-            humidity = int(float(weather["humidity"]))
+            dev_list = db.session.query(Bands).filter(Bands.connect_state == 1).all()
+            for band in dev_list:
+                try:
+                    warn_level = float(WeatherState.warn_levels)
+                except (TypeError, ValueError):
+                    warn_level = None
 
-            topic = "/DT/eHG4/naas/Status/BandSet"
-            message = f"#XMQTTSUBMSG : 0,{extAddress},{temp},{feels_like},{humidity}"
+                if WeatherState.warn_types == 12:  # 폭염
+                    band.heat_warn = warn_level
+                    band.cold_warn = None
+                elif WeatherState.warn_types == 3:  # 한파
+                    band.heat_warn = None
+                    band.cold_warn = warn_level
+                else:  # 특보 없음
+                    band.heat_warn = None
+                    band.cold_warn = None
 
-            mqtt.publish(topic, message)
-            app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
-
+            db.session.commit()
+            app_logger.info("[DB] Updated warning levels successfully.")
         except Exception as e:
-            app_logger.error(f"[MQTT] Failed to publish for Band {extAddress}: {e}")
+            db.session.rollback()
+            app_logger.error(f"[DB] Failed to update warning levels: {e}")
 
     except Exception as e:
         db.session.rollback()
-        app_logger.error(f"[DB] Failed to fetch band {extAddress}: {e}")
+        app_logger.error(f"[DB] Failed to process band {extAddress}: {e}")
+    finally:
+        db.session.remove()
 
 def start_publish_weather_mqtt_to_bands():
     """30분마다 밴드별로 현재 날씨 정보를 MQTT로 전송"""
@@ -620,6 +663,8 @@ def start_publish_weather_mqtt_to_bands():
             except Exception as e:
                 db.session.rollback()
                 app_logger.error(f"[MQTT] Failed to publish for band {bid}: {e}")
+            finally:
+                db.session.remove()
 
         socketio.sleep(60*6)  # 기존 30분 간격
 
@@ -753,6 +798,8 @@ def publish_info_mqtt_by_bid(extAddress):
     except Exception as e:
         db.session.rollback()
         app_logger.error(f"[MQTT] Failed to publish for Band {extAddress}: {e}")
+    finally:
+            db.session.remove()
 
 # 워커 스레드 정의
 def mqtt_event_worker():
@@ -815,7 +862,7 @@ def handle_mqtt_message(client, userdata, message):
                     format(mqtt_data['extAddress']['high'], 'x') +
                     format(mqtt_data['extAddress']['low'], 'x'), 16
                 )
-                publish_weather_mqtt_by_bid(extAddress)
+                publish_weather_and_warn_mqtt_by_bid(extAddress)
             enqueue(1, job)
 
         elif topic == '/DT/eHG4/naas/INFO/GET':
