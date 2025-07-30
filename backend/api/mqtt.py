@@ -47,7 +47,7 @@ def getAltitude(pressure, airpressure):  # 기압 - 높이 계산 Dtriple
       pass
 def fetch_connected_band_data():
     """현재 연결된 밴드들의 위치 및 정보를 리스트로 반환 (내부 처리용)"""
-    app_logger.info("연결된 밴드 데이터만 조회 시작")
+    app_logger.info("Start querying only connected band data")
     try:
         connected_bands = db.session.query(Bands).filter(
             Bands.connect_state == 1
@@ -62,11 +62,11 @@ def fetch_connected_band_data():
                 "longitude": float(band.longitude) if band.longitude is not None else None,
                 "name": band.name
             })
-        app_logger.info(f"{len(result)}개의 밴드 데이터 반환 완료")
+        app_logger.info(f"{len(result)}number band data return complete")
         return result
 
     except Exception as e:
-        app_logger.error(f"밴드 데이터 조회 중 오류 발생: {str(e)}")
+        app_logger.error(f"An error occurred while retrieving band data: {str(e)}")
         return []
     finally:
         db.session.remove()
@@ -632,13 +632,13 @@ def start_publish_weather_mqtt_to_bands():
             lng = band.get('longitude')
 
             if lat is None or lng is None:
-                app_logger.warning(f"Band {bid} 위치 정보 없음")
+                app_logger.warning(f"Band {bid} No location information")
                 continue
 
             # 밴드별 날씨 정보 조회
             weather = getWeatherFromCoords(lat, lng)
             if not weather:
-                app_logger.warning(f"Band {bid} 날씨 정보 조회 실패")
+                app_logger.warning(f"Band {bid} Weather information retrieval failed")
                 continue
 
             try:
@@ -681,7 +681,7 @@ def start_weather_warning_mqtt_publish_checker():
 
             # lat, lng 먼저 체크
             if lat is None or lng is None:
-                app_logger.warning(f"Band {bid} 위치 정보 없음")
+                app_logger.warning(f"Band {bid} No location information")
                 continue
 
             get_warn_weather(lat, lng)
