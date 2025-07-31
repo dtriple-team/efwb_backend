@@ -284,8 +284,8 @@ def get_weather(location, lat, lng):
     base_date = base_time.strftime("%Y%m%d")
     base_time_str = base_time.strftime("%H%M")
     
-    app_logger.warning(f"Short-term forecast base_date: {base_date}")
-    app_logger.warning(f"Short-term forecast base_time_str: {base_time_str}")
+    # app_logger.warning(f"Short-term forecast base_date: {base_date}")
+    # app_logger.warning(f"Short-term forecast base_time_str: {base_time_str}")
 
     api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="  # 실제 키 입력
 
@@ -303,11 +303,14 @@ def get_weather(location, lat, lng):
     }
 
     # 단기예보
-    now = datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(minutes=30)
+    now = datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(minutes=60)
     if now.hour < 2:
         now -= timedelta(days=1)
 
     fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(now)
+
+    app_logger.warning(f"Ultra-short-term base_date: {base_date}")
+    app_logger.warning(f"Ultra-short-term base_time_str: {base_time_str}")
 
     url2 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
     params2 = {
