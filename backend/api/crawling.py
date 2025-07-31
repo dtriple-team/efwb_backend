@@ -277,23 +277,15 @@ def kma_official_feels_like(temp_c, humidity=None, wind_mps=None):
 def get_weather(location, lat, lng):
     nx, ny = latlon_to_xy(lat, lng)
     # 현재 시간 (서울 기준)
+    nx, ny = latlon_to_xy(lat, lng)
     now = datetime.now(ZoneInfo("Asia/Seoul"))
-
-    # 기준 시간 계산: 45분 이전이면 1시간 전을 기준으로
-    if now.minute <= 45:
-        one_hour_ago = now - timedelta(hours=1)
-        base_time = one_hour_ago.replace(minute=30, second=0, microsecond=0)
-    else:
-        base_time = now.replace(minute=30, second=0, microsecond=0)
-
-    # 날짜 계산: 00:45 이전이면 전날 날짜 사용
-    if now.hour == 0 and now.minute <= 45:
-        base_date = (now - timedelta(days=1)).strftime("%Y%m%d")
-    else:
-        base_date = base_time.strftime("%Y%m%d")
-
-    # 최종 문자열 생성
+    one_hour_ago = now - timedelta(minutes=60)
+    base_time = one_hour_ago.replace(minute=0, second=0, microsecond=0)
+    base_date = base_time.strftime("%Y%m%d")
     base_time_str = base_time.strftime("%H%M")
+    
+    app_logger.warning(f"Short-term forecast base_date: {base_date}")
+    app_logger.warning(f"Short-term forecast base_time_str: {base_time_str}")
 
     api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="  # 실제 키 입력
 
@@ -301,7 +293,7 @@ def get_weather(location, lat, lng):
     url1 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
     params1 = {
         'serviceKey': api_key,
-        'numOfRows': '100',
+        'numOfRows': '1000',
         'pageNo': '1',
         'dataType': 'JSON',
         'base_date': base_date,
@@ -310,14 +302,21 @@ def get_weather(location, lat, lng):
         'ny': ny
     }
 
+    # 단기예보
+    now = datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(minutes=30)
+    if now.hour < 2:
+        now -= timedelta(days=1)
+
+    fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(now)
+
     url2 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
     params2 = {
         'serviceKey': api_key,
-        'numOfRows': '100',
+        'numOfRows': '1000',
         'pageNo': '1',
         'dataType': 'JSON',
-        'base_date': base_date,
-        'base_time': base_time_str,
+        'base_date': fcst_base_date,
+        'base_time': fcst_base_time_str,
         'nx': nx,
         'ny': ny
     }
