@@ -276,25 +276,39 @@ def kma_official_feels_like(temp_c, humidity=None, wind_mps=None):
 
 def get_weather(location, lat, lng):
     nx, ny = latlon_to_xy(lat, lng)
-    # 현재 시간 (서울 기준)
-    nx, ny = latlon_to_xy(lat, lng)
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     one_hour_ago = now - timedelta(minutes=60)
     base_time = one_hour_ago.replace(minute=0, second=0, microsecond=0)
     base_date = base_time.strftime("%Y%m%d")
     base_time_str = base_time.strftime("%H%M")
-    
+
     app_logger.warning(f"Ultra-short-term base_date: {base_date}")
     app_logger.warning(f"Ultra-short-term base_time_str: {base_time_str}")
 
-    api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="  # 실제 키 입력
+    # API keys
+    api_key = "eLg0N+xGcf5+r2k1ElFDVyQ//I70zG8QlgPfaXEtd4rWyKSeVgdd3farac8mgR9E1DzxnxoZwAawwBjZ5sW86w=="  # Public data portal
+    authKey = "io4LOFUlTXmOCzhVJe15Mg"  # KMA API Hub
 
-    # 초단기 실황
-    url1 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
-    params1 = {
-        'serviceKey': api_key,
-        'numOfRows': '1000',
+    ultra_url_KMA_API_Hub = "https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst"
+    ultra_url_Public_Data_Portal = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
+
+    # Ultra-short-term (KMA API Hub first)
+    params_ultra_auth = {
         'pageNo': '1',
+        'numOfRows': '1000',
+        'dataType': 'JSON',
+        'base_date': base_date,
+        'base_time': base_time_str,
+        'nx': nx,
+        'ny': ny,
+        'authKey': authKey
+    }
+
+    # Ultra-short-term (Public Data Portal fallback)
+    params_ultra_service = {
+        'serviceKey': api_key,
+        'pageNo': '1',
+        'numOfRows': '1000',
         'dataType': 'JSON',
         'base_date': base_date,
         'base_time': base_time_str,
@@ -302,18 +316,17 @@ def get_weather(location, lat, lng):
         'ny': ny
     }
 
-    # 단기예보
+    # Short-term forecast
     now = datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(minutes=60)
     if now.hour < 2:
         now -= timedelta(days=1)
-
     fcst_base_date, fcst_base_time_str = get_fcst_base_datetime(now)
 
-    app_logger.warning(f"Short-term forecast base_date: {base_date}")
-    app_logger.warning(f"Short-term forecast base_time_str: {base_time_str}")
+    # app_logger.warning(f"Short-term forecast base_date: {fcst_base_date}")
+    # app_logger.warning(f"Short-term forecast base_time_str: {fcst_base_time_str}")
 
-    url2 = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
-    params2 = {
+    url_fcst = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
+    params_fcst = {
         'serviceKey': api_key,
         'numOfRows': '1000',
         'pageNo': '1',
@@ -325,43 +338,34 @@ def get_weather(location, lat, lng):
     }
 
     try:
-        # [1] 초단기 실황 요청
-        response1 = requests.get(url1, params=params1)
-        # app_logger.debug(f"[Ultra-short-term Request URL] {response1.url}")
-        # app_logger.debug(f"[Ultra-short-term Response Status] {response1.status_code}")
+        # [1] Ultra-short-term request (KMA API Hub first)
+        response = requests.get(ultra_url_KMA_API_Hub, params=params_ultra_auth)
+        if response.status_code != 200 or not response.text.strip():
+            app_logger.warning(f"[Ultra] KMA API Hub failed. Status: {response.status_code}, retrying Public Data Portal API")
+            response = requests.get(ultra_url_Public_Data_Portal, params=params_ultra_service)
 
-        if response1.status_code != 200:
-            app_logger.warning(f"Ultra-short-term request failed. Status code: {response1.status_code}")
-            return None
-
-        if not response1.text.strip():
-            app_logger.error("Ultra-short-term response is empty.")
+        # Validate response
+        if response.status_code != 200 or not response.text.strip():
+            app_logger.error("Ultra-short-term request failed.")
             return None
 
         try:
-            data1 = response1.json()
+            ultra_data = response.json()
         except json.JSONDecodeError:
-            app_logger.error(f"Ultra-short-term JSON parsing failed: {response1.text[:200]}")
+            app_logger.error(f"Ultra-short-term JSON parsing failed: {response.text[:200]}")
             return None
 
-        if data1['response']['header']['resultCode'] != '00':
-            app_logger.error(f"Ultra-short-term API error: {data1['response']['header']['resultMsg']}")
+        if ultra_data['response']['header']['resultCode'] != '00':
+            app_logger.error(f"Ultra-short-term API error: {ultra_data['response']['header']['resultMsg']}")
             return None
 
-        items1 = data1['response']['body']['items']['item']
+        items1 = ultra_data['response']['body']['items']['item']
         weather_data = {item['category']: item['obsrValue'] for item in items1}
 
-        # [2] 단기 예보 요청
-        response2 = requests.get(url2, params=params2)
-        # app_logger.debug(f"[Short-term Forecast Request URL] {response2.url}")
-        # app_logger.debug(f"[Short-term Forecast Response Status] {response2.status_code}")
-
-        if response2.status_code != 200:
-            app_logger.warning(f"Short-term forecast request failed. Status code: {response2.status_code}")
-            return None
-
-        if not response2.text.strip():
-            app_logger.error("Short-term forecast response is empty.")
+        # [2] Short-term forecast request
+        response2 = requests.get(url_fcst, params=params_fcst)
+        if response2.status_code != 200 or not response2.text.strip():
+            app_logger.error("Short-term forecast request failed.")
             return None
 
         try:
@@ -382,7 +386,6 @@ def get_weather(location, lat, lng):
             min_temp = int(float(min_temp))
         except (ValueError, TypeError):
             min_temp = '정보 없음'
-
         try:
             max_temp = int(float(max_temp))
         except (ValueError, TypeError):
@@ -391,18 +394,15 @@ def get_weather(location, lat, lng):
         temp = float(weather_data.get('T1H', 0))
         wind = float(weather_data.get('WSD', 0))
         humidity = float(weather_data.get('REH', 0))
-        
-        # 체감온도 계산
+
+        # Feels-like temperature
         province, city, borough = get_province_city_from_coords(lat, lng)
         now = datetime.now(ZoneInfo("Asia/Seoul"))
-        #  5~9월은 기상청 API 사용
         if 5 <= now.month <= 9:
             feels_like = fetch_uv_index_by_province_city(province, city, borough)
         else:
-            # 그 외 기간은 직접 계산
             feels_like = kma_official_feels_like(temp, humidity, wind)
 
-        # feels_like None 처리 및 float 변환
         if feels_like is None:
             feels_like = 0.0
         else:
@@ -493,7 +493,7 @@ def fetch_uv_index_by_province_city(province, city, borough):
             response.raise_for_status()
             result = response.json()
 
-            app_logger.error(f"[{province} {city}] (AreaNo: {area_no}, {request_code}, time: {time_str}) call success")
+            app_logger.info(f"[{province} {city}] (AreaNo: {area_no}, {request_code}, time: {time_str}) call success")
 
             items = result.get('response', {}).get('body', {}).get('items', {}).get('item', [])
             if not items:
@@ -513,7 +513,7 @@ def fetch_uv_index_by_province_city(province, city, borough):
             feels_like = item.get(hn_key)
             if feels_like is not None:
                 feels_like_val = float(feels_like)
-                app_logger.error(f"[{province} {city}] Current perceived temperature({hn_key}): {feels_like_val}°C")
+                app_logger.info(f"[{province} {city}] Current perceived temperature({hn_key}): {feels_like_val}°C")
                 return feels_like_val
             else:
                 app_logger.error(f"[{province} {city}] {hn_key} no value")
