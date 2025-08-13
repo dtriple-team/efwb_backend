@@ -129,7 +129,7 @@ def init_background_tasks(socketio):
         # 각 백그라운드 태스크를 비동기적으로 개별 실행
         socketio.start_background_task(start_disconnect_checker)
         socketio.start_background_task(start_publish_weather_mqtt_to_bands)
-        socketio.start_background_task(start_weather_warning_mqtt_publish_checker)
+        #socketio.start_background_task(start_weather_warning_mqtt_publish_checker)
 
         # 초기화 후 즉시 MQTT 메시지 처리 허용
         background_done.set()

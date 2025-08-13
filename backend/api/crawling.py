@@ -403,13 +403,13 @@ def get_weather(location, lat, lng):
         else:
             feels_like = kma_official_feels_like(temp, humidity, wind)
 
-        if feels_like is None:
-            feels_like = 0.0
+        if feels_like is None or feels_like == 0:
+            feels_like = 99.00
         else:
             try:
                 feels_like = float(feels_like)
             except (ValueError, TypeError):
-                feels_like = 0.0
+                feels_like = 99.00
 
         result = {
             "city": location,

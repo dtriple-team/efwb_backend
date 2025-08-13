@@ -621,9 +621,18 @@ def publish_weather_and_warn_mqtt_by_bid(extAddress):
     finally:
         db.session.remove()
 
+weather_mqtt_to_bands_period = 600  # 10분 주기
+
 def start_publish_weather_mqtt_to_bands():
-    """30분마다 밴드별로 현재 날씨 정보를 MQTT로 전송"""
+    """
+    - 메인 작업: 정확히 10분마다 실행
+    - 각 사이클에서 메인 작업 종료 후 30초 뒤 start_weather_warning_mqtt_publish_checker()을 '한 번' 실행
+    - 모든 대기는 socketio.sleep() 사용
+    """
+    cycle_start = time.monotonic()  # 첫 시작 시각 고정
+
     while True:
+        # ========== [메인 작업 시작] ==========
         band_data_list = fetch_connected_band_data()
 
         for band in band_data_list:
@@ -635,100 +644,121 @@ def start_publish_weather_mqtt_to_bands():
                 app_logger.warning(f"Band {bid} No location information")
                 continue
 
-            # 밴드별 날씨 정보 조회
             weather = getWeatherFromCoords(lat, lng)
             if not weather:
                 app_logger.warning(f"Band {bid} Weather information retrieval failed")
                 continue
 
             try:
-                # 값 추출
-                temp_val = weather.get("temp")
-                feels_val = weather.get("feels_like")
-                humidity_val = weather.get("humidity")
+                temp = int(float(weather.get("temp")) * 100)
+                feels_like = int(float(weather.get("feels_like")) * 100)
+                humidity = int(float(weather.get("humidity")))
 
-                temp = int(float(temp_val) * 100)
-                feels_like = int(float(feels_val) * 100)
-                humidity = int(float(humidity_val))
-
-                # 메시지 구성
                 topic = "/DT/eHG4/naas/Status/BandSet"
                 message = f"#XMQTTSUBMSG : 0,{bid},{temp},{feels_like},{humidity}"
 
-                # MQTT 전송
                 mqtt.publish(topic, message)
+                socketio.sleep(0.5)
                 app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
-                socketio.sleep(1.0)
 
             except Exception as e:
                 db.session.rollback()
                 app_logger.error(f"[MQTT] Failed to publish for band {bid}: {e}")
             finally:
                 db.session.remove()
+        # ========== [메인 작업 끝] ==========
 
-        socketio.sleep(60*6)  # 기존 30분 간격
+        # 작업 종료 시각 기준 30초 후 start_weather_warning_mqtt_publish_checker 실행 예약
+        now = time.monotonic()
+        next_other_at = now + 30
+        other_done = False
+
+        # 다음 사이클 시작 시각(정확히 10분 간격)
+        cycles_passed = max(1, math.floor((now - cycle_start) / weather_mqtt_to_bands_period) + 1)
+        next_cycle_start = cycle_start + cycles_passed * weather_mqtt_to_bands_period
+
+        # 다음 이벤트(1) other_function, (2) 다음 사이클 시작 중 먼저 도달하는 것 처리
+        while True:
+            now = time.monotonic()
+
+            # start_weather_warning_mqtt_publish_checker 실행 시점 도달 & 아직 실행 안 했으면
+            if (not other_done) and now >= next_other_at:
+                try:
+                    start_weather_warning_mqtt_publish_checker()
+                except Exception as e:
+                    app_logger.error(f"start_weather_warning_mqtt_publish_checker failed: {e}")
+                other_done = True
+
+            # 다음 사이클 시작 시간이 되면 루프 탈출
+            if now >= next_cycle_start:
+                break
+
+            # 다음 이벤트까지 짧게 대기
+            wait_until = next_cycle_start
+            if not other_done:
+                wait_until = min(wait_until, next_other_at)
+            socketio.sleep(max(0.05, wait_until - now))
+
+        # 다음 사이클로 이동
+        cycle_start = next_cycle_start
 
 def start_weather_warning_mqtt_publish_checker():
-    """3분마다 기상특보가 있는지 체크해서 밴드별로 MQTT 전송 및 DB 갱신"""
-    while True:
-        band_data_list = fetch_connected_band_data()
+    """기상특보를 체크해서 밴드별 MQTT 전송 및 DB 갱신"""
+    band_data_list = fetch_connected_band_data()
 
-        # 밴드별로 특보 조회 및 MQTT 전송
-        for band in band_data_list:
-            bid = band['bid']
-            lat = band.get('latitude')
-            lng = band.get('longitude')
+    # 밴드별로 특보 조회 및 MQTT 전송
+    for band in band_data_list:
+        bid = band['bid']
+        lat = band.get('latitude')
+        lng = band.get('longitude')
 
-            # lat, lng 먼저 체크
-            if lat is None or lng is None:
-                app_logger.warning(f"Band {bid} No location information")
-                continue
+        if lat is None or lng is None:
+            app_logger.warning(f"Band {bid} No location information")
+            continue
 
-            get_warn_weather(lat, lng)
+        get_warn_weather(lat, lng)
 
-            topic = "/DT/eHG4/naas/Status/BandSet"
-            if WeatherState.warn_send_flag == 1:
-                message = f"#XMQTTSUBMSG : 1,{bid},{WeatherState.warn_types},{WeatherState.warn_levels}"
-            elif WeatherState.warn_send_flag == 2:
-                message = f"#XMQTTSUBMSG : 1,{bid},99,99"
-            else:
-                continue  # 특보 없으면 건너뜀
+        topic = "/DT/eHG4/naas/Status/BandSet"
+        if WeatherState.warn_send_flag == 1:
+            message = f"#XMQTTSUBMSG : 1,{bid},{WeatherState.warn_types},{WeatherState.warn_levels}"
+        elif WeatherState.warn_send_flag == 2:
+            message = f"#XMQTTSUBMSG : 1,{bid},99,99"
+        else:
+            continue  # 특보 없으면 건너뜀
 
-            try:
-                mqtt.publish(topic, message)
-                socketio.sleep(1.0)
-                app_logger.info(f"[MQTT] Sent to {topic}: {message}")
-            except Exception as e:
-                app_logger.error(f"[MQTT] Publish failed for {bid}: {e}")
-
-        # 밴드별 특보 DB 업데이트
         try:
-            dev_list = db.session.query(Bands).filter(Bands.connect_state == 1).all()
-            for dev in dev_list:
-                try:
-                    warn_level = float(WeatherState.warn_levels)
-                except (TypeError, ValueError):
-                    warn_level = None
-
-                if WeatherState.warn_types == 12:
-                    dev.heat_warn = warn_level
-                    dev.cold_warn = None
-                elif WeatherState.warn_types == 3:
-                    dev.heat_warn = None
-                    dev.cold_warn = warn_level
-                else:
-                    dev.heat_warn = None
-                    dev.cold_warn = None
-
-            db.session.commit()
-            app_logger.info("[DB] Updated warning levels successfully.")
+            mqtt.publish(topic, message)
+            socketio.sleep(0.5)  # 필요시 0.01~0.05로 조정
+            app_logger.info(f"[MQTT] Sent to {topic}: {message}")
         except Exception as e:
-            db.session.rollback()
-            app_logger.error(f"[DB] Failed to update warning levels: {e}")
-        finally:
-            db.session.remove()
+            app_logger.error(f"[MQTT] Publish failed for {bid}: {e}")
 
-        socketio.sleep(60*10)  # 기존은 20분 간격으로 체크
+    # 밴드별 특보 DB 업데이트
+    try:
+        dev_list = db.session.query(Bands).filter(Bands.connect_state == 1).all()
+        for dev in dev_list:
+            try:
+                warn_level = float(WeatherState.warn_levels)
+            except (TypeError, ValueError):
+                warn_level = None
+
+            if WeatherState.warn_types == 12:
+                dev.heat_warn = warn_level
+                dev.cold_warn = None
+            elif WeatherState.warn_types == 3:
+                dev.heat_warn = None
+                dev.cold_warn = warn_level
+            else:
+                dev.heat_warn = None
+                dev.cold_warn = None
+
+        db.session.commit()
+        app_logger.info("[DB] Updated warning levels successfully.")
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f"[DB] Failed to update warning levels: {e}")
+    finally:
+        db.session.remove()
 
 def publish_info_mqtt_by_bid(extAddress):
     """특정 밴드(bid)에 대해 초기 정보를 MQTT로 전송"""
