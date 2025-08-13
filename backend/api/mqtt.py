@@ -205,7 +205,10 @@ def handle_sync_data(mqtt_data, extAddress):
       data.battery_level = bandData['battery_level']
       data.hrConfidence = bandData['hrConfidence']
       data.spo2Confidence = bandData['spo2Confidence']
-      data.hr = bandData['hr']
+      if tempwbandData['hr'] == 65535:
+        data.hr = 0
+      elif:
+        data.hr = bandData['hr']
       data.spo2 = bandData['spo2']
       data.motionFlag = bandData['motionFlag']
       data.scdState = bandData['scdState']
