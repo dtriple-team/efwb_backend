@@ -531,7 +531,19 @@ def fetch_uv_index_by_province_city(province, city, borough):
 def get_warn_weather(lat, lng):
     # 현재 시간 (서울 기준)
     now = datetime.now(ZoneInfo("Asia/Seoul"))
-    base_date = now.strftime("%Y%m%d")
+
+    # 45분 기준으로 base_time 계산
+    if now.minute <= 45:
+        one_hour_ago = now - timedelta(hours=1)
+        base_time = one_hour_ago.replace(minute=30, second=0, microsecond=0)
+    else:
+        base_time = now.replace(minute=30, second=0, microsecond=0)
+
+    # 날짜 계산: 00:45 이전이면 전날 날짜 사용
+    if now.hour == 0 and now.minute <= 45:
+        base_date = (now - timedelta(days=1)).strftime("%Y%m%d")
+    else:
+        base_date = base_time.strftime("%Y%m%d")
     
     # 지역에 따른 stnId 매핑
     REGION_NAME_NORMALIZE = {
