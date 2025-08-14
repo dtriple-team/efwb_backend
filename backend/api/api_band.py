@@ -1701,6 +1701,9 @@ def bandlog_post_api():
 def get_weather_api():
     global work
 
+    # 처음부터 위치를 고흥군으로 설정
+    WeatherState.location = "고흥군"
+
     # 최대 20번 재시도 (0.5초 간격, 총 10초 대기)
     retry_count = 0
     while WeatherState.location is None and retry_count < 20:
