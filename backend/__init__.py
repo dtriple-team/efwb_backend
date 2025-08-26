@@ -1,29 +1,30 @@
 print ("module [backend] loaded")
+import os
+import platform
+import logging
 
 from flask_cors import CORS
 from flask_sqlalchemy import get_debug_queries
-import os
-import platform
 from flask import Flask, render_template, make_response
 from flask_restless import APIManager
 from flask_socketio import SocketIO
 from backend.server_configuration.appConfig import *
 from flask_mqtt import Mqtt
-
-import logging
-
-
-# logging.basicConfig(filename = "test.log", level = logging.DEBUG)
-
-# app = Flask(__name__)
+from flask import send_from_directory
 
 app = Flask(__name__
             , template_folder=os.getcwd()+'/efwb-frontend/dist'
             , static_folder=os.getcwd()+'/efwb-frontend/dist/static'
-            , static_url_path='/static')
+            , static_url_path='/admin/static')
 
 
-cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, max_age=86400)
+cors = CORS(app, resources={r"/api/*": {"origins": "*"},
+                            r"/socket.io/*": {
+                            "origins": "*",
+                            "methods": ["GET", "POST"],
+                            "allow_headers": ["token"]
+                            }
+                        }, max_age=86400)
 
 cur_system = platform.system()
 if cur_system == "Windows":
@@ -45,59 +46,77 @@ mqtt = Mqtt()
 mqtt.init_app(app)
 
 manager = APIManager(app, flask_sqlalchemy_db=DBManager.db)
-socketio = SocketIO(app,cors_allowed_origins="*")
 
-@app.route("/", methods=["GET"])
-def page_index():
+# socket init
+socketio = SocketIO(app,
+                    cors_allowed_origins="*",
+                    async_mode='gevent',
+                    ping_timeout=60,
+                    ping_interval=25,
+                    # logger=True,          # 로깅 활성화
+                    # engineio_logger=True  # Engine.IO 로깅 활성화
+                    )
+
+@app.route("/admin/", methods=["GET"])
+def admin_index():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/band/", methods=["GET"])
-def page_band():
+
+@app.route("/admin/band/", methods=["GET"])
+def admin_band():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/band/detail/", methods=["GET"])
-def page_band_detail():
+
+@app.route("/admin/band/detail/", methods=["GET"])
+def admin_band_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/gateway/", methods=["GET"])
-def page_gateway():
+
+@app.route("/admin/gateway/", methods=["GET"])
+def admin_gateway():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/gateway/detail/", methods=["GET"])
-def page_gateway_detail():
+
+@app.route("/admin/gateway/detail/", methods=["GET"])
+def admin_gateway_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/user/", methods=["GET"])
-def page_user():
+
+@app.route("/admin/user/", methods=["GET"])
+def admin_user():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/user/detail/", methods=["GET"])
-def page_user_detail():
+
+@app.route("/admin/user/detail/", methods=["GET"])
+def admin_user_detail():
     resp = make_response(render_template("index.html"))
     return resp
-@app.route("/log/", methods=["GET"])
-def page_log():
+
+@app.route("/admin/log/", methods=["GET"])
+def admin_log():
     resp = make_response(render_template("index.html"))
     return resp
+
+@app.route("/admin/<path:path>")
+def admin_static(path):
+    return send_from_directory('/home/ubuntu/admin/efwb_admin/efwb-frontend/dist/static', path)
 
 from backend.api.api_create import *
 from backend.api.mqtt import *
 
 server = db.session.query(Server).first()
 if server.start == 0 :
-    print("first")
     db.session.query(Server).filter(Server.id == 1).update(dict(start=1))
     db.session.commit()
   
 else :
-    print("second")
     db.session.query(Server).filter(Server.id == 1).update(dict(start=0))
     db.session.commit()
     mqtt.subscribe('/efwb/post/sync')
     mqtt.subscribe('/efwb/post/async')
     mqtt.subscribe('/efwb/post/connectcheck')
-# mqtt.subscribe('/efwb/post/sync')
-# mqtt.subscribe('/efwb/post/async')
-# mqtt.subscribe('/efwb/post/connectcheck')
-
     
+    # New CHU
+    mqtt.subscribe('/DT/eHG4/GPS/Location')
+    
+socketio.start_background_task(start_disconnect_checker)

@@ -16,6 +16,8 @@ from flask import make_response, jsonify, request, json
 from backend import app, login_manager
 import requests
 import hashlib
+import time
+
 print("module [backend.api_band] loaded")
 
 
@@ -64,6 +66,10 @@ def login_api():
         else:
             if loginuser.password != password_encoder_512(data["password"]):
                 result = {'status': False, 'reason': 2}  # PW 틀림
+            
+            # 추가된 조건: permission이 0이 아닌 경우 로그인 실패
+            elif loginuser.permission != 0:
+                result = {'status': False, 'reason': 3}  # 권한 없음
 
             else:  # Login 성공
                 loginuser.last_login_time = datetime.now()
@@ -85,8 +91,28 @@ def login_api():
 
                 db.session.commit()
                 db.session.flush()
-                result = {'status': True, 'reason': 0,
-                          'user': loginuser.serialize()}
+                
+                # 응답에 전체 사용자 정보 포함
+                user_data = {
+                    'id': loginuser.id,
+                    'uid': loginuser.uid,
+                    'username': loginuser.username,
+                    'name': loginuser.name,
+                    'email': loginuser.email,
+                    'phone': loginuser.phone,
+                    'age': loginuser.age,
+                    'gender': 'M' if loginuser.gender == 1 else 'F',
+                    'permission': loginuser.permission,
+                    'token': loginuser.token,
+                    'created': loginuser.created.strftime("%Y-%m-%d %H:%M:%S") if loginuser.created else None,
+                    'last_login_time': loginuser.last_login_time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+                result = {
+                    'status': True, 
+                    'reason': 0,
+                    'user': user_data
+                }
 
     return make_response(jsonify(result), 200)
 
@@ -396,16 +422,182 @@ def user_delete_api():
 
 @app.route('/api/efwb/v1/users/<username>', methods=['GET'])
 @token_required
-def username_check_api(username):
-    dev = Users.query.filter(Users.username == username).first()
+def get_user_detail_by_username(username):
+    """사용자 상세 정보 조회 API (username 기준)"""
+    try:
+        # 토큰 검증
+        token = request.headers.get('token')
+        if not token:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'unauthorized',
+                'message': '인증 정보가 없습니다.'
+            }), 401)
 
-    if dev is None:
-        return make_response(jsonify('User is not Found.'), 404)
-    result = {
-        "result": "OK",
-        "data": dev.serialize()
-    }
-    return make_response(jsonify(result), 200)
+        # 토큰으로 사용자 확인
+        access_history = AccessHistory.query.filter_by(token=token).first()
+        if not access_history:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'invalid_token',
+                'message': '유효하지 않은 인증 정보입니다.'
+            }), 401)
+
+        # 기존 코드는 그대로 유지
+        user = db.session.query(Users).filter(Users.username == username).first()
+        
+        if user is None:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': '사용자를 찾을 수 없습니다.'
+            }), 404)
+            
+        # 사용자의 그룹 정보 조회 - 기존 쿼리 패턴 활용
+        user_group = db.session.query(Groups)\
+            .filter(Groups.id == UsersGroups.FK_gid)\
+            .filter(UsersGroups.FK_uid == user.id)\
+            .first()
+            
+        # 사용자의 밴드 목록 조회 - 기존 쿼리 패턴 활용
+        bands = db.session.query(Bands)\
+            .filter(Bands.id == UsersBands.FK_bid)\
+            .filter(UsersBands.FK_uid == user.id)\
+            .all()
+            
+        # 응답 데이터 구조화
+        user_data = user.serialize()
+        user_data.update({
+            'email': user.email,
+            'phone': user.phone,
+            'age': user.age,
+            'gender': 'M' if user.gender == 1 else 'F',
+            'created': user.created.strftime("%Y-%m-%d %H:%M:%S") if user.created else None,
+            'last_login_time': user.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_time else None,
+            'group': user_group.serialize() if user_group else None
+        })
+        
+            
+        return make_response(jsonify({
+            'status': True,
+            'data': user_data
+        }), 200)
+        
+    except Exception as e:
+        print(f"Error in get_user_detail_by_username: {str(e)}")
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+
+@app.route('/api/efwb/v1/users/<int:user_id>', methods=['GET'])
+@token_required
+def get_user_detail_by_id(user_id):
+    """사용자 상세 정보 조회 API (user_id 기준)"""
+    try:
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': '사용자를 찾을 수 없습니다.'
+            }), 404)
+            
+        # 사용자의 그룹 정보 조회
+        user_group = db.session.query(Groups).\
+            join(UsersGroups, Groups.id == UsersGroups.FK_gid).\
+            filter(UsersGroups.FK_uid == user_id).first()
+            
+        # 응답 데이터 구조화
+        user_data = user.serialize()
+        user_data.update({
+            'email': user.email,
+            'phone': user.phone,
+            'age': user.age,
+            'gender': 'M' if user.gender == 1 else 'F',
+            'created': user.created.strftime("%Y-%m-%d %H:%M:%S") if user.created else None,
+            'last_login_time': user.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_time else None,
+            'group': user_group.serialize() if user_group else None
+        })
+            
+        # 사용자의 밴드 목록 조회
+        bands = db.session.query(Bands).\
+            join(UsersBands, Bands.id == UsersBands.FK_bid).\
+            filter(UsersBands.FK_uid == user_id).all()
+            
+        band_list = []
+        for idx, band in enumerate(bands, 1):
+            band_data = band.serialize()
+            band_data['num'] = idx  # 번호 추가
+            band_list.append(band_data)
+            
+        user_data['bands'] = band_list
+            
+        return make_response(jsonify({
+            'status': True,
+            'data': user_data
+        }), 200)
+        
+    except Exception as e:
+        print(f"Error in get_user_detail_by_id: {str(e)}")  # 디버깅을 위한 로그
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+
+@app.route('/api/efwb/v1/users/<int:user_id>', methods=['PUT'])
+@token_required
+def update_user(user_id):
+    """사용자 정보 수정 API"""
+    data = json.loads(request.data)
+    
+    try:
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': 'User not found.'
+            }), 404)
+
+        # 수정 가능한 필드들
+        if 'name' in data:
+            user.name = data['name']
+        if 'email' in data:
+            # 이메일 중복 체크
+            existing_email = Users.query.filter(Users.email == data['email'], Users.id != user_id).first()
+            if existing_email:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'duplicate_email',
+                    'message': 'Email already exists.'
+                }), 400)
+            user.email = data['email']
+        if 'phone' in data:
+            user.phone = data['phone']
+        if 'age' in data:
+            user.age = int(data['age'])
+        if 'gender' in data:
+            user.gender = 1 if data['gender'] == 'M' else 2
+
+        db.session.commit()
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': 'User information updated successfully.'
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
 
 
 @app.route('/api/efwb/v1/users/groupinfo/<id>', methods=['GET'])
@@ -479,7 +671,7 @@ def users_samegroup_get_api(id):
         "result": "OK",
         "data": {
             "userlist": userlist,
-            "gid": gid
+            "gid": gid.FK_gid if gid else None
         }
     }
     return make_response(jsonify(result), 200)
@@ -565,16 +757,26 @@ def check_band_permission_user():
                 filter(UsersGroups.FK_gid == group.id).first()
 
         elif data['permission'] == 2:
+            group = selectSameGroupOfUser(data['uid'])
+            if group is None:
+                return make_response(jsonify('Group is not Found.'), 404)
+
             dev = db.session.query(Bands).\
                 filter(Bands.bid == data['bid']).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).first()
+                filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
+                filter(UsersGroups.FK_gid == group.id).first()
 
         elif data['permission'] == 3:
+            group = selectSameGroupOfUser(data['uid'])
+            if group is None:
+                return make_response(jsonify('Group is not Found.'), 404)
+
             dev = db.session.query(Bands).\
                 filter(Bands.bid == data['bid']).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).first()
+                filter(UsersBands.FK_uid == UsersGroups.FK_uid).\
+                filter(UsersGroups.FK_gid == group.id).first()
 
     if dev is None:
         result = {
@@ -616,12 +818,12 @@ def get_users_bandlist():
         elif data['permission'] == 2:
             dev = db.session.query(Bands).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).all()
+                filter(UsersBands.FK_uid == data['uid']).all()
 
         elif data['permission'] == 3:
             dev = db.session.query(Bands).\
                 filter(Bands.id == UsersBands.FK_bid).\
-                filter(UsersBands.FK_uid == id).all()
+                filter(UsersBands.FK_uid == data['uid']).all()
     for b in dev:
         bandList.append(b.serialize())
 
@@ -1324,38 +1526,57 @@ def sensordata_activity_oneday_post_api():
 
 @app.route('/api/efwb/v1/events', methods=["POST"])
 def events_post_api():
-
     data = json.loads(request.data)
     params = ['bid', 'days', 'uid']
 
     for param in params:
         if param not in data:
             return make_response(jsonify('Parameters are not enough.'), 400)
+            
     json_data = []
     dev = []
+    
+    # Events와 Bands 테이블을 조인하여 밴드 이름도 함께 조회
     if len(data['days']) == 0:  # 전체 이벤트에서
-        if data['uid'] != -1:  # uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-            dev = selectBandsEventsUser(data['uid'], data['bid'])
+        if data['uid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == UsersBands.FK_bid).\
+                filter(UsersBands.FK_uid == data['uid']).all()
 
-        elif data['bid'] != -1:  # bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-            dev = selectBandsEventsBands(data['bid'])
+        elif data['bid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == data['bid']).all()
 
-        else:  # uid bid 모두 정해져있지 않다 모든 전체 이벤트를 가져오겠다.
-            dev = selectBandsEvents()
+        else:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).all()
 
     else:  # 정해진 날짜에서
-        if data['uid'] != -1:  # uid가 정해져있다면 그 해당 uid와 관련된 userbands를 가져오겠다.
-            dev = selectBandsEventsUserDate(
-                data['uid'], data['bid'], data['days'])
+        if data['uid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == UsersBands.FK_bid).\
+                filter(UsersBands.FK_uid == data['uid']).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-        elif data['bid'] != -1:  # bid가 정해져있다면 그 band의 전체 이벤트를 가져오겠다.
-            dev = selectBandsEventsBandDate(data['bid'], data['days'])
+        elif data['bid'] != -1:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(Events.FK_bid == data['bid']).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-        else:  # uid bid 모두 정해져있지 않다 모든 그 기간안의 이벤트를 가져오겠다.
-            dev = selectBandsEventsDate(data['days'])
+        else:  
+            dev = db.session.query(Events, Bands.name.label('band_name')).\
+                join(Bands, Events.FK_bid == Bands.id).\
+                filter(func.date(Events.datetime).between(data['days'][0], datetimeBetween(data['days']))).all()
 
-    for i in dev:
-        json_data.append(i.serialize())
+    for event, band_name in dev:
+        event_data = event.serialize()
+        event_data['band_name'] = band_name  # 밴드 이름 추가
+        json_data.append(event_data)
+        
     result = {
         "result": "OK",
         "data": json_data
@@ -1476,13 +1697,28 @@ def bandlog_post_api():
     return make_response(jsonify(result), 200)
 
 
-@app.route('/api/efwb/v1/weather/<where>', methods=["GET"])
-def get_weather_api(where):
+@app.route('/api/efwb/v1/weather', methods=["GET"])
+def get_weather_api():
     global work
+
+    # 최대 20번 재시도 (0.5초 간격, 총 10초 대기)
+    retry_count = 0
+    while WeatherState.location is None and retry_count < 20:
+        time.sleep(0.5)
+        retry_count += 1
+
+    # 20번 재시도 후에도 WeatherState.location이 None이면 서울시로 설정
+    if WeatherState.location is None:
+        WeatherState.location = "서울시"
+
     work = True
-    result = getWeather(where)
-    work = False
-    return make_response(jsonify(result), 200)
+    try:
+        result = getWeather(WeatherState.location)
+        return make_response(jsonify(result), 200)
+    except Exception as e:
+        return make_response(jsonify({"error": str(e)}), 500)
+    finally:
+        work = False
 
 
 @app.route('/api/efwb/v1/nervestim/prescription', methods=["POST"])
@@ -1685,3 +1921,497 @@ def get_os_browser_from_useragent(userAgent):
         browser_ver = "Safari"
 
     return os_ver, browser_ver
+
+
+@app.route('/api/efwb/v1/connection-status', methods=['GET'])
+def get_bands_connection_status():
+    """
+    모든 밴드의 연결 상태를 조회하는 API
+    Returns:
+        - bid
+        - name
+        - connect_state
+        - connect_time
+        - disconnect_time
+    """
+    try:
+        bands = db.session.query(Bands).all()
+        result = []
+        
+        for band in bands:
+            band_status = {
+                'bid': band.bid,
+                'name': band.name,
+                'connect_state': band.connect_state,
+                'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
+                'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
+            }
+            result.append(band_status)
+            
+        return jsonify({
+            'status': 'success',
+            'data': result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
+        }), 500
+
+@app.route('/api/efwb/v1/connection-status/<bid>', methods=['GET'])
+def get_band_connection_status(bid):
+    """
+    특정 밴드의 연결 상태를 조회하는 API
+    Args:
+        bid: 밴드 ID
+    """
+    try:
+        band = db.session.query(Bands).filter_by(bid=bid).first()
+        
+        if not band:
+            return jsonify({
+                'status': 'error',
+                'message': '해당 밴드를 찾을 수 없습니다.'
+            }), 404
+            
+        band_status = {
+            'bid': band.bid,
+            'name': band.name,
+            'connect_state': band.connect_state,
+            'connect_time': band.connect_time.strftime("%Y-%m-%d %H:%M:%S") if band.connect_time else None,
+            'disconnect_time': band.disconnect_time.strftime("%Y-%m-%d %H:%M:%S") if band.disconnect_time else None
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'data': band_status
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': '밴드 연결 상태 조회 중 오류가 발생했습니다.'
+        }), 500 
+        
+@app.route('/api/efwb/v1/connected-locations', methods=['GET'])
+def get_connected_band_locations():
+    """현재 연결된 밴드들의 위치 정보를 조회"""
+    app_logger.info("연결된 밴드들의 위치 정보 조회 시작")
+    try:
+        connected_bands = db.session.query(Bands).filter(
+            Bands.connect_state == 1
+        ).all()
+        
+        result = []
+        for band in connected_bands:
+            result.append({
+                "id": band.id,
+                "bid": band.bid,
+                "latitude": float(band.latitude) if band.latitude else None,
+                "longitude": float(band.longitude) if band.longitude else None,
+                "name": band.name
+            })
+            weather = getWeatherFromCoords(band.latitude, band.longitude)
+            app_logger.info(
+                f"Band '{band.name}' (lat: {band.latitude}, lng: {band.longitude})의 날씨 정보: {weather}"
+        )
+        app_logger.info(f"총 {len(result)}개의 연결된 밴드 위치 정보 조회 완료")
+        return make_response(jsonify({
+            'status': 'success',
+            'data': result
+        }), 200)
+        
+    except Exception as e:
+        app_logger.error(f"연결된 밴드 위치 조회 중 에러 발생: {str(e)}")
+        return make_response(jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/signup', methods=['POST'])
+def signup_api():
+    """회원가입 API"""
+    data = json.loads(request.data)
+    
+    try:
+        # 필수 파라미터 체크
+        required_params = ['username', 'password', 'name', 'phone', 'age', 'gender', 'email']
+        for param in required_params:
+            if param not in data:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'missing_parameters',
+                    'message': 'Parameters are not enough.'
+                }), 400)
+
+        # 아이디 중복 체크
+        existing_user = Users.query.filter(Users.username == data['username']).first()
+        if existing_user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'duplicate_username',
+                'message': 'Username already exists.'
+            }), 400)
+            
+        # 이메일 중복 체크 
+        existing_email = Users.query.filter(Users.email == data['email']).first()
+        if existing_email:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'duplicate_email', 
+                'message': 'Email already exists.'
+            }), 400)
+
+        # 새 사용자 생성
+        new_user = Users()
+        new_user.username = data['username']
+        new_user.password = password_encoder_512(data['password'])
+        new_user.name = data['name']
+        new_user.phone = data['phone']
+        new_user.age = int(data['age'])
+        new_user.gender = 1 if data['gender'] == 'M' else 2
+        new_user.email = data['email']
+        new_user.permission = 2  # 일반 권한
+        
+        # uid는 현재 최대 uid + 1로 설정
+        max_uid = db.session.query(func.max(Users.uid)).scalar()
+        new_user.uid = (max_uid or 0) + 1
+
+        # DB에 저장
+        db.session.add(new_user)
+        db.session.flush()  # new_user.id 값을 얻기 위해 flush
+        
+        # general 그룹 찾기 (gid=3000)
+        general_group = Groups.query.filter_by(gid=3000).first()
+        if not general_group:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'group_not_found',
+                'message': 'Default group (dtriple) not found.'
+            }), 500)
+        
+        # UsersGroups 테이블에 연결 정보 추가
+        user_group = UsersGroups()
+        user_group.FK_uid = new_user.id
+        user_group.FK_gid = general_group.id
+        db.session.add(user_group)
+        
+        db.session.commit()
+
+        return make_response(jsonify({
+            'status': True,
+            'message': 'User registered successfully and added to dtriple group.'
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/users/update-profile', methods=['PUT'])
+@token_required
+def update_user_profile():
+    """사용자 프로필 정보 수정 API"""
+    try:
+        # 토큰 검증 및 사용자 확인
+        token = request.headers.get('token')
+        if not token:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'unauthorized',
+                'message': '인증 정보가 없습니다.'
+            }), 401)
+
+        access_history = AccessHistory.query.filter_by(token=token).first()
+        if not access_history:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'invalid_token',
+                'message': '유효하지 않은 인증 정보입니다.'
+            }), 401)
+
+        data = json.loads(request.data)
+        user = Users.query.get(access_history.FK_user_id)
+        
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'reason': 'user_not_found',
+                'message': '사용자를 찾을 수 없습니다.'
+            }), 404)
+
+        # 수정 가능한 필드들 업데이트
+        if 'name' in data:
+            user.name = data['name']
+        if 'email' in data:
+            # 이메일 중복 체크
+            existing_email = Users.query.filter(
+                Users.email == data['email'], 
+                Users.id != user.id
+            ).first()
+            if existing_email:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'duplicate_email',
+                    'message': '이미 사용 중인 이메일입니다.'
+                }), 400)
+            user.email = data['email']
+        if 'phone' in data:
+            user.phone = data['phone']
+        if 'age' in data:
+            user.age = int(data['age'])
+        if 'gender' in data:
+            user.gender = 1 if data['gender'].upper() == 'M' else 2
+        if 'password' in data and data['password']:
+            # 현재 비밀번호 확인
+            if 'current_password' not in data:
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'missing_current_password',
+                    'message': '현재 비밀번호를 입력해주세요.'
+                }), 400)
+                
+            if user.password != password_encoder_512(data['current_password']):
+                return make_response(jsonify({
+                    'status': False,
+                    'reason': 'invalid_password',
+                    'message': '현재 비밀번호가 일치하지 않습니다.'
+                }), 400)
+                
+            user.password = password_encoder_512(data['password'])
+
+        db.session.commit()
+
+        # 업데이트된 사용자 정보 반환
+        updated_user = {
+            'id': user.id,
+            'username': user.username,
+            'name': user.name,
+            'email': user.email,
+            'phone': user.phone,
+            'age': user.age,
+            'gender': 'M' if user.gender == 1 else 'F',
+            'permission': user.permission,
+            'last_login_time': user.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_time else None
+        }
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': '프로필이 성공적으로 수정되었습니다.',
+            'user': updated_user
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'reason': 'server_error',
+            'message': str(e)
+        }), 500)
+        
+@app.route('/api/efwb/v1/users/<int:user_id>/bands', methods=['POST'])
+@token_required
+def match_band(user_id):
+    """사용자와 밴드 매칭 API"""
+    try:
+        data = json.loads(request.data)
+        
+        # 필수 파라미터 체크
+        required_params = ['name', 'bandId', 'alias']
+        for param in required_params:
+            if param not in data:
+                return make_response(jsonify({
+                    'status': False,
+                    'message': 'Parameters are not enough.'
+                }), 400)
+                
+        # 사용자 존재 확인
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'User not found.'
+            }), 404)
+            
+        # 밴드 존재 확인
+        band = Bands.query.filter_by(bid=data['bandId']).first()
+        if not band:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band not found.'
+            }), 404)
+            
+        # 이미 매칭된 밴드인지 확인
+        existing_match = UsersBands.query.filter_by(
+            FK_uid=user_id,
+            FK_bid=band.id
+        ).first()
+        
+        if existing_match:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band is already matched with this user.'
+            }), 400)
+            
+        # 밴드 정보 업데이트
+        band.name = data['name']
+        band.alias = data['alias']
+        
+        # 사용자-밴드 매칭 생성
+        new_match = UsersBands()
+        new_match.FK_uid = user_id
+        new_match.FK_bid = band.id
+        
+        db.session.add(new_match)
+        db.session.commit()
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': 'Band matched successfully.',
+            'data': {
+                'bandId': band.bid,
+                'name': band.name,
+                'alias': band.alias
+            }
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'message': str(e)
+        }), 500)
+
+@app.route('/api/efwb/v1/users/<int:user_id>/band-matching/<string:band_id>', methods=['DELETE'])
+@token_required
+def unmatch_band(user_id, band_id):
+    """사용자와 밴드 매칭 해제 API"""
+    try:
+        # 사용자 존재 확인
+        user = Users.query.get(user_id)
+        if not user:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'User not found.'
+            }), 404)
+            
+        # 밴드 존재 확인
+        band = Bands.query.filter_by(bid=band_id).first()
+        if not band:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band not found.'
+            }), 404)
+            
+        # 매칭 정보 확인
+        match = UsersBands.query.filter_by(
+            FK_uid=user_id,
+            FK_bid=band.id  # band.id는 Bands 테이블의 PK
+        ).first()
+        
+        if not match:
+            return make_response(jsonify({
+                'status': False,
+                'message': 'Band matching not found.'
+            }), 404)
+            
+        # 매칭 관계만 삭제
+        db.session.delete(match)
+        db.session.commit()
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': 'Band matching removed successfully.'
+        }), 200)
+        
+    except Exception as e:
+        db.session.rollback()
+        return make_response(jsonify({
+            'status': False,
+            'message': str(e)
+        }), 500)
+        
+@app.route('/api/efwb/v1/bands/sensor-data/<bid>', methods=['GET'])
+@token_required
+def get_band_sensor_data(bid):
+    """특정 밴드의 최신 센서 데이터를 조회하는 API"""
+    try:
+        # 먼저 Band 테이블에서 bid로 band의 id를 조회
+        band = db.session.query(Bands).filter(Bands.bid == bid).first()
+        
+        if not band:
+            return make_response(jsonify({
+                'status': False,
+                'message': '밴드를 찾을 수 없습니다.',
+                'data': {
+                    'battery_level': '-',
+                    'hrConfidence': '-',
+                    'spo2Confidence': '-',
+                    'hr': '-',
+                    'spo2': '-',
+                    'activity': '-',
+                    'walk_steps': '-',
+                    'run_steps': '-',
+                    'latitude': None,
+                    'longitude': None
+                }
+            }), 404)
+            
+        # band.id를 사용하여 최신 센서 데이터 조회
+        latest_sensor_data = db.session.query(SensorData)\
+            .filter(SensorData.FK_bid == band.id)\
+            .order_by(SensorData.datetime.desc())\
+            .first()
+            
+        if not latest_sensor_data:
+            return make_response(jsonify({
+                'status': False,
+                'message': '센서 데이터가 없습니다.',
+                'data': {
+                    'battery_level': '-',
+                    'hrConfidence': '-',
+                    'spo2Confidence': '-',
+                    'hr': '-',
+                    'spo2': '-',
+                    'activity': '-',
+                    'walk_steps': '-',
+                    'run_steps': '-',
+                    'latitude': float(band.latitude) if band.latitude else None,
+                    'longitude': float(band.longitude) if band.longitude else None
+                }
+            }), 404)
+            
+        # 응답 데이터 구성
+        sensor_data = {
+            'battery_level': latest_sensor_data.battery_level if latest_sensor_data.battery_level is not None else '-',
+            'hrConfidence': latest_sensor_data.hrConfidence if latest_sensor_data.hrConfidence is not None else '-',
+            'spo2Confidence': latest_sensor_data.spo2Confidence if latest_sensor_data.spo2Confidence is not None else '-',
+            'hr': latest_sensor_data.hr if latest_sensor_data.hr is not None else '-',
+            'spo2': latest_sensor_data.spo2 if latest_sensor_data.spo2 is not None else '-',
+            'motionFlag': latest_sensor_data.motionFlag if latest_sensor_data.motionFlag is not None else '-',
+            'scdState': latest_sensor_data.scdState if latest_sensor_data.scdState is not None else '-',
+            'activity': latest_sensor_data.activity if latest_sensor_data.activity is not None else '-',
+            'walk_steps': latest_sensor_data.walk_steps if latest_sensor_data.walk_steps is not None else '-',
+            'run_steps': latest_sensor_data.run_steps if latest_sensor_data.run_steps is not None else '-',
+            'h': latest_sensor_data.h if latest_sensor_data.h is not None else '-',
+            'latitude': float(band.latitude) if band.latitude else None,
+            'longitude': float(band.longitude) if band.longitude else None
+        }
+        
+        return make_response(jsonify({
+            'status': True,
+            'message': '센서 데이터 조회 성공',
+            'data': sensor_data
+        }), 200)
+        
+    except Exception as e:
+        app_logger.error(f"센서 데이터 조회 중 에러 발생: {str(e)}")
+        return make_response(jsonify({
+            'status': False,
+            'message': '센서 데이터 조회 중 오류가 발생했습니다.',
+            'error': str(e)
+        }), 500)

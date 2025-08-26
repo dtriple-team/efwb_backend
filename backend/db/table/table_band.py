@@ -133,11 +133,13 @@ class Bands(db.Model):
     gender = db.Column('gender', db.Integer, comment='착용자 성별')
     birth = db.Column('birth', db.DateTime, comment='착용자 생년월일')
     disconnect_time = db.Column(
-        'disconnect_time', db.DateTime,  comment='마지막 연결 종료 시간')
+        'disconnect_time', db.DateTime, nullable=True, comment='마지막 연결 종료 시간')
     connect_time = db.Column(
-        'connect_time', db.DateTime,   comment='마지막 연결 시간')
+        'connect_time', db.DateTime, nullable=True, comment='마지막 연결 시간')
     connect_state = db.Column(
-        'connect_state', db.Integer, default=0, comment='밴드 상태 0 : off, 1 : on')
+        'connect_state', db.Integer, default=0, comment='밴드 상태 0:disconnected, 1:connected')
+    latitude = db.Column('latitude', db.Float, comment='위도')
+    longitude = db.Column('longitude', db.Float, comment='경도')
 
     def serialize(self):
         resultJSON = {
@@ -151,7 +153,9 @@ class Bands(db.Model):
             "birth": self.birth,
             "disconnect_time": self.disconnect_time,
             "connect_time": self.connect_time,
-            "connect_state": self.connect_state
+            "connect_state": self.connect_state,
+            "latitude": self.latitude,
+            "longitude": self.longitude
         }
         return resultJSON
 
