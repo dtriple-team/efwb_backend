@@ -467,6 +467,59 @@ def handle_sync_data(mqtt_data, extAddress):
     #   insertGatewaysBands(gw.id, band.id)
     #   insertUsersBands(1, band.id)
 
+def handle_events_data(mqtt_data, extAddress):
+    app_logger.debug(f"Processing sensor data: {mqtt_data}")
+    try:
+        # extAddress 덮어쓰기(신뢰 소스 고정)
+        mqtt_data.setdefault('extAddress', {})
+        mqtt_data['extAddress']['low'] = extAddress
+
+        # 밴드 존재만 확인(위치 업데이트는 안 함)
+        band = db.session.query(Bands).filter_by(bid=extAddress).first()
+        if band is None:
+            app_logger.warning(f"Band not found for extAddress: {extAddress}")
+            return
+
+        now_ts = datetime.now(timezone('Asia/Seoul'))
+
+        # gps: "lat,lon,..." 형태 → 위도/경도만 파싱
+        latitude = longitude = None
+        gps_str = (mqtt_data.get("gps") or "").strip()
+        if gps_str:
+            parts = [p.strip() for p in gps_str.split(",")]
+            if len(parts) >= 2:
+                try:
+                    latitude = float(parts[0])
+                    longitude = float(parts[1])
+                except ValueError:
+                    app_logger.warning(f"Invalid GPS format: {gps_str}")
+
+        # DB 행 구성(events_sensordata에만 insert)
+        row = EventsSensorData(
+            FK_bid=extAddress,
+            datetime=now_ts,
+            temp=mqtt_data.get("temp"),
+            feels_like=mqtt_data.get("feels_like"),
+            humidity=mqtt_data.get("humidity"),
+            latitude=latitude,
+            longitude=longitude,
+            WBGT=mqtt_data.get("WBGT"),
+            total_Kcal_10min=mqtt_data.get("total_Kcal_10min")
+        )
+
+        try:
+            db.session.add(row)
+            db.session.commit()
+            app_logger.debug(f"Inserted events_sensordata for bid={extAddress}")
+        except Exception as e:
+            db.session.rollback()
+            app_logger.error(f"DB insert error: {e}", exc_info=True)
+
+    except Exception as e:
+        app_logger.error(f"Unexpected error in handle_events_data: {e}", exc_info=True)
+    finally:
+        db.session.remove()
+
 def check_disconnected_bands():
     with app.app_context():
         try:
@@ -590,9 +643,10 @@ def publish_weather_and_warn_mqtt_by_bid(extAddress):
             warn_msg1 = f"#XMQTTSUBMSG : 1,{extAddress},99,99"
             warn_msg2 = f"#XMQTTSUBMSG : 1,99,99"
         else:
-            warn_msg = None  # 특보 없음
+            warn_msg1 = None  # 특보 없음
+            warn_msg2 = None  # 특보 없음
 
-        if warn_msg:
+        if warn_msg1 or warn_msg2:
             try:
                 mqtt.publish(topic1, warn_msg1)
                 socketio.sleep(1.0)
@@ -941,6 +995,16 @@ def handle_mqtt_message(client, userdata, message):
             enqueue(1, lambda: None)  # 현재 미사용
 
         # 이벤트 메시지 → 우선순위 0
+        elif topic == '/DT/eHG4/naas/Status/Band_Events_Data':
+            def job():
+                mqtt_data = json.loads(payload)
+                extAddress = int(
+                    format(mqtt_data['extAddress']['high'], 'x') +
+                    format(mqtt_data['extAddress']['low'], 'x'), 16
+                )
+                handle_events_data(mqtt_data=mqtt_data, extAddress=extAddress)
+            enqueue(0, job)
+
         elif topic == '/DT/eHG4/naas/post/async':
             def job():
                 event_data = json.loads(payload)

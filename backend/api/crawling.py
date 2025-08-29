@@ -624,7 +624,6 @@ def get_warn_weather(lat, lng):
         response = requests.get(warn_url, params=params)
         
         if response.status_code != 200:
-            WeatherState.warn_send_flag = 2
             return {"error": "Failed to check weather report"}
 
         result = response.json()
@@ -658,7 +657,6 @@ def get_warn_weather(lat, lng):
                 if result_code == "03":
                     WeatherState.warn_send_flag = 2
                 error_msg = error_messages.get(result_code, "unknown error")
-                WeatherState.warn_send_flag = 2
                 return {
                     "error": f"Meteorological Service API error ({result_code}): {error_msg}",
                     "detail": result_msg
@@ -666,7 +664,6 @@ def get_warn_weather(lat, lng):
 
             # 정상 응답이지만 데이터가 없는 경우
             if 'body' not in result['response'] or not result['response']['body'].get('items'):
-                WeatherState.warn_send_flag = 2
                 return {
                     "region": region,
                     "warnings": [],
