@@ -470,41 +470,45 @@ def handle_sync_data(mqtt_data, extAddress):
 def handle_events_data(mqtt_data, extAddress):
     app_logger.debug(f"Processing sensor data: {mqtt_data}")
     try:
-        # extAddress 덮어쓰기(신뢰 소스 고정)
+        # extAddress 덮어쓰기
         mqtt_data.setdefault('extAddress', {})
         mqtt_data['extAddress']['low'] = extAddress
 
-        # 밴드 존재만 확인(위치 업데이트는 안 함)
+        # 밴드 존재만 확인
         band = db.session.query(Bands).filter_by(bid=extAddress).first()
         if band is None:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
             return
 
+        # 기본 timestamp (gps timestamp는 사용하지 않음)
         now_ts = datetime.now(timezone('Asia/Seoul'))
 
-        # gps: "lat,lon,..." 형태 → 위도/경도만 파싱
         latitude = longitude = None
+
         gps_str = (mqtt_data.get("gps") or "").strip()
         if gps_str:
-            parts = [p.strip() for p in gps_str.split(",")]
-            if len(parts) >= 2:
-                try:
+            try:
+                # gps 문자열을 쉼표로 분리
+                parts = [p.strip() for p in gps_str.split(",")]
+                if len(parts) >= 2:
                     latitude = float(parts[0])
                     longitude = float(parts[1])
-                except ValueError:
-                    app_logger.warning(f"Invalid GPS format: {gps_str}")
+                else:
+                    app_logger.warning(f"GPS data has insufficient parts: {gps_str}")
+            except Exception as e:
+                app_logger.warning(f"GPS parsing failed: {gps_str}, error={e}")
 
-        # DB 행 구성(events_sensordata에만 insert)
+        # DB 행 구성
         row = EventsSensorData(
-            FK_bid=extAddress,
+            bid=extAddress,
             datetime=now_ts,
-            temp=mqtt_data.get("temp"),
-            feels_like=mqtt_data.get("feels_like"),
+            temp=(mqtt_data.get("temp") / 100) if mqtt_data.get("temp") is not None else None,
+            feels_like=(mqtt_data.get("feels_like") / 100) if mqtt_data.get("feels_like") is not None else None,
             humidity=mqtt_data.get("humidity"),
             latitude=latitude,
             longitude=longitude,
-            WBGT=mqtt_data.get("WBGT"),
-            total_Kcal_10min=mqtt_data.get("total_Kcal_10min")
+            WBGT=(mqtt_data.get("WBGT") / 100) if mqtt_data.get("WBGT") is not None else None,
+            total_Kcal_10min=(mqtt_data.get("total_Kcal_10min") / 100) if mqtt_data.get("total_Kcal_10min") is not None else None
         )
 
         try:
@@ -519,6 +523,8 @@ def handle_events_data(mqtt_data, extAddress):
         app_logger.error(f"Unexpected error in handle_events_data: {e}", exc_info=True)
     finally:
         db.session.remove()
+
+
 
 def check_disconnected_bands():
     with app.app_context():
@@ -908,8 +914,10 @@ def publish_info_mqtt_by_bid(extAddress):
         )
 
         mqtt.publish(topic1, message1)
+        socketio.sleep(0.5)
         mqtt.publish(topic2, message2)
-        app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+        app_logger.info(f"[MQTT] Sent weather to {topic1}: {message1}")
+        app_logger.info(f"[MQTT] Sent weather to {topic2}: {message2}")
 
     except Exception as e:
         db.session.rollback()
@@ -997,12 +1005,48 @@ def handle_mqtt_message(client, userdata, message):
         # 이벤트 메시지 → 우선순위 0
         elif topic == '/DT/eHG4/naas/Status/Band_Events_Data':
             def job():
-                mqtt_data = json.loads(payload)
-                extAddress = int(
-                    format(mqtt_data['extAddress']['high'], 'x') +
-                    format(mqtt_data['extAddress']['low'], 'x'), 16
-                )
-                handle_events_data(mqtt_data=mqtt_data, extAddress=extAddress)
+                try:
+                    # 1. gps 안의 timestamp 제거 (,"YYYY-MM-DD HH:MM:SS")
+                    fixed_payload = re.sub(
+                        r'("gps"\s*:\s*".*?),\s*"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}"+"',
+                        r'\1"',
+                        payload
+                    )
+
+                    # 2. JSON 파싱
+                    mqtt_data = json.loads(fixed_payload)
+
+                    # 3. gps 문자열 파싱 → 위도, 경도만 추출
+                    gps_str = (mqtt_data.get("gps") or "").strip()
+                    lat, lng = None, None
+                    if gps_str:
+                        parts = [p.strip() for p in gps_str.split(",")]
+                        if len(parts) >= 2:
+                            try:
+                                lat = float(parts[0])
+                                lng = float(parts[1])
+                            except ValueError:
+                                app_logger.warning(f"Invalid GPS format: {gps_str}")
+
+                    # 4. 추출한 값 mqtt_data에 추가
+                    mqtt_data["latitude"] = lat
+                    mqtt_data["longitude"] = lng
+
+                    # 5. extAddress 계산
+                    extAddress = int(
+                        format(mqtt_data['extAddress']['high'], 'x') +
+                        format(mqtt_data['extAddress']['low'], 'x'), 16
+                    )
+
+                    # 6. DB 저장 처리
+                    handle_events_data(mqtt_data=mqtt_data, extAddress=extAddress)
+
+                except Exception as e:
+                    app_logger.error(
+                        f"Error parsing Band_Events_Data payload: {e}, raw={payload}",
+                        exc_info=True
+                    )
+
             enqueue(0, job)
 
         elif topic == '/DT/eHG4/naas/post/async':

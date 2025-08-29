@@ -49,6 +49,7 @@ mqtt.subscribe('/DT/eHG4/naas/post/async')
 mqtt.subscribe('/DT/eHG4/naas/WEATHER/GET')
 mqtt.subscribe('/DT/eHG4/naas/INFO/GET')
 # mqtt.subscribe('/DT/eHG4/post/connectcheck')
+mqtt.subscribe('/DT/eHG4/naas/Status/Band_Events_Data')
 
 # New CHU
 mqtt.subscribe('/DT/eHG4/naas/GPS/Location')

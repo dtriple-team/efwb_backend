@@ -169,18 +169,18 @@ class EventsSensorData(db.Model):
     __tablename__ = 'events_sensordata'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    FK_bid = db.Column(db.Integer, db.ForeignKey('bands.id', ondelete='CASCADE'))
+    bid = db.Column('bid', db.String(48), comment='밴드 아이디')
 
     datetime = db.Column(db.DateTime, comment='datetime')
-    temp = db.Column(db.Integer, comment='온도')
-    feels_like = db.Column(db.Integer, comment='체감온도')
+    temp = db.Column(db.Numeric(10, 1), comment='온도')
+    feels_like = db.Column(db.Numeric(10, 1), comment='체감온도')
     humidity = db.Column(db.Integer, comment='습도')
 
     latitude = db.Column(db.Numeric(10, 8), comment='위도')
     longitude = db.Column(db.Numeric(11, 8), comment='경도')
 
-    WBGT = db.Column(db.Integer, comment='WBGT')
-    total_Kcal_10min = db.Column(db.Integer, comment='10분간 총 칼로리 소모')
+    WBGT = db.Column(db.Numeric(10, 3), comment='WBGT')
+    total_Kcal_10min = db.Column(db.Numeric(10, 3), comment='10분간 총 칼로리 소모')
 
 
 # class Gateways(db.Model):
