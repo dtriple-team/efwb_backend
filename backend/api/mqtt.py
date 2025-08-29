@@ -565,28 +565,41 @@ def publish_weather_and_warn_mqtt_by_bid(extAddress):
                 feels_like = int(float(weather["feels_like"]) * 100)
                 humidity = int(float(weather["humidity"]))
 
-                topic = "/DT/eHG4/naas/Status/BandSet"
-                message = f"#XMQTTSUBMSG : 0,{extAddress},{temp},{feels_like},{humidity}"
-                mqtt.publish(topic, message)
-                app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+                # 첫 번째 토픽
+                topic1 = "/DT/eHG4/naas/Status/BandSet"
+                message1 = f"#XMQTTSUBMSG : 0,{extAddress},{temp},{feels_like},{humidity}"
+                mqtt.publish(topic1, message1)
+                app_logger.info(f"[MQTT] Sent weather to {topic1}: {message1}")
+                socketio.sleep(1.0)
+                # 두 번째 토픽
+                topic2 = "/DT/eHG4/naas/Status/BandSet2/{}".format(extAddress)
+                message2 = f"#XMQTTSUBMSG : 0,{temp},{feels_like},{humidity}"
+                mqtt.publish(topic2, message2)
+                app_logger.info(f"[MQTT] Sent weather to {topic2}: {message2}")
             except Exception as e:
                 app_logger.error(f"[MQTT] Failed to publish weather for Band {extAddress}: {e}")
 
         # 특보 정보 조회 및 MQTT 전송
         get_warn_weather(lat, lng)
-        topic = "/DT/eHG4/naas/Status/BandSet"
+        topic1 = "/DT/eHG4/naas/Status/BandSet"
+        topic2 = "/DT/eHG4/naas/Status/BandSet2/{}".format(extAddress)
         if WeatherState.warn_send_flag == 1:
-            warn_msg = f"#XMQTTSUBMSG : 1,{extAddress},{WeatherState.warn_types},{WeatherState.warn_levels}"
+            warn_msg1 = f"#XMQTTSUBMSG : 1,{extAddress},{WeatherState.warn_types},{WeatherState.warn_levels}"
+            warn_msg2 = f"#XMQTTSUBMSG : 1,{WeatherState.warn_types},{WeatherState.warn_levels}"
         elif WeatherState.warn_send_flag == 2:
-            warn_msg = f"#XMQTTSUBMSG : 1,{extAddress},99,99"
+            warn_msg1 = f"#XMQTTSUBMSG : 1,{extAddress},99,99"
+            warn_msg2 = f"#XMQTTSUBMSG : 1,99,99"
         else:
             warn_msg = None  # 특보 없음
 
         if warn_msg:
             try:
-                mqtt.publish(topic, warn_msg)
+                mqtt.publish(topic1, warn_msg1)
                 socketio.sleep(1.0)
-                app_logger.info(f"[MQTT] Sent warning to {topic}: {warn_msg}")
+                mqtt.publish(topic2, warn_msg2)
+                socketio.sleep(1.0)
+                app_logger.info(f"[MQTT] Sent warning to {topic1}: {warn_msg1}")
+                app_logger.info(f"[MQTT] Sent warning to {topic2}: {warn_msg2}")
             except Exception as e:
                 app_logger.error(f"[MQTT] Publish warning failed for {extAddress}: {e}")
 
@@ -654,12 +667,20 @@ def start_publish_weather_mqtt_to_bands():
                 feels_like = int(float(weather.get("feels_like")) * 100)
                 humidity = int(float(weather.get("humidity")))
 
-                topic = "/DT/eHG4/naas/Status/BandSet"
-                message = f"#XMQTTSUBMSG : 0,{bid},{temp},{feels_like},{humidity}"
+                # 첫 번째 토픽
+                topic1 = "/DT/eHG4/naas/Status/BandSet"
+                message1 = f"#XMQTTSUBMSG : 0,{bid},{temp},{feels_like},{humidity}"
 
-                mqtt.publish(topic, message)
+                mqtt.publish(topic1, message1)
                 socketio.sleep(0.5)
-                app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
+                app_logger.info(f"[MQTT] Sent weather to {topic1}: {message1}")
+
+                # 두 번째 토픽
+                topic2 = "/DT/eHG4/naas/Status/BandSet2/{}".format(bid)
+                message2 = f"#XMQTTSUBMSG : 0,{temp},{feels_like},{humidity}"
+                mqtt.publish(topic2, message2)
+                socketio.sleep(0.5)
+                app_logger.info(f"[MQTT] Sent weather to {topic2}: {message2}")
 
             except Exception as e:
                 db.session.rollback()
@@ -718,18 +739,23 @@ def start_weather_warning_mqtt_publish_checker():
 
         get_warn_weather(lat, lng)
 
-        topic = "/DT/eHG4/naas/Status/BandSet"
+        topic1 = "/DT/eHG4/naas/Status/BandSet"
+        topic2 = "/DT/eHG4/naas/Status/BandSet2/{}".format(bid)
         if WeatherState.warn_send_flag == 1:
-            message = f"#XMQTTSUBMSG : 1,{bid},{WeatherState.warn_types},{WeatherState.warn_levels}"
+            message1 = f"#XMQTTSUBMSG : 1,{bid},{WeatherState.warn_types},{WeatherState.warn_levels}"
+            message2 = f"#XMQTTSUBMSG : 1,{WeatherState.warn_types},{WeatherState.warn_levels}"
         elif WeatherState.warn_send_flag == 2:
-            message = f"#XMQTTSUBMSG : 1,{bid},99,99"
+            message1 = f"#XMQTTSUBMSG : 1,{bid},99,99"
+            message2 = f"#XMQTTSUBMSG : 1,99,99"
         else:
             continue  # 특보 없으면 건너뜀
 
         try:
-            mqtt.publish(topic, message)
+            mqtt.publish(topic1, message1)
             socketio.sleep(0.5)  # 필요시 0.01~0.05로 조정
-            app_logger.info(f"[MQTT] Sent to {topic}: {message}")
+            mqtt.publish(topic2, message2)
+            app_logger.info(f"[MQTT] Sent to {topic1}: {message1}")
+            app_logger.info(f"[MQTT] Sent to {topic2}: {message2}")
         except Exception as e:
             app_logger.error(f"[MQTT] Publish failed for {bid}: {e}")
 
@@ -816,13 +842,19 @@ def publish_info_mqtt_by_bid(extAddress):
             temperature_dayMax = 0
 
         # MQTT 메시지 발행
-        topic = "/DT/eHG4/naas/Status/BandSet"
-        message = (
+        topic1 = "/DT/eHG4/naas/Status/BandSet"
+        topic2 = "/DT/eHG4/naas/Status/BandSet2/{}".format(extAddress)
+        message1 = (
             f"#XMQTTSUB2MSG : 0,{extAddress},"
             f"{sum_Kcal_acc},{ssHr_dayMin},{ssHr_dayMax},{temperature_dayMin},{temperature_dayMax}"
         )
+        message2 = (
+            f"#XMQTTSUB2MSG : 0,"
+            f"{sum_Kcal_acc},{ssHr_dayMin},{ssHr_dayMax},{temperature_dayMin},{temperature_dayMax}"
+        )
 
-        mqtt.publish(topic, message)
+        mqtt.publish(topic1, message1)
+        mqtt.publish(topic2, message2)
         app_logger.info(f"[MQTT] Sent weather to {topic}: {message}")
 
     except Exception as e:
