@@ -30,7 +30,7 @@ mqtt_event_queue = queue.PriorityQueue()
 background_done = threading.Event()  # 초기화 완료 이벤트
 counter = itertools.count()
 
-current_event_type = None
+current_event_type = "휴식알림"
 
 def mqttPublish(topic, message):
   mqtt.publish(topic, message)
@@ -485,7 +485,7 @@ def handle_events_data(mqtt_data, extAddress):
         mqtt_data.setdefault('extAddress', {})
         mqtt_data['extAddress']['low'] = extAddress
 
-        # 밴드 존재만 확인
+        # 밴드 조회
         band = db.session.query(Bands).filter_by(bid=extAddress).first()
         if band is None:
             app_logger.warning(f"Band not found for extAddress: {extAddress}")
@@ -502,10 +502,16 @@ def handle_events_data(mqtt_data, extAddress):
                 if len(parts) >= 2:
                     latitude = float(parts[0])
                     longitude = float(parts[1])
-                else:
-                    app_logger.warning(f"GPS data has insufficient parts: {gps_str}")
-            except Exception as e:
-                app_logger.warning(f"GPS parsing failed: {gps_str}, error={e}")
+
+                    if latitude == -99 or latitude == None:
+                        if band.latitude is not None and band.longitude is not None:
+                            latitude = band.latitude
+                            longitude = band.longitude
+                        else:
+                            latitude = None
+                            longitude = None
+            except Exception:
+                pass
 
         # DB 행 구성
         row = EventsSensorData(
@@ -533,7 +539,7 @@ def handle_events_data(mqtt_data, extAddress):
         app_logger.error(f"Unexpected error in handle_events_data: {e}", exc_info=True)
     finally:
         db.session.remove()
-        current_event_type = None
+        current_event_type = "휴식알림"
 
 
 
@@ -1085,9 +1091,6 @@ def handle_mqtt_message(client, userdata, message):
                     # 4. event_type 판별
                     if str(event_data.get("type")) == "6" and str(event_data.get("value")) == "1":
                         current_event_type = "SOS"
-                    else:
-                        current_event_type = "휴식알림"
-                    event_data["event_type"] = current_event_type
 
                     insertEvent(dev.id, event_data['type'], event_data['value'], datetime.now(ZoneInfo('Asia/Seoul')))
 
