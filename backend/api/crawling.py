@@ -399,7 +399,9 @@ def get_weather(location, lat, lng):
         province, city, borough = get_province_city_from_coords(lat, lng)
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         if 5 <= now.month <= 9:
-            feels_like = fetch_uv_index_by_province_city(province, city, borough)
+            # 기상청 체감온도 API 종료로 공식 계산 방법 사용
+            # feels_like = fetch_uv_index_by_province_city(province, city, borough)
+            feels_like = kma_official_feels_like(temp, humidity, wind)
         else:
             feels_like = kma_official_feels_like(temp, humidity, wind)
 
