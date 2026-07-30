@@ -104,5 +104,7 @@ typings/
 
 *.pyc 
 
-server_log.json
+server_log.json*
 /venv
+
+*.zip
